@@ -1,0 +1,2627 @@
+{
+    "colonies": {
+        "W0N1": {
+            "configs": {
+                "bunker": {
+                    "phaseIsDone": false,
+                    "bunkerType": "type2",
+                    "anchorX": 23,
+                    "anchorY": 24,
+                    "trackedStructures": {
+                        "spawn_2_1": {
+                            "type": "spawn",
+                            "relX": 2,
+                            "relY": 1,
+                            "absX": 25,
+                            "absY": 25,
+                            "id": "2d75a44a5cd4b0e",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_4_0": {
+                            "type": "extension",
+                            "relX": 4,
+                            "relY": 0,
+                            "absX": 27,
+                            "absY": 24,
+                            "id": "53fca45601fe9dd",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_4_1": {
+                            "type": "extension",
+                            "relX": 4,
+                            "relY": 1,
+                            "absX": 27,
+                            "absY": 25,
+                            "id": "5e44a458d227534",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_5_1": {
+                            "type": "extension",
+                            "relX": 5,
+                            "relY": 1,
+                            "absX": 28,
+                            "absY": 25,
+                            "id": "51f0a45cffed46c",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_6_2": {
+                            "type": "extension",
+                            "relX": 6,
+                            "relY": 2,
+                            "absX": 29,
+                            "absY": 26,
+                            "id": "b5dda4623ec7a6c",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_6_3": {
+                            "type": "extension",
+                            "relX": 6,
+                            "relY": 3,
+                            "absX": 29,
+                            "absY": 27,
+                            "id": "c663a466cf22c10",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_5_4": {
+                            "type": "extension",
+                            "relX": 5,
+                            "relY": 4,
+                            "absX": 28,
+                            "absY": 28,
+                            "id": "8951a46c186c086",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_4_3": {
+                            "type": "extension",
+                            "relX": 4,
+                            "relY": 3,
+                            "absX": 27,
+                            "absY": 27,
+                            "id": "59c7a47160c4513",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_4_5": {
+                            "type": "extension",
+                            "relX": 4,
+                            "relY": 5,
+                            "absX": 27,
+                            "absY": 29,
+                            "id": "e836a475d43c500",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_3_5": {
+                            "type": "extension",
+                            "relX": 3,
+                            "relY": 5,
+                            "absX": 26,
+                            "absY": 29,
+                            "id": "7d45a47d29b176a",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_3_4": {
+                            "type": "extension",
+                            "relX": 3,
+                            "relY": 4,
+                            "absX": 26,
+                            "absY": 28,
+                            "id": "d865a48247ad5d5",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "container_0_0": {
+                            "type": "container",
+                            "relX": 0,
+                            "relY": 0,
+                            "absX": 23,
+                            "absY": 24,
+                            "id": "71faa48c085e889",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "tower_3_0": {
+                            "type": "tower",
+                            "relX": 3,
+                            "relY": 0,
+                            "absX": 26,
+                            "absY": 24,
+                            "id": "9a73a4971e07bb4",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "extension_2_4": {
+                            "type": "extension",
+                            "relX": 2,
+                            "relY": 4,
+                            "absX": 25,
+                            "absY": 28,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_0_4": {
+                            "type": "extension",
+                            "relX": 0,
+                            "relY": 4,
+                            "absX": 23,
+                            "absY": 28,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_0_5": {
+                            "type": "extension",
+                            "relX": 0,
+                            "relY": 5,
+                            "absX": 23,
+                            "absY": 29,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_1_5": {
+                            "type": "extension",
+                            "relX": 1,
+                            "relY": 5,
+                            "absX": 24,
+                            "absY": 29,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_3_6": {
+                            "type": "extension",
+                            "relX": 3,
+                            "relY": 6,
+                            "absX": 26,
+                            "absY": 30,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_2_6": {
+                            "type": "extension",
+                            "relX": 2,
+                            "relY": 6,
+                            "absX": 25,
+                            "absY": 30,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_-1_5": {
+                            "type": "extension",
+                            "relX": -1,
+                            "relY": 5,
+                            "absX": 22,
+                            "absY": 29,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_-2_6": {
+                            "type": "extension",
+                            "relX": -2,
+                            "relY": 6,
+                            "absX": 21,
+                            "absY": 30,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_-3_6": {
+                            "type": "extension",
+                            "relX": -3,
+                            "relY": 6,
+                            "absX": 20,
+                            "absY": 30,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "extension_-3_5": {
+                            "type": "extension",
+                            "relX": -3,
+                            "relY": 5,
+                            "absX": 20,
+                            "absY": 29,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "storage_2_2": {
+                            "type": "storage",
+                            "relX": 2,
+                            "relY": 2,
+                            "absX": 25,
+                            "absY": 26,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_2_1": {
+                            "type": "rampart",
+                            "relX": 2,
+                            "relY": 1,
+                            "absX": 25,
+                            "absY": 25,
+                            "id": "5342a497f605344",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "rampart_3_0": {
+                            "type": "rampart",
+                            "relX": 3,
+                            "relY": 0,
+                            "absX": 26,
+                            "absY": 24,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_2_2": {
+                            "type": "rampart",
+                            "relX": 2,
+                            "relY": 2,
+                            "absX": 25,
+                            "absY": 26,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_0_0": {
+                            "type": "rampart",
+                            "relX": 0,
+                            "relY": 0,
+                            "absX": 23,
+                            "absY": 24,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_1": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 1,
+                            "absX": 32,
+                            "absY": 25,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_2": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 2,
+                            "absX": 32,
+                            "absY": 26,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_3": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 3,
+                            "absX": 32,
+                            "absY": 27,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_4": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 4,
+                            "absX": 32,
+                            "absY": 28,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_0": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 0,
+                            "absX": 32,
+                            "absY": 24,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-1": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -1,
+                            "absX": 32,
+                            "absY": 23,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-2": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -2,
+                            "absX": 32,
+                            "absY": 22,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-4": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -4,
+                            "absX": 32,
+                            "absY": 20,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-5": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -5,
+                            "absX": 32,
+                            "absY": 19,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-3": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -3,
+                            "absX": 32,
+                            "absY": 21,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_7_2": {
+                            "type": "rampart",
+                            "relX": 7,
+                            "relY": 2,
+                            "absX": 30,
+                            "absY": 26,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_8_2": {
+                            "type": "rampart",
+                            "relX": 8,
+                            "relY": 2,
+                            "absX": 31,
+                            "absY": 26,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_4_9": {
+                            "type": "rampart",
+                            "relX": 4,
+                            "relY": 9,
+                            "absX": 27,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_5_9": {
+                            "type": "rampart",
+                            "relX": 5,
+                            "relY": 9,
+                            "absX": 28,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_6_9": {
+                            "type": "rampart",
+                            "relX": 6,
+                            "relY": 9,
+                            "absX": 29,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_7_9": {
+                            "type": "rampart",
+                            "relX": 7,
+                            "relY": 9,
+                            "absX": 30,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_8_9": {
+                            "type": "rampart",
+                            "relX": 8,
+                            "relY": 9,
+                            "absX": 31,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_9": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 9,
+                            "absX": 32,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_8": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 8,
+                            "absX": 32,
+                            "absY": 32,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_7": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 7,
+                            "absX": 32,
+                            "absY": 31,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_6": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 6,
+                            "absX": 32,
+                            "absY": 30,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_5": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": 5,
+                            "absX": 32,
+                            "absY": 29,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_3_9": {
+                            "type": "rampart",
+                            "relX": 3,
+                            "relY": 9,
+                            "absX": 26,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_2_9": {
+                            "type": "rampart",
+                            "relX": 2,
+                            "relY": 9,
+                            "absX": 25,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_1_9": {
+                            "type": "rampart",
+                            "relX": 1,
+                            "relY": 9,
+                            "absX": 24,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_0_9": {
+                            "type": "rampart",
+                            "relX": 0,
+                            "relY": 9,
+                            "absX": 23,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-1_9": {
+                            "type": "rampart",
+                            "relX": -1,
+                            "relY": 9,
+                            "absX": 22,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-2_9": {
+                            "type": "rampart",
+                            "relX": -2,
+                            "relY": 9,
+                            "absX": 21,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-3_9": {
+                            "type": "rampart",
+                            "relX": -3,
+                            "relY": 9,
+                            "absX": 20,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-4_9": {
+                            "type": "rampart",
+                            "relX": -4,
+                            "relY": 9,
+                            "absX": 19,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-5_9": {
+                            "type": "rampart",
+                            "relX": -5,
+                            "relY": 9,
+                            "absX": 18,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-6_9": {
+                            "type": "rampart",
+                            "relX": -6,
+                            "relY": 9,
+                            "absX": 17,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-1": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -1,
+                            "absX": 14,
+                            "absY": 23,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-2": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -2,
+                            "absX": 14,
+                            "absY": 22,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_0": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 0,
+                            "absX": 14,
+                            "absY": 24,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_1": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 1,
+                            "absX": 14,
+                            "absY": 25,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_2": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 2,
+                            "absX": 14,
+                            "absY": 26,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_3": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 3,
+                            "absX": 14,
+                            "absY": 27,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_4": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 4,
+                            "absX": 14,
+                            "absY": 28,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_5": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 5,
+                            "absX": 14,
+                            "absY": 29,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_6": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 6,
+                            "absX": 14,
+                            "absY": 30,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_7": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 7,
+                            "absX": 14,
+                            "absY": 31,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_8": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 8,
+                            "absX": 14,
+                            "absY": 32,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_9": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": 9,
+                            "absX": 14,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-8_9": {
+                            "type": "rampart",
+                            "relX": -8,
+                            "relY": 9,
+                            "absX": 15,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-7_9": {
+                            "type": "rampart",
+                            "relX": -7,
+                            "relY": 9,
+                            "absX": 16,
+                            "absY": 33,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_1_-9": {
+                            "type": "rampart",
+                            "relX": 1,
+                            "relY": -9,
+                            "absX": 24,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_2_-9": {
+                            "type": "rampart",
+                            "relX": 2,
+                            "relY": -9,
+                            "absX": 25,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_3_-9": {
+                            "type": "rampart",
+                            "relX": 3,
+                            "relY": -9,
+                            "absX": 26,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_4_-9": {
+                            "type": "rampart",
+                            "relX": 4,
+                            "relY": -9,
+                            "absX": 27,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_5_-9": {
+                            "type": "rampart",
+                            "relX": 5,
+                            "relY": -9,
+                            "absX": 28,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_6_-9": {
+                            "type": "rampart",
+                            "relX": 6,
+                            "relY": -9,
+                            "absX": 29,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_7_-9": {
+                            "type": "rampart",
+                            "relX": 7,
+                            "relY": -9,
+                            "absX": 30,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_8_-9": {
+                            "type": "rampart",
+                            "relX": 8,
+                            "relY": -9,
+                            "absX": 31,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-9": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -9,
+                            "absX": 32,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-8": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -8,
+                            "absX": 32,
+                            "absY": 16,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-7": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -7,
+                            "absX": 32,
+                            "absY": 17,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_9_-6": {
+                            "type": "rampart",
+                            "relX": 9,
+                            "relY": -6,
+                            "absX": 32,
+                            "absY": 18,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_0_-9": {
+                            "type": "rampart",
+                            "relX": 0,
+                            "relY": -9,
+                            "absX": 23,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-1_-9": {
+                            "type": "rampart",
+                            "relX": -1,
+                            "relY": -9,
+                            "absX": 22,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-2_-9": {
+                            "type": "rampart",
+                            "relX": -2,
+                            "relY": -9,
+                            "absX": 21,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-3_-9": {
+                            "type": "rampart",
+                            "relX": -3,
+                            "relY": -9,
+                            "absX": 20,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-4_-9": {
+                            "type": "rampart",
+                            "relX": -4,
+                            "relY": -9,
+                            "absX": 19,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-5_-9": {
+                            "type": "rampart",
+                            "relX": -5,
+                            "relY": -9,
+                            "absX": 18,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-6_-9": {
+                            "type": "rampart",
+                            "relX": -6,
+                            "relY": -9,
+                            "absX": 17,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-7_-9": {
+                            "type": "rampart",
+                            "relX": -7,
+                            "relY": -9,
+                            "absX": 16,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-8_-9": {
+                            "type": "rampart",
+                            "relX": -8,
+                            "relY": -9,
+                            "absX": 15,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-9": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -9,
+                            "absX": 14,
+                            "absY": 15,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-8": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -8,
+                            "absX": 14,
+                            "absY": 16,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-7": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -7,
+                            "absX": 14,
+                            "absY": 17,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-6": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -6,
+                            "absX": 14,
+                            "absY": 18,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-5": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -5,
+                            "absX": 14,
+                            "absY": 19,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-4": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -4,
+                            "absX": 14,
+                            "absY": 20,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "rampart_-9_-3": {
+                            "type": "rampart",
+                            "relX": -9,
+                            "relY": -3,
+                            "absX": 14,
+                            "absY": 21,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_3_1": {
+                            "type": "road",
+                            "relX": 3,
+                            "relY": 1,
+                            "absX": 26,
+                            "absY": 25,
+                            "id": "d374a49bf405160",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_4_2": {
+                            "type": "road",
+                            "relX": 4,
+                            "relY": 2,
+                            "absX": 27,
+                            "absY": 26,
+                            "id": "aaa6a49ddf0b3f7",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_5_2": {
+                            "type": "road",
+                            "relX": 5,
+                            "relY": 2,
+                            "absX": 28,
+                            "absY": 26,
+                            "id": "16d3a4a0db922b4",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_5_3": {
+                            "type": "road",
+                            "relX": 5,
+                            "relY": 3,
+                            "absX": 28,
+                            "absY": 27,
+                            "id": "59e2a4a32250647",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_4_4": {
+                            "type": "road",
+                            "relX": 4,
+                            "relY": 4,
+                            "absX": 27,
+                            "absY": 28,
+                            "id": "a571a4a65768b5b",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_3_3": {
+                            "type": "road",
+                            "relX": 3,
+                            "relY": 3,
+                            "absX": 26,
+                            "absY": 27,
+                            "id": "01d8a4a7b149ebe",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_2_3": {
+                            "type": "road",
+                            "relX": 2,
+                            "relY": 3,
+                            "absX": 25,
+                            "absY": 27,
+                            "id": "94ffa4a91698c93",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_1_3": {
+                            "type": "road",
+                            "relX": 1,
+                            "relY": 3,
+                            "absX": 24,
+                            "absY": 27,
+                            "id": "2ed4a4aa22c9050",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_1_4": {
+                            "type": "road",
+                            "relX": 1,
+                            "relY": 4,
+                            "absX": 24,
+                            "absY": 28,
+                            "id": "45d0a4ab55bd5b8",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_2_5": {
+                            "type": "road",
+                            "relX": 2,
+                            "relY": 5,
+                            "absX": 25,
+                            "absY": 29,
+                            "id": "60caa4ad8bcd92f",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_0_6": {
+                            "type": "road",
+                            "relX": 0,
+                            "relY": 6,
+                            "absX": 23,
+                            "absY": 30,
+                            "id": "169fa4aeb094f66",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_-1_6": {
+                            "type": "road",
+                            "relX": -1,
+                            "relY": 6,
+                            "absX": 22,
+                            "absY": 30,
+                            "id": "7f91a4af819adc9",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_-2_5": {
+                            "type": "road",
+                            "relX": -2,
+                            "relY": 5,
+                            "absX": 21,
+                            "absY": 29,
+                            "id": "f110a4b02360259",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_1_6": {
+                            "type": "road",
+                            "relX": 1,
+                            "relY": 6,
+                            "absX": 24,
+                            "absY": 30,
+                            "id": "57bba4b106d0023",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_-1_4": {
+                            "type": "road",
+                            "relX": -1,
+                            "relY": 4,
+                            "absX": 22,
+                            "absY": 28,
+                            "id": "96faa4b178f4ad8",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_-1_3": {
+                            "type": "road",
+                            "relX": -1,
+                            "relY": 3,
+                            "absX": 22,
+                            "absY": 27,
+                            "id": "7e96a4b1d6ce22b",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_1_1": {
+                            "type": "road",
+                            "relX": 1,
+                            "relY": 1,
+                            "absX": 24,
+                            "absY": 25,
+                            "id": "9bb3a4b24657673",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_-1_-1": {
+                            "type": "road",
+                            "relX": -1,
+                            "relY": -1,
+                            "absX": 22,
+                            "absY": 23,
+                            "id": "0c81a4b2b47cf8b",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_2_0": {
+                            "type": "road",
+                            "relX": 2,
+                            "relY": 0,
+                            "absX": 25,
+                            "absY": 24,
+                            "id": "0355a4b36c1962e",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_3_-1": {
+                            "type": "road",
+                            "relX": 3,
+                            "relY": -1,
+                            "absX": 26,
+                            "absY": 23,
+                            "id": "6baca4b3d8faaf0",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_4_-1": {
+                            "type": "road",
+                            "relX": 4,
+                            "relY": -1,
+                            "absX": 27,
+                            "absY": 23,
+                            "id": "81faa4b4657211d",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_6_1": {
+                            "type": "road",
+                            "relX": 6,
+                            "relY": 1,
+                            "absX": 29,
+                            "absY": 25,
+                            "id": "ce82a4b512144f3",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_7_2": {
+                            "type": "road",
+                            "relX": 7,
+                            "relY": 2,
+                            "absX": 30,
+                            "absY": 26,
+                            "id": "9251a4c7580ec0c",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_8_2": {
+                            "type": "road",
+                            "relX": 8,
+                            "relY": 2,
+                            "absX": 31,
+                            "absY": 26,
+                            "id": "020da4c7bd32817",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_0_2": {
+                            "type": "road",
+                            "relX": 0,
+                            "relY": 2,
+                            "absX": 23,
+                            "absY": 26,
+                            "id": "3809a4c7fc9695c",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_5_-2": {
+                            "type": "road",
+                            "relX": 5,
+                            "relY": -2,
+                            "absX": 28,
+                            "absY": 22,
+                            "id": "3b4ba4c82c600ff",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_6_-1": {
+                            "type": "road",
+                            "relX": 6,
+                            "relY": -1,
+                            "absX": 29,
+                            "absY": 23,
+                            "id": "e88da4c86d9c005",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_7_-2": {
+                            "type": "road",
+                            "relX": 7,
+                            "relY": -2,
+                            "absX": 30,
+                            "absY": 22,
+                            "id": "627fa4c8c455b35",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_8_-2": {
+                            "type": "road",
+                            "relX": 8,
+                            "relY": -2,
+                            "absX": 31,
+                            "absY": 22,
+                            "id": "dfefa4c90af6128",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_2_7": {
+                            "type": "road",
+                            "relX": 2,
+                            "relY": 7,
+                            "absX": 25,
+                            "absY": 31,
+                            "id": "2038a4c979a5822",
+                            "lastSeen": 11985,
+                            "exists": true
+                        },
+                        "road_2_8": {
+                            "type": "road",
+                            "relX": 2,
+                            "relY": 8,
+                            "absX": 25,
+                            "absY": 32,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-2_7": {
+                            "type": "road",
+                            "relX": -2,
+                            "relY": 7,
+                            "absX": 21,
+                            "absY": 31,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-2_8": {
+                            "type": "road",
+                            "relX": -2,
+                            "relY": 8,
+                            "absX": 21,
+                            "absY": 32,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-4_4": {
+                            "type": "road",
+                            "relX": -4,
+                            "relY": 4,
+                            "absX": 19,
+                            "absY": 28,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-3_3": {
+                            "type": "road",
+                            "relX": -3,
+                            "relY": 3,
+                            "absX": 20,
+                            "absY": 27,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-2_2": {
+                            "type": "road",
+                            "relX": -2,
+                            "relY": 2,
+                            "absX": 21,
+                            "absY": 26,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-3_1": {
+                            "type": "road",
+                            "relX": -3,
+                            "relY": 1,
+                            "absX": 20,
+                            "absY": 25,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_2_-2": {
+                            "type": "road",
+                            "relX": 2,
+                            "relY": -2,
+                            "absX": 25,
+                            "absY": 22,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_1_-3": {
+                            "type": "road",
+                            "relX": 1,
+                            "relY": -3,
+                            "absX": 24,
+                            "absY": 21,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-2_-2": {
+                            "type": "road",
+                            "relX": -2,
+                            "relY": -2,
+                            "absX": 21,
+                            "absY": 22,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-1_-3": {
+                            "type": "road",
+                            "relX": -1,
+                            "relY": -3,
+                            "absX": 22,
+                            "absY": 21,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        },
+                        "road_-3_-1": {
+                            "type": "road",
+                            "relX": -3,
+                            "relY": -1,
+                            "absX": 20,
+                            "absY": 23,
+                            "id": null,
+                            "lastSeen": 11985,
+                            "exists": false
+                        }
+                    }
+                },
+                "capacitySpawn": 800,
+                "combatAlert": false,
+                "needRepair": false,
+                "conteiner_controller": "",
+                "main_conteiner": "71faa48c085e889",
+                "sources": [
+                    {
+                        "source_id": "94e8a44a5fa6113",
+                        "resource_type": "energy",
+                        "roomName": "W0N1",
+                        "distance": 0,
+                        "stage": "done"
+                    },
+                    {
+                        "source_id": "4361a44a5fa1c06",
+                        "resource_type": "energy",
+                        "roomName": "W0N1",
+                        "distance": 0,
+                        "stage": "done"
+                    }
+                ],
+                "countBuilder": 2,
+                "countDismantle": 2,
+                "maxUpgraders": 4,
+                "ratioTranspToUpgrader": 0.5,
+                "THRESHOLD_TICKS_LIVE": 60,
+                "controllerDowngradeCritical": 10000,
+                "REPAIR_TO_THE_HITS": 40000,
+                "timeOutCreateCreep": 120,
+                "timeOutScouting": 5000,
+                "towers_id": ["9a73a4971e07bb4"]
+            },
+            "creeps": {
+                "transporter main_transport 10508": true,
+                "transporter main_transport 10556": true,
+                "baseTransporter base_transport 10728": true,
+                "miner mine_94e8a44a5fa6113 10804": true,
+                "builder builders_1 10876": true,
+                "builder builders_1 11028": true,
+                "miner mine_4361a44a5fa1c06 11368": true,
+                "scout scout_main 11604": true,
+                "baseTransporter base_transport 11616": true,
+                "transporter main_transport 11680": true,
+                "worker worker 11860": true,
+                "transporter main_transport 11992": true
+            },
+            "phase_state": {
+                "current": 4,
+                "maxAllowed": 4,
+                "lastGrowthTick": 1
+            },
+            "importantStructures": {
+                "lab": [],
+                "container": "71faa48c085e889"
+            },
+            "parameters": {
+                "loadStats": {
+                    "buffer": [
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                        1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
+                        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ],
+                    "index": 200,
+                    "sum": 81,
+                    "count": 350,
+                    "length": 350
+                },
+                "changeEnergy": {
+                    "buffer": [
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ],
+                    "previousValue": 800,
+                    "sumDifference": 0,
+                    "index": 10,
+                    "count": 45,
+                    "length": 45,
+                    "periodInTicks": 50
+                },
+                "AvgCP": {
+                    "buffer": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    "previousValue": 2146,
+                    "sumDifference": 0,
+                    "index": 15,
+                    "count": 20,
+                    "length": 20,
+                    "periodInTicks": 50
+                },
+                "incomeStats": {
+                    "buffer": [
+                        0, 0, 0, 0, 0, 500, 0, 0, 250, 0, 0, 0, 0, 0, 0, 0, 250, 500, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 500, 0, 0, 0, 0, 0, 0, 396, 0, 0, 396, 0, 0, 0, 0, 0, 0, 0, 0, 0, 500, 500, 0, 0, 0, 0,
+                        500, 0, 0, 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 500, 500, 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 146, 0,
+                        0, 0, 0, 0, 0, 0, 104, 146, 0, 0, 0, 0, 0, 0
+                    ],
+                    "previousValue": 1354,
+                    "sumPositive": 6480,
+                    "index": 39,
+                    "count": 100,
+                    "length": 100,
+                    "periodInTicks": 3,
+                    "lastContainerId": "71faa48c085e889"
+                },
+                "timeCreateCreep": 11679,
+                "timeCreateSource": 1020,
+                "last_scouting": 10098,
+                "energyIsIncome": true,
+                "overloadStats": {
+                    "buffer": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "index": 200,
+                    "sum": 10,
+                    "validCount": 279,
+                    "count": 350,
+                    "length": 350
+                },
+                "baseIsFull": true,
+                "baseIsEmpty": false
+            },
+            "containers": {
+                "2d75a44a5cd4b0e": {
+                    "container_id": "2d75a44a5cd4b0e",
+                    "roomName": "W0N1",
+                    "x": 25,
+                    "y": 25,
+                    "capacity": 300,
+                    "storage": {
+                        "energy": 300
+                    }
+                },
+                "53fca45601fe9dd": {
+                    "container_id": "53fca45601fe9dd",
+                    "roomName": "W0N1",
+                    "x": 27,
+                    "y": 24,
+                    "capacity": 50,
+                    "storage": {
+                        "energy": 50
+                    }
+                },
+                "5e44a458d227534": {
+                    "container_id": "5e44a458d227534",
+                    "roomName": "W0N1",
+                    "x": 27,
+                    "y": 25,
+                    "capacity": 50,
+                    "storage": {
+                        "energy": 50
+                    }
+                },
+                "51f0a45cffed46c": {
+                    "container_id": "51f0a45cffed46c",
+                    "roomName": "W0N1",
+                    "x": 28,
+                    "y": 25,
+                    "capacity": 50,
+                    "storage": {
+                        "energy": 50
+                    }
+                },
+                "b5dda4623ec7a6c": {
+                    "container_id": "b5dda4623ec7a6c",
+                    "roomName": "W0N1",
+                    "x": 29,
+                    "y": 26,
+                    "capacity": 50,
+                    "storage": {
+                        "energy": 670
+                    }
+                },
+                "c663a466cf22c10": {
+                    "container_id": "c663a466cf22c10",
+                    "roomName": "W0N1",
+                    "x": 29,
+                    "y": 27,
+                    "capacity": 50,
+                    "storage": {
+                        "energy": null
+                    }
+                },
+                "8951a46c186c086": {
+                    "container_id": "8951a46c186c086",
+                    "roomName": "W0N1",
+                    "x": 28,
+                    "y": 28,
+                    "capacity": 50,
+                    "storage": {}
+                },
+                "59c7a47160c4513": {
+                    "container_id": "59c7a47160c4513",
+                    "roomName": "W0N1",
+                    "x": 27,
+                    "y": 27,
+                    "capacity": 50,
+                    "storage": {}
+                },
+                "e836a475d43c500": {
+                    "container_id": "e836a475d43c500",
+                    "roomName": "W0N1",
+                    "x": 27,
+                    "y": 29,
+                    "capacity": 50,
+                    "storage": {}
+                },
+                "7d45a47d29b176a": {
+                    "container_id": "7d45a47d29b176a",
+                    "roomName": "W0N1",
+                    "x": 26,
+                    "y": 29,
+                    "capacity": 50,
+                    "storage": {
+                        "energy": 50
+                    }
+                },
+                "d865a48247ad5d5": {
+                    "container_id": "d865a48247ad5d5",
+                    "roomName": "W0N1",
+                    "x": 26,
+                    "y": 28,
+                    "capacity": 50,
+                    "storage": {}
+                },
+                "71faa48c085e889": {
+                    "container_id": "71faa48c085e889",
+                    "roomName": "W0N1",
+                    "x": 23,
+                    "y": 24,
+                    "capacity": 2000,
+                    "storage": {
+                        "energy": 1354
+                    }
+                },
+                "9a73a4971e07bb4": {
+                    "container_id": "9a73a4971e07bb4",
+                    "roomName": "W0N1",
+                    "x": 26,
+                    "y": 24,
+                    "capacity": 1000,
+                    "storage": {
+                        "energy": 1000
+                    }
+                },
+                "7bdba4bfc990314": {
+                    "container_id": "7bdba4bfc990314",
+                    "roomName": "W0N1",
+                    "x": 14,
+                    "y": 14,
+                    "capacity": 2000,
+                    "storage": {
+                        "energy": 260
+                    }
+                },
+                "33c9a4c722c2b2f": {
+                    "container_id": "33c9a4c722c2b2f",
+                    "roomName": "W0N1",
+                    "x": 34,
+                    "y": 34,
+                    "capacity": 2000,
+                    "storage": {
+                        "energy": -50
+                    }
+                }
+            },
+            "tasks": {
+                "harvest": {
+                    "harvest": {
+                        "priority": 9,
+                        "targetCount_creep": 0,
+                        "currentCount_creep": 0,
+                        "creeps": {},
+                        "creep_role": "harvester",
+                        "task_role": "harvest",
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0
+                    }
+                },
+                "mine": {
+                    "mine_94e8a44a5fa6113": {
+                        "priority": 8,
+                        "targetCount_creep": 1,
+                        "currentCount_creep": 1,
+                        "creeps": {
+                            "miner mine_94e8a44a5fa6113 10804": true
+                        },
+                        "creep_role": "miner",
+                        "task_role": "mine",
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0,
+                        "container_id": "7bdba4bfc990314",
+                        "source_id": "94e8a44a5fa6113"
+                    },
+                    "mine_4361a44a5fa1c06": {
+                        "priority": 8,
+                        "targetCount_creep": 1,
+                        "currentCount_creep": 1,
+                        "creeps": {
+                            "miner mine_4361a44a5fa1c06 11368": true
+                        },
+                        "creep_role": "miner",
+                        "task_role": "mine",
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0,
+                        "container_id": "33c9a4c722c2b2f",
+                        "source_id": "4361a44a5fa1c06"
+                    }
+                },
+                "transportation": {
+                    "main_transport": {
+                        "priority": 7,
+                        "targetCount_creep": 3,
+                        "currentCount_creep": 3,
+                        "creeps": {
+                            "transporter main_transport 10508": true,
+                            "transporter main_transport 10556": true,
+                            "transporter main_transport 11680": true,
+                            "transporter main_transport 11992": true
+                        },
+                        "creep_role": "transporter",
+                        "task_role": "transportation",
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0,
+                        "containers_id_A": ["7bdba4bfc990314", "33c9a4c722c2b2f"],
+                        "containers_id_B": ["71faa48c085e889"],
+                        "resource_type": "energy",
+                        "threshold_cont_A": 0,
+                        "take_distance": true
+                    },
+                    "controller_transport": {
+                        "priority": 2,
+                        "targetCount_creep": 0,
+                        "currentCount_creep": 0,
+                        "creeps": {},
+                        "creep_role": "transporter",
+                        "task_role": "transportation",
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0,
+                        "containers_id_A": ["71faa48c085e889"],
+                        "containers_id_B": [],
+                        "resource_type": "energy",
+                        "threshold_cont_A": 10000,
+                        "take_distance": true
+                    }
+                },
+                "baseTransportation": {
+                    "base_transport": {
+                        "priority": 9,
+                        "targetCount_creep": 2,
+                        "currentCount_creep": 2,
+                        "creeps": {
+                            "baseTransporter base_transport 10728": true,
+                            "baseTransporter base_transport 11616": true
+                        },
+                        "creep_role": "baseTransporter",
+                        "task_role": "baseTransportation",
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0,
+                        "containers_id_A": ["71faa48c085e889"],
+                        "containers_id_B": [
+                            "2d75a44a5cd4b0e",
+                            "53fca45601fe9dd",
+                            "5e44a458d227534",
+                            "51f0a45cffed46c",
+                            "b5dda4623ec7a6c",
+                            "c663a466cf22c10",
+                            "8951a46c186c086",
+                            "59c7a47160c4513",
+                            "e836a475d43c500",
+                            "7d45a47d29b176a",
+                            "d865a48247ad5d5",
+                            "9a73a4971e07bb4"
+                        ],
+                        "resource_type": "energy",
+                        "threshold_cont_A": 0
+                    }
+                },
+                "upgrade": {
+                    "upgrade": {
+                        "priority": 2,
+                        "targetCount_creep": 0,
+                        "currentCount_creep": 0,
+                        "creeps": {},
+                        "creep_role": "upgrader",
+                        "task_role": "upgrade",
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0
+                    }
+                },
+                "scout": {
+                    "scout_main": {
+                        "priority": 2,
+                        "targetCount_creep": 1,
+                        "currentCount_creep": 1,
+                        "creeps": {
+                            "scout scout_main 11604": true
+                        },
+                        "creep_role": "scout",
+                        "task_role": "scout",
+                        "group": true,
+                        "one_off": false,
+                        "capacitySpawn": 0,
+                        "rooms": ["E0N1", "W0N0", "W1N1"],
+                        "roomDepths": {
+                            "W0N1": 0,
+                            "W0N2": 1,
+                            "E0N1": 1,
+                            "W0N0": 1,
+                            "W1N1": 1
+                        },
+                        "currentRoom": "W0N2"
+                    }
+                },
+                "claim": {},
+                "reserveController": {},
+                "building": {
+                    "worker": {
+                        "priority": 6,
+                        "targetCount_creep": 1,
+                        "currentCount_creep": 1,
+                        "creeps": {
+                            "worker worker 11860": true
+                        },
+                        "creep_role": "worker",
+                        "task_role": "building",
+                        "buildIs": "worker",
+                        "num_room": 2,
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0,
+                        "colonyName": "W0N1"
+                    },
+                    "builders_1": {
+                        "priority": 1,
+                        "targetCount_creep": 2,
+                        "currentCount_creep": 2,
+                        "creeps": {
+                            "builder builders_1 10876": true,
+                            "builder builders_1 11028": true
+                        },
+                        "creep_role": "builder",
+                        "task_role": "building",
+                        "buildIs": "builders",
+                        "group": false,
+                        "one_off": false,
+                        "capacitySpawn": 0,
+                        "colonyName": "W0N1"
+                    }
+                },
+                "security": {},
+                "blockade": {},
+                "attack_outpost": {}
+            }
+        }
+    },
+    "loggerConfig": {
+        "globalLevel": "info",
+        "levels": {}
+    },
+    "creeps": {
+        "transporter main_transport 10508": {
+            "isdead": true,
+            "creep_role": "transporter",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "main_transport",
+                "task_role": "transportation",
+                "target": "33c9a4c722c2b2f"
+            },
+            "isCarrying": false,
+            "_move": {
+                "dest": {
+                    "x": 34,
+                    "y": 34,
+                    "room": "W0N1"
+                },
+                "time": 11993,
+                "path": "30294444",
+                "room": "W0N1"
+            }
+        },
+        "transporter main_transport 10556": {
+            "isdead": false,
+            "creep_role": "transporter",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "main_transport",
+                "task_role": "transportation",
+                "target": "71faa48c085e889"
+            },
+            "isCarrying": true,
+            "_move": {
+                "dest": {
+                    "x": 23,
+                    "y": 24,
+                    "room": "W0N1"
+                },
+                "time": 11983,
+                "path": "24258",
+                "room": "W0N1"
+            }
+        },
+        "baseTransporter base_transport 10728": {
+            "isdead": false,
+            "creep_role": "baseTransporter",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "base_transport",
+                "task_role": "baseTransportation",
+                "target": "c663a466cf22c10"
+            },
+            "isCarrying": true,
+            "_move": {
+                "dest": {
+                    "x": 29,
+                    "y": 26,
+                    "room": "W0N1"
+                },
+                "time": 11998,
+                "path": "28274",
+                "room": "W0N1"
+            }
+        },
+        "miner mine_94e8a44a5fa6113 10804": {
+            "isdead": false,
+            "creep_role": "miner",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "mine_94e8a44a5fa6113",
+                "task_role": "mine"
+            },
+            "_move": {
+                "dest": {
+                    "x": 14,
+                    "y": 14,
+                    "room": "W0N1"
+                },
+                "time": 10831,
+                "path": "14142",
+                "room": "W0N1"
+            }
+        },
+        "builder builders_1 10876": {
+            "isdead": false,
+            "creep_role": "builder",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "builders_1",
+                "task_role": "building"
+            },
+            "building": true,
+            "_move": {
+                "dest": {
+                    "x": 21,
+                    "y": 31,
+                    "room": "W0N1"
+                },
+                "time": 11998,
+                "path": "24306776",
+                "room": "W0N1"
+            }
+        },
+        "builder builders_1 11028": {
+            "isdead": false,
+            "creep_role": "builder",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "builders_1",
+                "task_role": "building"
+            },
+            "building": true,
+            "_move": {
+                "dest": {
+                    "x": 21,
+                    "y": 31,
+                    "room": "W0N1"
+                },
+                "time": 11999,
+                "path": "222765646",
+                "room": "W0N1"
+            }
+        },
+        "miner mine_4361a44a5fa1c06 11368": {
+            "isdead": false,
+            "creep_role": "miner",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "mine_4361a44a5fa1c06",
+                "task_role": "mine"
+            },
+            "_move": {
+                "dest": {
+                    "x": 34,
+                    "y": 34,
+                    "room": "W0N1"
+                },
+                "time": 11395,
+                "path": "34343",
+                "room": "W0N1"
+            }
+        },
+        "scout scout_main 11604": {
+            "isdead": false,
+            "creep_role": "scout",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "scout_main",
+                "task_role": "scout"
+            }
+        },
+        "baseTransporter base_transport 11616": {
+            "isdead": false,
+            "creep_role": "baseTransporter",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "base_transport",
+                "task_role": "baseTransportation",
+                "target": "c663a466cf22c10"
+            },
+            "isCarrying": true,
+            "_move": {
+                "dest": {
+                    "x": 29,
+                    "y": 27,
+                    "room": "W0N1"
+                },
+                "time": 12000,
+                "path": "28266",
+                "room": "W0N1"
+            }
+        },
+        "transporter main_transport 11680": {
+            "isdead": false,
+            "creep_role": "transporter",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "main_transport",
+                "task_role": "transportation",
+                "target": false
+            },
+            "isCarrying": false,
+            "_move": {
+                "dest": {
+                    "x": 23,
+                    "y": 24,
+                    "room": "W0N1"
+                },
+                "time": 11956,
+                "path": "23234",
+                "room": "W0N1"
+            }
+        },
+        "worker worker 11860": {
+            "isdead": false,
+            "creep_role": "worker",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "worker",
+                "task_role": "building"
+            },
+            "state": "repair",
+            "_move": {
+                "dest": {
+                    "x": 25,
+                    "y": 25,
+                    "room": "W0N1"
+                },
+                "time": 11898,
+                "path": "",
+                "room": "W0N1"
+            }
+        },
+        "transporter main_transport 11992": {
+            "isdead": false,
+            "creep_role": "transporter",
+            "colonyName": "W0N1",
+            "task": {
+                "task_id": "main_transport",
+                "task_role": "transportation",
+                "target": false
+            }
+        }
+    },
+    "empire": {
+        "rooms": {
+            "W0N1": {
+                "sources": {
+                    "94e8a44a5fa6113": {
+                        "id": "94e8a44a5fa6113",
+                        "roomName": "W0N1",
+                        "worldX": -35,
+                        "worldY": 65,
+                        "energyCapacity": 3000,
+                        "state": "mined",
+                        "ownerColony": "W0N1"
+                    },
+                    "4361a44a5fa1c06": {
+                        "id": "4361a44a5fa1c06",
+                        "roomName": "W0N1",
+                        "worldX": -15,
+                        "worldY": 85,
+                        "energyCapacity": 3000,
+                        "state": "mined",
+                        "ownerColony": "W0N1"
+                    }
+                }
+            }
+        },
+        "assignedSources": {},
+        "observers": [],
+        "scoutQueue": {},
+        "scoutInProgress": {},
+        "operations": {
+            "rooms": {
+                "W0N1": {
+                    "roomName": "W0N1",
+                    "operationType": "source_mining",
+                    "territoryType": "outpost",
+                    "status": "active",
+                    "updatedAt": 11985,
+                    "ownerColony": "W0N1",
+                    "sourceIds": ["4361a44a5fa1c06"],
+                    "createdAt": 204,
+                    "threat": {
+                        "type": "none",
+                        "level": 0,
+                        "hostileCount": 0,
+                        "invaderCount": 0,
+                        "playerCount": 0,
+                        "hostileIds": [],
+                        "hostileOwners": [],
+                        "lastSeen": 11985
+                    }
+                }
+            }
+        }
+    },
+    "rooms": {
+        "W0N1": {
+            "SOURCES": {
+                "94e8a44a5fa6113": {
+                    "id": "94e8a44a5fa6113",
+                    "pos": {
+                        "x": 15,
+                        "y": 15,
+                        "roomName": "W0N1"
+                    },
+                    "energy": 2232,
+                    "energyCapacity": 3000,
+                    "ticksToRegeneration": 108
+                },
+                "4361a44a5fa1c06": {
+                    "id": "4361a44a5fa1c06",
+                    "pos": {
+                        "x": 35,
+                        "y": 35,
+                        "roomName": "W0N1"
+                    },
+                    "energy": 872,
+                    "energyCapacity": 3000,
+                    "ticksToRegeneration": 47
+                }
+            },
+            "MINERALS": {},
+            "lastScouted": 10101,
+            "ismy": true,
+            "controller": {
+                "id": "0dcfa44a5b9e0e0",
+                "pos": {
+                    "x": 35,
+                    "y": 35,
+                    "roomName": "W0N1"
+                },
+                "level": 3,
+                "progress": 2146,
+                "progressTotal": 135000,
+                "safeModeAvailable": 0,
+                "isPowerEnabled": false,
+                "owner": "bot",
+                "my": true
+            },
+            "hostiles": {
+                "lastSeen": 10101,
+                "owner": "bot",
+                "reservation": null,
+                "controllerLevel": 3,
+                "safeMode": 9899,
+                "creeps": {
+                    "count": 0,
+                    "owners": [],
+                    "hasHeal": false,
+                    "hasAttack": false,
+                    "hasRanged": false,
+                    "maxHits": 0,
+                    "maxBodySize": 0
+                },
+                "structures": {
+                    "spawns": [],
+                    "towers": [],
+                    "keeperLair": [],
+                    "extensionsCount": 0,
+                    "invaderCore": null,
+                    "storage": null,
+                    "terminal": null
+                },
+                "hasHostiles": false,
+                "isStronghold": false,
+                "energyCapacityAvailable": 800
+            }
+        }
+    }
+}

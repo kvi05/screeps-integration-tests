@@ -1,0 +1,16 @@
+{
+    "colonies": {
+        "W0N1": {
+            "mockServ": true,
+            "configs": {
+                "bunker": {
+                    "phaseIsDone": false,
+                    "bunkerType": "type2",
+                    "anchorX": 23,
+                    "anchorY": 24,
+                    "trackedStructures": {}
+                }
+            }
+        }
+    }
+}

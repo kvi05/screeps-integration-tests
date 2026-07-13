@@ -1,0 +1,66 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  unit-tests:
+    name: Framework Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run framework unit tests
+        run: npm run test:integration:unit
+
+  integration-tests:
+    name: Bot Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v4
+        with:
+          path: screeps-integration-tests
+
+      - name: Checkout bot
+        uses: actions/checkout@v4
+        with:
+          repository: kvi05/screeps-andre-bot
+          path: screeps-andre-bot
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install bot dependencies
+        working-directory: screeps-andre-bot
+        run: npm ci
+
+      - name: Build bot
+        working-directory: screeps-andre-bot
+        run: npm run build
+
+      - name: Install framework dependencies
+        working-directory: screeps-integration-tests
+        run: npm ci
+
+      - name: Run integration tests
+        working-directory: screeps-integration-tests
+        run: npm run test:integration
+        env:
+          BOT_DIST_DIR: ${{ github.workspace }}/screeps-andre-bot/dist
