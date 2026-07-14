@@ -139,7 +139,7 @@ function resolvePaths(cfg, baseDir) {
     const pathKeys = ['distDir', 'scenariosDir', 'fixturesDir', 'roomFixturesDir', 'profilesDir', 'cacheDir'];
     for (const key of pathKeys) {
         const value = cfg[key];
-        if (value != null && typeof value === 'string') {
+        if (value !== null && typeof value === 'string') {
             cfg[key] = path.resolve(baseDir, value);
         }
     }

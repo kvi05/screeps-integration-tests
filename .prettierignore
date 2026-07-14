@@ -1,0 +1,8 @@
+node_modules
+.cache
+.coverage
+server
+logs
+profiles
+package-lock.json
+examples/mock-bot/dist

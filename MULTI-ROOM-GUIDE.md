@@ -61,14 +61,15 @@ await world.spawn(spec.creep(20, 20, { roomName: 'W0N2', userId: world.bots['Pla
 ```
 
 > **Примечание:** проставление `userId` в структурах **до** вызова `createWorld()` для второго бота — известная сложность. Если нужно привязать здания к конкретному боту, указывайте `userId` вручную после создания мира через `world.spawn()`, либо донастраивайте в `memoryOverrides`.
-```
+
+````
 
 ## Управление памятью по ботам
 
 ```javascript
 const memory = await world.readMemory('mainBot');
 const otherMemory = await world.readMemory('reserveBot');
-```
+````
 
 Чтение памяти всех ботов сразу:
 

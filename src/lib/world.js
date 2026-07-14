@@ -13,19 +13,11 @@ const { snapshotOwners, mergeOwners } = require('./observers/ownership');
 const { createConsoleCapture } = require('./console');
 
 function resolveDistDir(opts) {
-    return (
-        opts.distDir ||
-        process.env.BOT_DIST_DIR ||
-        path.resolve(process.cwd(), 'dist')
-    );
+    return opts.distDir || process.env.BOT_DIST_DIR || path.resolve(process.cwd(), 'dist');
 }
 
 function resolveCacheBase(opts) {
-    return (
-        opts.cacheDir ||
-        process.env.SIT_CACHE_DIR ||
-        path.resolve(process.cwd(), '.cache')
-    );
+    return opts.cacheDir || process.env.SIT_CACHE_DIR || path.resolve(process.cwd(), '.cache');
 }
 
 /**

@@ -12,7 +12,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const spec = require('../builders/spec');
 
 /**
  * @typedef {import('../types').RoomFixtureSpec} RoomFixtureSpec

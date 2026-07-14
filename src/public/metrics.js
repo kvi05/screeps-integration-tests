@@ -48,10 +48,7 @@ const {
     rateMetric,
 } = require('../lib/metrics');
 
-const {
-    compareMetric,
-    selectWindow,
-} = require('../lib/metricRegression');
+const { compareMetric, selectWindow } = require('../lib/metricRegression');
 
 module.exports = {
     getMetricSeries,

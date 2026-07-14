@@ -33,9 +33,9 @@ npm install --save-dev screeps-integration-tests
 'use strict';
 
 module.exports = {
-    distDir: './dist',
-    scenariosDir: './scenarios',
-    fixturesDir: './fixtures',
+  distDir: './dist',
+  scenariosDir: './scenarios',
+  fixturesDir: './fixtures',
 };
 ```
 
@@ -89,14 +89,14 @@ npx screeps-integration-tests --only defense-invader-rcl3
 
 ### Полезные флаги
 
-| Флаг          | Описание                                                     |
-| ------------- | ------------------------------------------------------------ |
-| `--only NAME` | Запустить только сценарий NAME                               |
-| `--profiling` | Включить callgrind-профилирование                            |
-| `--bail`      | Остановиться при первом падении                              |
-| `--timeout N` | Тайм-аут в миллисекундах (по умолчанию 30 минут)             |
-| `--jobs N`    | Число параллельных сценариев                                 |
-| `--build`     | Запустить `buildCommand` из конфига перед прогоном           |
+| Флаг          | Описание                                           |
+| ------------- | -------------------------------------------------- |
+| `--only NAME` | Запустить только сценарий NAME                     |
+| `--profiling` | Включить callgrind-профилирование                  |
+| `--bail`      | Остановиться при первом падении                    |
+| `--timeout N` | Тайм-аут в миллисекундах (по умолчанию 30 минут)   |
+| `--jobs N`    | Число параллельных сценариев                       |
+| `--build`     | Запустить `buildCommand` из конфига перед прогоном |
 
 ```bash
 # Smoke + профилирование
@@ -134,32 +134,32 @@ const { assertBotWorked, assertRclAtLeast } = require('screeps-integration-tests
 const ROOM_NAME = 'W0N1';
 
 async function run(opts = {}) {
-    const maxTicks = 15000;
+  const maxTicks = 15000;
 
-    const world = await createWorld({
-        rooms: [
-            {
-                name: ROOM_NAME,
-                controller: spec.controller({ level: 2 }),
-                sources: [spec.source(15, 15), spec.source(35, 35)],
-                structures: [spec.spawn(25, 25)],
-            },
-        ],
-        bots: [{ username: 'bot', room: ROOM_NAME }],
-        ticks: maxTicks,
-    });
+  const world = await createWorld({
+    rooms: [
+      {
+        name: ROOM_NAME,
+        controller: spec.controller({ level: 2 }),
+        sources: [spec.source(15, 15), spec.source(35, 35)],
+        structures: [spec.spawn(25, 25)],
+      },
+    ],
+    bots: [{ username: 'bot', room: ROOM_NAME }],
+    ticks: maxTicks,
+  });
 
-    try {
-        await world.run();
+  try {
+    await world.run();
 
-        assertBotWorked(world.report);
-        assertRclAtLeast(world.report, ROOM_NAME, 3);
+    assertBotWorked(world.report);
+    assertRclAtLeast(world.report, ROOM_NAME, 3);
 
-        console.log(`PASS: my-test (RCL ${world.report.finalRcl[ROOM_NAME]})`);
-        return world.report;
-    } finally {
-        await world.dispose();
-    }
+    console.log(`PASS: my-test (RCL ${world.report.finalRcl[ROOM_NAME]})`);
+    return world.report;
+  } finally {
+    await world.dispose();
+  }
 }
 
 module.exports = { run };

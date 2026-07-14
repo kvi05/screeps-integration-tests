@@ -91,22 +91,22 @@ npm run test:integration:unit     # unit-тесты framework
 npx screeps-integration-tests [options]
 ```
 
-| Флаг             | Описание                                           |
-| ---------------- | -------------------------------------------------- |
-| `--config`       | Путь к `screeps-integration.config.js`             |
-| `--scenariosDir` | Папка со сценариями (`*.scenario.js`)              |
-| `--distDir`      | Путь к `dist/` бота                                |
-| `--fixturesDir`  | Папка с memory fixtures (`*.memory.json`)          |
-| `--roomFixturesDir` | Папка с room fixtures (`*.room.js`)             |
-| `--profilesDir`  | Папка для callgrind-профилей                     |
-| `--cacheDir`     | Базовая папка кэша mockup-сервера               |
-| `--only NAME`    | Запустить только один сценарий                     |
-| `--profiling`    | Включить callgrind-профилирование                  |
-| `--bail`         | Остановиться при первом падении                    |
-| `--timeout N`    | Таймаут на сценарий (мс, по умолчанию 30 минут)    |
-| `--jobs N`       | Число параллельных сценариев                       |
-| `--roomFixturesDir` | Папка с room fixtures (`*.room.js`)             |
-| `--build`        | Запустить `buildCommand` из конфига перед прогоном |
+| Флаг                | Описание                                           |
+| ------------------- | -------------------------------------------------- |
+| `--config`          | Путь к `screeps-integration.config.js`             |
+| `--scenariosDir`    | Папка со сценариями (`*.scenario.js`)              |
+| `--distDir`         | Путь к `dist/` бота                                |
+| `--fixturesDir`     | Папка с memory fixtures (`*.memory.json`)          |
+| `--roomFixturesDir` | Папка с room fixtures (`*.room.js`)                |
+| `--profilesDir`     | Папка для callgrind-профилей                       |
+| `--cacheDir`        | Базовая папка кэша mockup-сервера                  |
+| `--only NAME`       | Запустить только один сценарий                     |
+| `--profiling`       | Включить callgrind-профилирование                  |
+| `--bail`            | Остановиться при первом падении                    |
+| `--timeout N`       | Таймаут на сценарий (мс, по умолчанию 30 минут)    |
+| `--jobs N`          | Число параллельных сценариев                       |
+| `--roomFixturesDir` | Папка с room fixtures (`*.room.js`)                |
+| `--build`           | Запустить `buildCommand` из конфига перед прогоном |
 
 ## Структура файлов
 
