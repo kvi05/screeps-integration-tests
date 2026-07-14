@@ -1,88 +1,103 @@
 # Screeps Integration Tests
 
-Независимый интеграционный тестовый фреймворк для Screeps ботов.
-Запускает скомпилированного бота в полноценной игровой среде через
+Интеграционный фреймворк для тестирования Screeps-ботов на реальном
 [screeps-server-mockup](https://github.com/screepers/screeps-server-mockup).
 
-Фреймворк поставляется как npm-пакет и не зависит от исходного кода бота.
-Работает с любым ботом, который предоставляет `dist/` со скомпилированными
-модулями Screeps.
+Запускает скомпилированного бота в полноценном игровом мире: с контроллером,
+источниками, спавном, крипами, событиями и метриками — и даёт проверить, что
+бот действительно растёт, защищается и не падает.
 
 ## Документация
 
-| Файл                                           | Назначение                                               |
-| ---------------------------------------------- | -------------------------------------------------------- |
-| [GETTING-STARTED.md](./GETTING-STARTED.md)     | Установка, запуск, написание первого сценария            |
-| [CONFIG.md](./CONFIG.md)                       | Описание `screeps-integration.config.js`                 |
-| [API-REFERENCE.md](./API-REFERENCE.md)         | Полный справочник API: createWorld, builders, assertions |
-| [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)       | Room fixtures, memory fixtures, overrides                |
-| [EXAMPLES.md](./EXAMPLES.md)                   | Эталонные сценарии и приёмы                              |
-| [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md) | Архитектура и внутренние механизмы                       |
-| [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)   | Работа с несколькими комнатами и ботами                  |
+| Файл                                           | Назначение                                             |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| [GETTING-STARTED.md](./GETTING-STARTED.md)     | Установка, первый запуск, написание сценария           |
+| [CONFIG.md](./CONFIG.md)                       | `screeps-integration.config.js` и CLI-флаги            |
+| [API-REFERENCE.md](./API-REFERENCE.md)         | Полный справочник API: `createWorld`, builders, events |
+| [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)       | Room fixtures, memory fixtures, overrides              |
+| [EXAMPLES.md](./EXAMPLES.md)                   | Эталонные сценарии и типовые приёмы                    |
+| [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md) | Архитектура и внутренние механизмы                     |
+| [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)   | Несколько комнат и ботов                               |
 
-## Возможности
+## Что умеет фреймворк
 
-- **Пакет + CLI:** устанавливается как `devDependency`, запускается через
-  `npx screeps-integration-tests`.
-- **Файл конфигурации:** `screeps-integration.config.js`.
-- **Сценарии в репозитории бота:** пользователь не трогает файлы фреймворка.
-- **Multi-room:** один `createWorld()` описывает N комнат.
-- **Multi-bot:** несколько ботов в одном мире (свои + вражеские, разные user).
-- **Spec API:** декларативное описание мира (`spec.spawn(...)`, `spec.tower(...)`).
-- **Room fixtures:** переиспользуемые описания комнат + overrides.
-- **Memory fixtures:** удобная работа со снапшотами Memory + overrides.
-- **Predicate-based termination:** Можно задать условия для преждевременного завершения теста.
-- **Assertions:** готовые проверки (RCL, destroyed, attack, damage).
-- **Metrics:** метрики разных сущностей (room/colony/user/world), query helpers,
-  CSV export, regression API.
-
-## Требования
-
-- **Node.js** >= 22.12.0
-- **npm** >= 10.8.2
-- **Скомпилированный бот:** каталог (по умолчанию ищет: `dist/`) с модулями Screeps
+- **Запускает вашего бота как есть** — берёт `dist/` (или другую папку с
+  модулями) и загружает в mockup-сервер.
+- **Создаёт мир декларативно** — комнаты, источники, контроллер, спавны,
+  турели, крипы, стены, ramparts — через `spec.*`.
+- **Переиспользует состояние** — room fixtures и memory fixtures с
+  overrides, чтобы не копировать одну и ту же колонию в каждый тест.
+- **Проверяет результаты** — assertions на RCL, ошибки, уничтоженные
+  объекты, бой, полученный урон.
+- **Собирает метрики** — time-series по комнатам (RCL, energyAvailable,
+  creepsByRole, towerEnergy и др.), query helpers, CSV export, regression
+  API.
+- **Управляет ходом теста** — фиксированное число тиков, досрочная
+  остановка по `predicate` или `signal`, пошаговый `world.tick(n)`,
+  runtime-спавн крипов, `onTick` callback, декларативные события.
+- **Профилирует** — встроенная поддержка [screeps-profiler](https://github.com/screepers/screeps-profiler) с выгрузкой
+  callgrind-файлов.
+- **Изолирует сценарии** — каждый сценарий работает в отдельном
+  `child_process.fork` со своим сервером и портом.
 
 ## Быстрый старт
 
 ```bash
-# 1. Установить пакет
 npm install --save-dev screeps-integration-tests
-
-# 2. Создать конфиг (опционально — есть разумные дефолты)
-cat > screeps-integration.config.js <<'EOF'
-module.exports = {
-    distDir: './dist',
-    scenariosDir: './scenarios',
-    fixturesDir: './fixtures',
-};
-EOF
-
-# 3. Создать сценарий (команда для копирования шаблона)
-mkdir -p scenarios
-cp node_modules/screeps-integration-tests/examples/scenarios/_template.js \
-   scenarios/my-test.scenario.js
-
-# 4. Запустить
-npx screeps-integration-tests
-npx screeps-integration-tests --only my-test
 ```
 
-В сценариях используется публичный API пакета:
+Создайте сценарий `scenarios/smoke.scenario.js`:
 
 ```js
+'use strict';
+
 const { createWorld, spec } = require('screeps-integration-tests');
-const { assertBotWorked } = require('screeps-integration-tests/assertions');
+const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/assertions');
+
+async function run() {
+  const world = await createWorld({
+    rooms: [
+      {
+        name: 'W0N1',
+        controller: spec.controller({ level: 1 }),
+        sources: [spec.source(15, 15), spec.source(35, 35)],
+        structures: [spec.spawn(25, 25)],
+      },
+    ],
+    bots: [{ username: 'bot', room: 'W0N1' }],
+    ticks: 30,
+  });
+
+  try {
+    await world.run();
+    assertBotWorked(world.report);
+    assertNoErrors(world.report);
+    console.log(`PASS: ${world.report.ticksRun} ticks`);
+    return world.report;
+  } finally {
+    await world.dispose();
+  }
+}
+
+module.exports = { run };
 ```
 
-## Запуск в этом репозитории (self-test)
+Запустите:
 
-В самом репозитории фреймворка есть примеры и минимальный mock-бот. Служат для проверки самого фреймворка:
+```bash
+npx screeps-integration-tests --only smoke
+```
+
+Больше готовых рецептов — в [EXAMPLES.md](./EXAMPLES.md).
+
+## Запуск внутри репозитория (self-test)
+
+_Для теста самого фреймворка_
 
 ```bash
 npm install
-npm run test:integration          # примерные сценарии
 npm run test:integration:smoke    # только smoke-empty
-npm run test:integration:unit     # unit-тесты framework
+npm run test:integration          # все примерные сценарии
 ```
 
 ## CLI
@@ -91,73 +106,22 @@ npm run test:integration:unit     # unit-тесты framework
 npx screeps-integration-tests [options]
 ```
 
-| Флаг                | Описание                                           |
-| ------------------- | -------------------------------------------------- |
-| `--config`          | Путь к `screeps-integration.config.js`             |
-| `--scenariosDir`    | Папка со сценариями (`*.scenario.js`)              |
-| `--distDir`         | Путь к `dist/` бота                                |
-| `--fixturesDir`     | Папка с memory fixtures (`*.memory.json`)          |
-| `--roomFixturesDir` | Папка с room fixtures (`*.room.js`)                |
-| `--profilesDir`     | Папка для callgrind-профилей                       |
-| `--cacheDir`        | Базовая папка кэша mockup-сервера                  |
-| `--only NAME`       | Запустить только один сценарий                     |
-| `--profiling`       | Включить callgrind-профилирование                  |
-| `--bail`            | Остановиться при первом падении                    |
-| `--timeout N`       | Таймаут на сценарий (мс, по умолчанию 30 минут)    |
-| `--jobs N`          | Число параллельных сценариев                       |
-| `--roomFixturesDir` | Папка с room fixtures (`*.room.js`)                |
-| `--build`           | Запустить `buildCommand` из конфига перед прогоном |
-
-## Структура файлов
-
-```
-screeps-integration-tests/
-├── bin/
-│   └── screeps-integration-tests.js   # CLI runner
-├── src/
-│   ├── index.js                       # Публичный API пакета (основной)
-│   ├── public/                        # Sub-path exports (assertions, metrics, …)
-│   ├── runScenario.js                 # Worker entry
-│   ├── lib/
-│   │   ├── world.js                   # createWorld — главный orchestration API
-│   │   ├── runtime.js                 # ScreepsServer wrapper
-│   │   ├── config.js                  # Загрузка screeps-integration.config.js
-│   │   ├── builders/                  # spec + materialize
-│   │   ├── fixtures/roomFixture.js    # Room fixtures registry
-│   │   ├── observers/                 # eventLog, metrics, predicate, ownership
-│   │   ├── assertions.js              # assertBotWorked, assertRclAtLeast...
-│   │   ├── metricAssertions.js
-│   │   ├── metrics.js
-│   │   ├── metricExport.js
-│   │   ├── metricRegression.js
-│   │   └── tests/                     # Unit-тесты framework
-│   ├── constants/
-│   │   └── screepsConstants.js        # Игровые константы Screeps
-│   └── tools/                         # CLI tools (capture-fixture, clean-cache)
-├── examples/                          # Самотестирование фреймворка
-│   ├── screeps-integration.config.js
-│   ├── mock-bot/dist/
-│   └── scenarios/
-├── package.json
-└── jest.config.js
-```
+Основные флаги: `--only`, `--config`, `--scenariosDir`, `--distDir`,
+`--profiling`, `--timeout`, `--jobs`, `--bail`. Полный список — в
+[CONFIG.md](./CONFIG.md).
 
 ## С чего начать
 
-1. **Хочу запустить готовый тест** → [GETTING-STARTED.md](./GETTING-STARTED.md#запуск-готовых-сценариев)
-2. **Хочу написать свой сценарий** → [GETTING-STARTED.md](./GETTING-STARTED.md#написание-сценария)
-3. **Хочу настроить конфиг** → [CONFIG.md](./CONFIG.md)
-4. **Хочу переиспользовать комнату** → [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)
-5. **Хочу понять API** → [API-REFERENCE.md](./API-REFERENCE.md)
-6. **Хочу увидеть примеры** → [EXAMPLES.md](./EXAMPLES.md)
-7. **Хочу несколько комнат / ботов** → [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)
+1. **Установить и запустить первый тест** → [GETTING-STARTED.md](./GETTING-STARTED.md)
+2. **Посмотреть примеры** → [EXAMPLES.md](./EXAMPLES.md)
+3. **Разобраться в API** → [API-REFERENCE.md](./API-REFERENCE.md)
+4. **Настроить конфиг** → [CONFIG.md](./CONFIG.md)
+5. **Понять архитектуру** → [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md)
 
 ## Известные проблемы
 
-- **Memory leak:** `server.stop()` не полностью освобождает storage. Решается через
-  `child_process.fork` + `tree-kill` + `process.exit(0)`.
-- **Порты:** каждый сервер получает свой свободный порт через `getFreePort()`,
-  поэтому конфликтов `21025` больше нет.
-- **console.log():** выводится только один console.log за тик сервера. _нужно уточнить_
-- **Задержка profiler:** profiler начинает запись со 2-го тика. 0 - инициализация,
-  1 - запуск, 2 - первый замер
+- **Memory leak:** `server.stop()` не полностью освобождает storage. Решается
+  через `child_process.fork` + `tree-kill` + `process.exit(0)`.
+- **console.log:** сервер выводит только один `console.log` за тик.
+- **Задержка profiler:** запись начинается со 2-го тика (0 — init,
+  1 — запуск, 2 — первый замер).

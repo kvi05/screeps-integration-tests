@@ -1,24 +1,29 @@
 # API Reference
 
-Справочник по основным API integration framework.
+Полный справочник по публичному API `screeps-integration-tests`. Остальные
+документы ссылаются сюда; повторы сведены к минимуму.
 
 ## Содержание
 
 - [1. Главная точка входа: createWorld](#1-главная-точка-входа-createworld)
-- [2. WorldInstance: что умеет созданный мир](#2-worldinstance-что-умеет-созданный-мир)
-- [3. Preferred API: builders/spec](#3-preferred-api-buildersspec)
-- [4. Preferred API: materialize](#4-preferred-api-materialize)
+- [2. WorldInstance](#2-worldinstance)
+- [3. Spec-конструкторы](#3-spec-конструкторы)
+- [4. Materialize](#4-materialize)
 - [5. Room fixtures API](#5-room-fixtures-api)
 - [6. Memory fixtures API](#6-memory-fixtures-api)
 - [7. Assertions API](#7-assertions-api)
 - [8. Metrics API](#8-metrics-api)
-- [9. Основные типы](#9-основные-типы)
+- [9. onTick, events и registerEvent](#9-ontick-events-и-registerevent)
+- [10. Прямое чтение из БД](#10-прямое-чтение-из-бд)
+- [11. Отчёт: errors, warnings, logs, events](#11-отчёт-errors-warnings-logs-events)
+- [12. Профилирование](#12-профилирование)
+- [13. Таймаут](#13-таймаут)
+- [14. Основные типы](#14-основные-типы)
 
 ## 1. Главная точка входа: createWorld
 
-`createWorld(opts)` — главный orchestration API. Создаёт multi-room runtime с произвольным числом ботов, materialize-ит объекты (контроллер, источники, структуры, крипы), загружает bot code, записывает per-bot memory.
-
-> **Важно:** spawn — обычная структура комнаты. Если сценарию нужен spawn — укажите его в `structures: [spec.spawn(25, 25)]`.
+`createWorld(opts)` создаёт мир: сервер, комнаты, ботов, объекты, memory и
+возвращает `WorldInstance`.
 
 ### Минимальный пример
 
@@ -31,22 +36,17 @@ const world = await createWorld({
       name: 'W0N1',
       controller: spec.controller({ level: 2 }),
       sources: [spec.source(15, 15)],
-      // spawn — обычная структура, указывается явно:
       structures: [spec.spawn(25, 25)],
     },
   ],
   bots: [{ username: 'bot', room: 'W0N1' }],
   ticks: 100,
-  profiling: false,
-  logLevel: 'errors',
 });
 ```
 
-### Полный пример с fixture
+### Пример с fixture и overrides
 
 ```javascript
-const { createWorld, spec } = require('screeps-integration-tests');
-
 const world = await createWorld({
   rooms: [
     {
@@ -64,63 +64,100 @@ const world = await createWorld({
 });
 ```
 
-> _Используется заранее описанная колония/комната c перезаписью отдельный объектов_
+> `rcl3-stable` — пример имени fixture; в пакете fixtures не поставляются,
+> создавайте свои. См. [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md).
 
 ### Опции createWorld
 
-| Опция             | Тип                         | Назначение                                                                              |
-| ----------------- | --------------------------- | --------------------------------------------------------------------------------------- |
-| `rooms`           | `RoomSpecInput[]`           | Спецификации комнат (обязательно, минимум 1)                                            |
-| `bots`            | `BotInput[]`                | Боты: `[{ username, room, x?, y?, modules? }]`                                          |
-| `memory`          | `MemoryInput\|MemoryByBot`  | Базовая стартовая Memory: shorthand для single-bot или map по username                  |
-| `memoryOverrides` | `Object\|MemoryByBot`       | Deep-merge патчи поверх `memory`; без базы становятся initial memory сами               |
-| `ticks`           | `number=100`                | Мягкий лимит: `run()` не превышает его, `tick()` игнорирует                             |
-| `profiling`       | `boolean=false`             | Включить screeps-profiler. Сделать профилирование см.                                   |
-| `logLevel`        | `'silent'\|'errors'\|'all'` | Собираемые логи                                                                         |
-| `metricsEvery`    | `number=0`                  | Устаревший shorthand для `metrics.every`                                                |
-| `metrics`         | `MetricsOpts`               | Настройки сбора метрик `{ every, rooms, colonies, bots, world }`                        |
-| `until`           | `UntilOpts`                 | Жёсткое условие досрочного завершения. `until.maxTicks` уважается и `run()`, и `tick()` |
-| `onTick`          | `Function`                  | Callback на каждом тике                                                                 |
-| `events`          | `EventSpec[]`               | Декларативные события по тикам                                                          |
+| Опция             | Тип                              | Назначение                                                                                       |
+| ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `rooms`           | `RoomSpecInput[]`                | Обязательно, минимум 1 комната                                                                   |
+| `bots`            | `BotInput[]`                     | Боты: `[{ username, room, x?, y?, modules?, logLevel?, profiling? }]`                            |
+| `memory`          | `MemoryInput \| MemoryByBot`     | Стартовая Memory: строка (fixture) или per-bot map                                               |
+| `memoryOverrides` | `Object \| MemoryByBot`          | Deep-merge патчи поверх `memory`; без base становятся initial memory                             |
+| `ticks`           | `number=100`                     | Мягкий лимит: влияет только на `world.run()`                                                     |
+| `profiling`       | `boolean=false`                  | Включить callgrind-профилирование, см. [Profiler](https://github.com/screepers/screeps-profiler) |
+| `logLevel`        | `'all' \| 'error' \| 'warn'`     | Порог для `report.logs` (по умолчанию `'all'`)                                                   |
+| `maxConsoleLines` | `number=10000`                   | Общий лимит строк `errors + warnings + logs`                                                     |
+| `metricsEvery`    | `number=0`                       | Устаревший shorthand для `metrics.every`                                                         |
+| `metrics`         | `MetricsOpts`                    | `{ every, rooms }` (только `rooms` реализовано)                                                  |
+| `until`           | `UntilOpts`                      | Жёсткое условие остановки                                                                        |
+| `onTick`          | `(world, tick) => Promise<void>` | Callback на каждом тике, вызывается после bot-tick и перед predicate                             |
+| `events`          | `EventSpec[]`                    | Декларативные события по тикам                                                                   |
 
-### UntilOpts (жёсткое условие)
+### UntilOpts
 
-| Поле        | Тип        | Описание                                                                                                                                                              |
-| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `maxTicks`  | `number`   | Жёсткий лимит тиков. `ticksRun >= maxTicks` → остановка. Уважается и `run()`, и `tick()`. Не путать с `createWorld().ticks` (мягкий лимит, влияет только на `run()`). |
-| `predicate` | `Function` | `async (world) => boolean`. Выполняется на каждом тике. Если вернула `true` → остановка.                                                                              |
-| `signal`    | `string`   | Имя поля в Memory бота. Если стало truthy → остановка.                                                                                                                |
-| `signalBot` | `string`   | Имя бота для проверки `signal`. Если не указан — проверяются все боты.                                                                                                |
+| Поле        | Тип        | Описание                                                                                 |
+| ----------- | ---------- | ---------------------------------------------------------------------------------------- |
+| `maxTicks`  | `number`   | Жёсткий лимит. Уважается и `run()`, и `tick()`. Не путать с `opts.ticks` (мягкий лимит). |
+| `predicate` | `Function` | `async (world) => boolean`. Проверяется каждый тик.                                      |
+| `signal`    | `string`   | Имя поля в Memory бота. Если стало truthy — остановка.                                   |
+| `signalBot` | `string`   | Бот для проверки `signal`. Если не указан — проверяются все.                             |
 
-Подробнее про multi-room паттерны — [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md).
+### Memory и memoryOverrides
 
-## 2. WorldInstance: что умеет созданный мир
+`memory` может быть:
 
-_`createWorld()` возвращает `WorldInstance`._
+- строкой — имя memory fixture (single-bot shorthand);
+- объектом `{ fixture: 'name', ...overrides }`;
+- inline-объектом;
+- для multi-bot — обязательно map `{ username: memoryInput }`.
+
+```javascript
+// single-bot
+const world = await createWorld({
+  bots: [{ username: 'bot', room: 'W0N1' }],
+  memory: 'rcl3-stable',
+});
+
+// multi-bot
+const world = await createWorld({
+  bots: [
+    { username: 'mainBot', room: 'W0N1' },
+    { username: 'reserveBot', room: 'W0N2' },
+  ],
+  memory: {
+    mainBot: 'rcl3-stable',
+    reserveBot: { fixture: 'rcl3-stable', colonies: { W0N2: { stage: 'reserve' } } },
+  },
+  memoryOverrides: {
+    mainBot: { flags: { defend: true } },
+  },
+});
+```
+
+`memoryOverrides` deep-merge'ится поверх `memory`:
+
+- plain objects рекурсивно мержатся;
+- массивы и примитивы заменяются;
+  | `undefined` в patch игнорируется (не стирает поле).
+
+## 2. WorldInstance
+
+`createWorld()` возвращает объект со следующими методами и полями.
 
 ### Методы
 
-| Метод                                                 | Назначение                                                                                               |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `world.run()`                                         | Прогнать сценарий до конца и вернуть report                                                              |
-| `world.tick(n)`                                       | Выполнить `n` тиков. Уважает `until.maxTicks` (жёсткий лимит), игнорирует `createWorld().ticks` (мягкий) |
-| `world.exec(code, username?)`                         | Выполнить JS-код в боте (по username)                                                                    |
-| `world.spawn({ roomName, x, y, userId, name, body })` | Создать крипа (roomName обязателен, userId по умолч. первый бот)                                         |
-| `world.eventLog(room)`                                | Прочитать event log комнаты                                                                              |
-| `world.readMemory(username)`                          | Прочитать Memory бота по username                                                                        |
-| `world.writeMemory(username, patch)`                  | Обновить Memory бота                                                                                     |
-| `world.registerEvent(action, handler)`                | Зарегистрировать обработчик события                                                                      |
-| `world.dispose()`                                     | Остановить сервер и освободить ресурсы                                                                   |
+| Метод                                  | Назначение                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| `world.run()`                          | Прогнать сценарий до `opts.ticks` / `until.maxTicks` / predicate          |
+| `world.tick(n)`                        | Выполнить `n` тиков; уважает `until.maxTicks`, игнорирует `opts.ticks`    |
+| `world.exec(code, username?)`          | Выполнить JS-код в контексте бота                                         |
+| `world.spawn(spec)`                    | Создать крипа (`roomName` обязателен, `userId` — первый бот по умолчанию) |
+| `world.eventLog(room)`                 | Event log комнаты за текущий тик                                          |
+| `world.readMemory(username?)`          | Прочитать Memory бота                                                     |
+| `world.writeMemory(username, patch)`   | Deep-merge patch в Memory бота                                            |
+| `world.registerEvent(action, handler)` | Зарегистрировать обработчик для `opts.events`                             |
+| `world.dispose()`                      | Остановить сервер и удалить cache-директорию                              |
 
 ### Поля
 
-| Поле             | Назначение                                           |
-| ---------------- | ---------------------------------------------------- |
-| `world.report`   | Накопленный отчёт о прогоне                          |
-| `world.server`   | Экземпляр ScreepsServer                              |
-| `world.bots`     | Боты по `username` (`Record<username, Bot>`)         |
-| `world.rooms`    | Статус комнат по `name` (`Record<name, RoomStatus>`) |
-| `world.disposed` | disposed?                                            |
+| Поле           | Назначение                        |
+| -------------- | --------------------------------- |
+| `world.report` | Накопленный отчёт (`WorldReport`) |
+| `world.server` | Экземпляр `ScreepsServer`         |
+| `world.bots`   | `Record<username, Bot>`           |
+| `world.rooms`  | `Record<name, RoomStatus>`        |
 
 ### Примеры
 
@@ -128,7 +165,6 @@ _`createWorld()` возвращает `WorldInstance`._
 
 ```javascript
 await world.tick(10);
-// await world.spawn({ roomName: 'W0N1', x: 10, y: 10, userId: world.bots.bot.id, name: 'DummyTarget' });
 await world.spawn(spec.dummyTarget(10, 10, { roomName: ROOM_NAME }));
 await world.tick(40);
 ```
@@ -140,22 +176,21 @@ const memory = await world.readMemory('bot');
 await world.writeMemory('bot', { test: { enabled: true } });
 ```
 
-#### Event log для конкретной комнаты
+#### Event log
 
 ```javascript
+const { EVENT_OBJECT_DESTROYED } = require('screeps-integration-tests/events');
 const events = await world.eventLog('W0N1');
-const destroyed = events.some((e) => e.event === 2);
+const destroyed = events.some((e) => e.event === EVENT_OBJECT_DESTROYED);
 ```
 
-## 3. Preferred API: builders/spec
-
-`spec` — набор чистых конструкторов canonical spec-объектов. **Не знают** о БД и сервере — только создают plain objects с дефолтами.
+## 3. Spec-конструкторы
 
 ```javascript
 const { spec } = require('screeps-integration-tests');
 ```
 
-Все конструкторы принимают `roomName` (опционально) — чтобы материализатор знал, куда положить объект. По умолчанию `roomName = undefined` и его нужно установить явно (либо из room-петли, либо через `applyColonyOverrides`-подобные помощники).
+`spec` — чистые конструкторы plain-объектов. Никаких записей в БД.
 
 ### Структуры
 
@@ -169,20 +204,23 @@ const { spec } = require('screeps-integration-tests');
 | `spec.storage(x, y, opts)`         | Storage                   |
 | `spec.road(x, y, opts)`            | Road                      |
 | `spec.wall(x, y, opts)`            | Constructed wall          |
+| `spec.rampart(x, y, opts)`         | Rampart                   |
 
 `opts` для структур:
 
-- `roomName?: string` — имя комнаты
-- `userId?: string` — владелец (явно; **никаких автодефолтов**)
+- `roomName?: string`
+- `userId?: string` — владелец (явно; никаких автодефолтов)
 - `id?: string` — конкретный `_id` (для memory fixture)
 - `name?: string` — имя (для spawn)
 - `energy?, energyCapacity?, storeCapacity?, hits?, hitsMax?, notifyWhenAttacked?`
-- `overrides?: Object` — произвольные дополнительные поля для БД
+- `overrides?: Object` — произвольные дополнительные поля
+
+Для типов без dedicated helper используйте `spec.structure` с константами из
+`screeps-integration-tests/constants`:
 
 ```javascript
-spec.spawn(25, 25, { roomName: 'W0N1', name: 'MySpawn', userId: botId, energy: 300 });
-spec.tower(26, 24, { roomName: 'W0N1', userId: botId, energy: 1000, energyCapacity: 1000 });
-spec.road(24, 24, { roomName: 'W0N1' });
+const { STRUCTURE_RAMPART } = require('screeps-integration-tests/constants');
+const rampart = spec.structure(STRUCTURE_RAMPART, 25, 25, { roomName: 'W0N1' });
 ```
 
 ### Источники и controller
@@ -194,63 +232,54 @@ spec.controller({ roomName: 'W0N1', level: 3, safeMode: 20000, userId: botId });
 
 ### Крипы
 
-| Функция                        | Назначение                      |
-| ------------------------------ | ------------------------------- |
-| `spec.creep(x, y, opts)`       | Обычный creep                   |
-| `spec.invader(x, y, opts)`     | Invader (`userId: '2'`)         |
-| `spec.dummyTarget(x, y, opts)` | Dummy target для defense-тестов |
+| Функция                        | Назначение              |
+| ------------------------------ | ----------------------- |
+| `spec.creep(x, y, opts)`       | Обычный creep           |
+| `spec.invader(x, y, opts)`     | Invader (`userId: '2'`) |
+| `spec.dummyTarget(x, y, opts)` | Целевой dummy creep     |
 
-`opts` для крипов:
+## 4. Materialize
 
-- `roomName?: string`
-- `userId?: string` — `_id` бота или `'2'` для invader
-- `name?: string`
-- `body?: BodyPart[]`
-
-```javascript
-spec.creep(10, 10, { roomName: 'W0N1', userId: botId, name: 'Harvester1' });
-spec.invader(40, 41, { roomName: 'W0N1', name: 'Invader_1' });
-spec.dummyTarget(12, 12, { roomName: 'W0N1', name: 'DummyTarget' });
-```
-
-## 4. Preferred API: materialize
-
-`materialize*` — единственный слой, знающий DB shape. Обычно **не нужно** вызывать из сценариев — этим управляет `createWorld()`.
-
-Для продвинутого использования применяются внутренние модули; публичный API их не экспортирует.
+`materialize*` — внутренний слой, знающий форму БД. Обычно не вызывается из
+сценариев; `createWorld()` делает это сам. Публичный API не экспортирует
+материализаторы.
 
 ## 5. Room fixtures API
 
-Room fixture — это **семантическое** описание комнаты (controller, sources, structures, creeps).
-
 ```javascript
-const { getRoomFixture, hasRoomFixture, loadRoomFixture, applyRoomOverrides } = require('screeps-integration-tests/room-fixtures');
+const {
+  getRoomFixture,
+  hasRoomFixture,
+  loadRoomFixture,
+  applyRoomOverrides,
+  registerRoomFixture,
+} = require('screeps-integration-tests/room-fixtures');
 ```
 
-| Функция                                  | Назначение                         |
-| ---------------------------------------- | ---------------------------------- |
-| `getRoomFixture(name)`                   | Получить fixture по имени          |
-| `hasRoomFixture(name)`                   | Проверить существование fixture    |
-| `loadRoomFixture(name)`                  | Загрузить только room fixture      |
-| `applyRoomOverrides(fixture, overrides)` | Применить overrides поверх fixture |
+Room fixture — декларативное описание комнаты. Регистрируйте через
+`registerRoomFixture` или авто-загружайте из `roomFixturesDir` (см.
+[FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)).
 
-Подробнее — [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md).
+| Функция                                  | Назначение                                   |
+| ---------------------------------------- | -------------------------------------------- |
+| `getRoomFixture(name)`                   | Получить fixture по имени                    |
+| `hasRoomFixture(name)`                   | Проверить существование                      |
+| `loadRoomFixture(name)`                  | Загрузить fixture (возвращает `{ fixture }`) |
+| `applyRoomOverrides(fixture, overrides)` | Применить overrides                          |
+| `registerRoomFixture(name, fixture)`     | Зарегистрировать fixture в runtime           |
 
 ## 6. Memory fixtures API
 
-Memory fixture — snapshot `Memory` бота. Подключается через `memory: 'fixture-name'`, `memory: { fixture: 'fixture-name' }` или per-bot map в multi-bot сценариях.
-
 ```javascript
-const { loadFixture, hasFixture, saveFixture } = require('screeps-integration-tests/memory-fixtures');
+const { loadFixture, hasFixture, saveFixture, deepMergeMemory } = require('screeps-integration-tests/memory-fixtures');
 ```
 
-| Функция                            | Назначение                |
-| ---------------------------------- | ------------------------- |
-| `loadFixture(name)`                | Прочитать `*.memory.json` |
-| `hasFixture(name)`                 | Проверить существование   |
-| `saveFixture(name, memory, opts?)` | Сохранить snapshot        |
-
-Подробнее — [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#memory-fixtures).
+| Функция                            | Назначение                         |
+| ---------------------------------- | ---------------------------------- |
+| `loadFixture(name)`                | Прочитать `*.memory.json`          |
+| `hasFixture(name)`                 | Проверить существование            |
+| `saveFixture(name, memory, opts?)` | Сохранить snapshot                 |
+| `deepMergeMemory(target, ...src)`  | Deep-merge (plain objects recurse) |
 
 ## 7. Assertions API
 
@@ -269,8 +298,32 @@ const {
   assertObjectNotDamaged,
   assertBotUserDamaged,
   assertBotUserNotDamaged,
+  assertBotUserAttacking,
+  assertBotUserNotAttacking,
 } = require('screeps-integration-tests/assertions');
+```
 
+| Категория        | Функция                                       | Назначение                      |
+| ---------------- | --------------------------------------------- | ------------------------------- |
+| Жизнеспособность | `assertNoErrors(report)`                      | Нет ошибок в логах              |
+| Жизнеспособность | `assertBotWorked(report)`                     | Бот делал тики, Memory не пуста |
+| RCL              | `assertRclAtLeast(report, room, n)`           | `RCL >= n`                      |
+| RCL              | `assertRclBelow(report, room, n)`             | `RCL < n`                       |
+| Destroyed        | `assertObjectDestroyed(report, opts)`         | Объект(ы) разрушен(ы)           |
+| Destroyed        | `assertObjectNoDestroyed(report, opts)`       | Объекты НЕ разрушены            |
+| Destroyed        | `assertNoBotObjectDestroyed(report, opts)`    | Здания бота не разрушены        |
+| Бой              | `assertObjectAttacking(report, objectId)`     | Атака была                      |
+| Бой              | `assertObjectNotAttacking(report, objectId)`  | Атаки не было                   |
+| Бой              | `assertObjectDamaged(report, targetId)`       | Урон получен                    |
+| Бой              | `assertObjectNotDamaged(report, targetId)`    | Урон не получен                 |
+| Бой              | `assertBotUserDamaged(report, username)`      | Объект бота получил урон        |
+| Бой              | `assertBotUserNotDamaged(report, username)`   | Объекты бота НЕ получили урон   |
+| Бой              | `assertBotUserAttacking(report, username)`    | Бот инициировал атаку           |
+| Бой              | `assertBotUserNotAttacking(report, username)` | Бот НЕ атаковал                 |
+
+Metric assertions:
+
+```javascript
 const {
   assertHasMetricSamples,
   assertLatestMetricAtLeast,
@@ -280,32 +333,38 @@ const {
 } = require('screeps-integration-tests/metric-assertions');
 ```
 
-| Категория        | Функция                                      | Назначение                      |
-| ---------------- | -------------------------------------------- | ------------------------------- |
-| Жизнеспособность | `assertNoErrors(report)`                     | Нет ошибок в логах              |
-| Жизнеспособность | `assertBotWorked(report)`                    | Бот делал тики, Memory не пуста |
-| RCL              | `assertRclAtLeast(report, room, n)`          | `RCL >= n`                      |
-| RCL              | `assertRclBelow(report, room, n)`            | `RCL < n`                       |
-| Destroyed        | `assertObjectDestroyed(report, opts)`        | Объект(ы) разрушен              |
-| Destroyed        | `assertNoObjectDestroyed(report, opts)`      | Объекты НЕ разрушены            |
-| Destroyed        | `assertNoBotObjectDestroyed(report, opts)`   | Здания бота не разрушены        |
-| Бой              | `assertObjectAttacking(report, objectId)`    | Атака была                      |
-| Бой              | `assertObjectNotAttacking(report, objectId)` | Атаки не было                   |
-| Бой              | `assertObjectDamaged(report, targetId)`      | Урон получен                    |
-| Бой              | `assertObjectNotDamaged(report, targetId)`   | Урон не получен                 |
-| Бой              | `assertBotUserDamaged(report, userId)`       | Объект бота получил урон        |
-| Бой              | `assertBotUserNotDamaged(report, userId)`    | Объекты бота НЕ получили урон   |
-| Бой              | `assertBotUserAttacking(report, userId)`     | Бот инициировал атаку           |
-| Бой              | `assertBotUserNotAttacking(report, userId)`  | Бот НЕ атаковал                 |
-| Метрики          | `assertHasMetricSamples(report, type, id)`   | Есть сэмплы для сущности        |
-| Метрики          | `assertLatestMetricAtLeast(...)`             | Последнее значение ≥ expected   |
-| Метрики          | `assertLatestMetricBelow(...)`               | Последнее значение < expected   |
-| Метрики          | `assertMetricReached(...)`                   | Значение достигалось            |
-| Метрики          | `assertMetricMonotonic(...)`                 | Метрика не убывает              |
+| Функция                                                        | Назначение                       |
+| -------------------------------------------------------------- | -------------------------------- |
+| `assertHasMetricSamples(report, 'rooms', 'W0N1')`              | Есть сэмплы                      |
+| `assertLatestMetricAtLeast(report, 'rooms', 'W0N1', 'rcl', 3)` | Последнее значение ≥ expected    |
+| `assertLatestMetricBelow(...)`                                 | Последнее значение < expected    |
+| `assertMetricReached(...)`                                     | Значение достигалось хотя бы раз |
+| `assertMetricMonotonic(...)`                                   | Метрика не убывает               |
 
 ## 8. Metrics API
 
-### Query / aggregation helpers
+### Сбор
+
+```javascript
+const world = await createWorld({
+  rooms: [{ name: 'W0N1', controller: spec.controller({ level: 2 }), sources: [spec.source(15, 15)] }],
+  bots: [{ username: 'bot', room: 'W0N1' }],
+  ticks: 100,
+  metrics: { every: 1, rooms: true },
+});
+```
+
+`MetricsOpts`:
+
+| Поле       | Тип       | Назначение                                       |
+| ---------- | --------- | ------------------------------------------------ |
+| `every`    | `number`  | Интервал сэмплирования в тиках (`0` — выключено) |
+| `rooms`    | `boolean` | Собирать метрики комнат (default `true`)         |
+| `colonies` | `boolean` | **Не реализовано** — бросает ошибку              |
+| `bots`     | `boolean` | **Не реализовано** — бросает ошибку              |
+| `world`    | `boolean` | **Не реализовано** — бросает ошибку              |
+
+### Query helpers
 
 ```javascript
 const {
@@ -314,41 +373,26 @@ const {
   getMetricAtTick,
   getWorldSnapshotAtTick,
   averageMetric,
+  sumMetric,
   deltaMetric,
   rateMetric,
+  compareMetric,
+  selectWindow,
 } = require('screeps-integration-tests/metrics');
 ```
 
-| Функция                                            | Назначение                                        |
-| -------------------------------------------------- | ------------------------------------------------- |
-| `getRoomMetrics(report, roomName)`                 | Вернуть time-series комнаты                       |
-| `getLatestRoomMetrics(report, roomName)`           | Последний сэмпл комнаты                           |
-| `getMetricAtTick(report, 'rooms', roomName, tick)` | Сэмпл ровно на указанном тике                     |
-| `getWorldSnapshotAtTick(report, tick)`             | `{ [roomName]: sample }` для тика                 |
-| `averageMetric(series, 'energyAvailable')`         | Среднее по числовым значениям                     |
-| `sumMetric(series, 'containerEnergy')`             | Сумма числовых значений                           |
-| `deltaMetric(series, 'rclProgress')`               | Последнее − первое значение                       |
-| `rateMetric(series, 'rclProgress')`                | Изменение на тик между первым и последним сэмплом |
-
-### Metric assertions
-
-```javascript
-const {
-  assertHasMetricSamples,
-  assertLatestMetricAtLeast,
-  assertLatestMetricBelow,
-  assertMetricReached,
-  assertMetricMonotonic,
-} = require('screeps-integration-tests/metric-assertions');
-```
-
-| Функция                                                           | Назначение                       |
-| ----------------------------------------------------------------- | -------------------------------- |
-| `assertHasMetricSamples(report, 'rooms', 'W0N1')`                 | Есть хотя бы один сэмпл          |
-| `assertLatestMetricAtLeast(report, 'rooms', 'W0N1', 'rcl', 3)`    | Последнее значение ≥ expected    |
-| `assertLatestMetricBelow(report, 'rooms', 'W0N1', 'cpu', 20)`     | Последнее значение < expected    |
-| `assertMetricReached(report, 'rooms', 'W0N1', 'rcl', 3)`          | Значение достигалось хотя бы раз |
-| `assertMetricMonotonic(report, 'rooms', 'W0N1', 'totalProgress')` | Метрика не убывает               |
+| Функция                                            | Назначение                      |
+| -------------------------------------------------- | ------------------------------- |
+| `getRoomMetrics(report, roomName)`                 | Time-series комнаты             |
+| `getLatestRoomMetrics(report, roomName)`           | Последний сэмпл комнаты         |
+| `getMetricAtTick(report, 'rooms', roomName, tick)` | Сэмпл ровно на тике             |
+| `getWorldSnapshotAtTick(report, tick)`             | `{ [roomName]: sample }`        |
+| `averageMetric(series, 'energyAvailable')`         | Среднее по числовым значениям   |
+| `sumMetric(series, 'containerEnergy')`             | Сумма                           |
+| `deltaMetric(series, 'rclProgress')`               | Последнее − первое              |
+| `rateMetric(series, 'rclProgress')`                | Изменение на тик                |
+| `selectWindow(series, { startTick, endTick })`     | Вырезать окно из series         |
+| `compareMetric(current, baseline, metric, opts)`   | Сравнение с baseline без файлов |
 
 ### Export
 
@@ -358,36 +402,182 @@ const { toCsv, flattenMetricSeries } = require('screeps-integration-tests/metric
 const csv = toCsv(report, { entityTypes: ['rooms'], metrics: ['rcl', 'energyAvailable'] });
 ```
 
-`toCsv` возвращает CSV-строку с колонками `entityType,entityId,tick,metric,value`.
-Объекты `spawnHits` не экспортируются; `creepsByRole` разворачивается в `creepsByRole.<role>`.
+## 9. onTick, events и registerEvent
 
-### Regression (без baseline-файлов)
+### onTick
+
+Вызывается каждый тик **после** выполнения bot-tick, сбора event log,
+metrics и декларативных events, но **до** predicate-проверки.
+
+Сигнатура: `async (world, tick) => void`, где `world` — полный
+`WorldInstance`, `tick` — 0-based номер тика.
 
 ```javascript
-const { compareMetric, selectWindow } = require('screeps-integration-tests/metrics');
-
-const current = selectWindow(report.metrics.rooms.W0N1, { startTick: 100, endTick: 200 });
-const baseline = loadBaselineSomehow(); // JSON/CSV fixture (НЕ реализованно)
-const result = compareMetric(current, baseline, 'cpuUsed', { tolerance: 5, direction: 'increase' });
-// { passed, actual, expected, delta, relativeDelta }
+const world = await createWorld({
+  // ...
+  onTick: async (world, tick) => {
+    if (tick === 50) {
+      await world.spawn(spec.invader(40, 40, { roomName: 'W0N1' }));
+    }
+    const mem = await world.readMemory('bot');
+    if (mem.emergencyStop) {
+      // predicate сработает на следующем шаге
+    }
+  },
+});
 ```
 
-## 9. Основные типы
+### opts.events
 
-Полные JSDoc-типы находятся в `lib/types.js`. Ниже — практическая выжимка.
+Декларативные события по тикам. Обрабатываются до `onTick`.
+
+```javascript
+const world = await createWorld({
+  // ...
+  events: [
+    { atTick: 10, action: 'spawnInvader', params: { x: 40, y: 40, room: 'W0N1' } },
+    { atTick: 20, action: 'spawnCreep', params: { room: 'W0N1', x: 25, y: 25, userId: botId, name: 'Defender' } },
+  ],
+});
+```
+
+`EventSpec`:
+
+| Поле     | Тип      | Описание                                    |
+| -------- | -------- | ------------------------------------------- |
+| `atTick` | `number` | 0-based номер тика                          |
+| `action` | `string` | Имя зарегистрированного обработчика         |
+| `params` | `Object` | Параметры; для `spawn*` нужен `params.room` |
+| `room`   | `string` | Целевая комната (передаётся в handler)      |
+
+### registerEvent
+
+Регистрирует кастомный обработчик события.
+
+```javascript
+world.registerEvent('healAll', async (server, room, params) => {
+  const { db } = server.common.storage;
+  const creeps = await db['rooms.objects'].find({ room, type: 'creep' });
+  for (const creep of creeps) {
+    await db['rooms.objects'].update({ _id: creep._id }, { $set: { hits: creep.hitsMax } });
+  }
+});
+```
+
+Handler: `async (server, room, params) => void`.
+
+Встроенные события: `spawnInvader`, `spawnCreep`.
+
+## 10. Прямое чтение из БД
+
+`world.server.common.storage.db` — Loki-style коллекции mockup-сервера.
+
+```javascript
+const { db } = world.server.common.storage;
+
+// Все объекты комнаты
+const objects = await db['rooms.objects'].find({ room: 'W0N1' });
+
+// Только towers
+const towers = await db['rooms.objects'].find({ room: 'W0N1', type: 'tower' });
+
+// Один объект
+const controller = await db['rooms.objects'].findOne({ room: 'W0N1', type: 'controller' });
+```
+
+Используйте когда публичного API недостаточно.
+
+## 11. Отчёт: errors, warnings, logs, events
+
+`world.report` накапливает:
+
+| Поле          | Тип        | Что содержит                                                             |
+| ------------- | ---------- | ------------------------------------------------------------------------ |
+| `ticksRun`    | `number`   | Число выполненных тиков                                                  |
+| `errors`      | `string[]` | Строки с `[ERROR]` или matching `ERROR_PATTERNS` (ReferenceError и т.п.) |
+| `warnings`    | `string[]` | Строки с `[WARN]`                                                        |
+| `logs`        | `string[]` | Строки в зависимости от `logLevel` (default `'all'`)                     |
+| `events`      | `Object[]` | Аккумулированные event-log entries с `tick`                              |
+| `finalRcl`    | `Object`   | `{ [roomName]: number }`                                                 |
+| `finalMemory` | `Object`   | `{ [username]: Memory }`                                                 |
+| `metrics`     | `Object`   | `{ rooms, colonies, bots, world }`                                       |
+| `wallClockMs` | `number`   | Время прогона                                                            |
+| `stopReason`  | `string`   | Причина остановки (`maxTicks`, `predicate`, `signal`, ...)               |
+
+Пример парсинга:
+
+```javascript
+for (const line of world.report.errors) {
+  if (line.includes('TypeError')) {
+    throw new Error('Bot crashed with TypeError');
+  }
+}
+```
+
+> `errors`/`warnings`/`logs` — голые строки без привязки к тику. Если нужна
+> per-tick информация — используйте `report.events` или `onTick`.
+
+## 12. Профилирование
+
+```javascript
+const world = await createWorld({
+  // ...
+  profiling: true,
+});
+```
+
+Требования:
+
+1. В проекте бота установлен `screeps-profiler`:
+   `npm install --save-dev screeps-profiler`
+2. `main.js` бота обёрнут:
+
+```javascript
+const profiler = require('screeps-profiler');
+profiler.enable();
+module.exports.loop = profiler.wrap(function () {
+  // bot logic
+});
+```
+
+При `--profiling` фреймворк:
+
+- tick 0 — инициализация;
+- tick 1 — arm profiling;
+- tick 2+ — сбор данных;
+- после прогона — один extra tick для финализации.
+
+CLI сохраняет `report.profileCallgrind` в
+`<profilesDir>/<scenario>-<username>-<timestamp>.callgrind`.
+
+> Ознакомьтесь с репозиторием [Profiler](https://github.com/screepers/screeps-profiler)
+
+## 13. Таймаут
+
+Таймаут задаётся **на один сценарий**:
+
+- в конфиге: `timeout: 30 * 60 * 1000` (default 30 мин);
+- в CLI: `--timeout N` (миллисекунды).
+
+Если сценарий не уложился — worker получает `SIGKILL`. Общего таймаута на
+весь прогон нет.
+
+## 14. Основные типы
+
+Полные JSDoc-типы — в `src/lib/types.js`. Ниже — выжимка.
 
 ### RoomSpecInput
 
 ```typescript
 {
     name: 'W0N1',
-    roomFixture: 'rcl3-stable' | {/* inline */},
-    roomOverrides: { exclude, controller, structures, append, hostiles },
-    controller,           // (если без fixture)
-    sources,              // (если без fixture)
-    structures,           // (если без fixture)
-    creeps,               // (если без fixture)
-    hostiles,             // (если без fixture)
+    roomFixture?: 'rcl3-stable' | object,
+    roomOverrides?: { exclude, controller, structures, append, hostiles, creeps },
+    controller?,           // inline
+    sources?,
+    structures?,
+    creeps?,
+    hostiles?,
 }
 ```
 
@@ -398,32 +588,9 @@ const result = compareMetric(current, baseline, 'cpuUsed', { tolerance: 5, direc
     username: 'bot',
     room: 'W0N1',
     x?: 25, y?: 25,
-    modules?: Object,     // custom modules (default = из dist/)
-}
-```
-
-### RoomSpecCanonical
-
-```typescript
-{
-    name: 'W0N1',
-    controller: spec.controller(...),
-    sources: [spec.source(...)],
-    structures: [spec.spawn(...), spec.tower(...)],
-    creeps: [spec.creep(...)],
-    hostiles: [spec.invader(...)],
-}
-```
-
-### RoomOverrides
-
-```typescript
-{
-    exclude: ['tower'],
-    controller: { safeMode: 20000 },
-    structures: [spec.extension(...)],
-    append: [spec.road(...)],
-    hostiles: [spec.invader(...)],
+    modules?: object,     // custom modules (default = из dist/)
+    logLevel?: 'all'|'error'|'warn',
+    profiling?: boolean,
 }
 ```
 
@@ -436,14 +603,11 @@ const result = compareMetric(current, baseline, 'cpuUsed', { tolerance: 5, direc
     errors: [],
     warnings: [],
     logs: [],
-    finalMemory: {                          // per-bot
-        bot: { /* Memory */ },
-        reserve: { /* Memory */ },
-    },
+    events: [{ tick, event, objectId, ... }],
+    finalMemory: { bot: { /* Memory */ } },
     wallClockMs: 1200,
-    events: [...],
     metrics: {
-        rooms: { W0N1: [{ tick, rcl, energyAvailable, ... }], ... },
+        rooms: { W0N1: [{ tick, rcl, energyAvailable, ... }] },
         colonies: {},
         bots: {},
         world: [],
@@ -457,4 +621,5 @@ const result = compareMetric(current, baseline, 'cpuUsed', { tolerance: 5, direc
 - [GETTING-STARTED.md](./GETTING-STARTED.md) — быстрый старт
 - [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md) — fixtures подробно
 - [EXAMPLES.md](./EXAMPLES.md) — эталонные сценарии
-- [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — multi-room + multi-bot паттерны
+- [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — multi-room + multi-bot
+- [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md) — архитектура

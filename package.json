@@ -17,11 +17,13 @@
         "./memory-fixtures": "./src/public/memory-fixtures.js",
         "./room-fixtures": "./src/public/room-fixtures.js",
         "./events": "./src/public/events.js",
+        "./constants": "./src/public/constants.js",
         "./package.json": "./package.json"
     },
     "files": [
         "bin",
-        "src"
+        "src",
+        "examples"
     ],
     "scripts": {
         "lint": "eslint .",

@@ -19,6 +19,7 @@
  * | `screeps-integration-tests/memory-fixtures` | Memory snapshot load / save / merge |
  * | `screeps-integration-tests/room-fixtures` | Room fixture registry and overrides |
  * | `screeps-integration-tests/events` | Event log constants (`EVENT_ATTACK`, …) and filters |
+ * | `screeps-integration-tests/constants` | Screeps structure type constants (`STRUCTURE_*`) |
  *
  * Design note:
  *   The package deliberately keeps the main entry small. Users pick exactly

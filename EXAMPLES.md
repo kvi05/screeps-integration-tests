@@ -1,40 +1,33 @@
 # Examples
 
-Этот документ показывает эталонные сценарии и типовые способы проверки поведения бота.
+Эталонные сценарии и типовые приёмы использования фреймворка.
 
-> **Note:** после выноса фреймворка в отдельный npm-пакет bot-специфичные сценарии
-> (bootstrap, defense) переехали в репозиторий бота (`inter_tests/scenarios/`).
-> В этом репозитории остались универсальные примеры (`examples/scenarios/`),
-> на которых фреймворк самотестируется.
+> **Примечание:** некоторые рецепты (bootstrap, defense) взяты из личного
+> бота и содержат bot-специфичные проверки (например, ожидаемые поля в
+> `Memory`). Используйте их как идею, а не как готовый код — адаптируйте
+> под свою архитектуру. Такие места помечены inline-меткой
+> `[пример из личного бота]`.
 
 ## Содержание
 
 - [1. Smoke: минимальная проверка запуска](#1-smoke-минимальная-проверка-запуска)
 - [2. Bootstrap: рост колонии до RCL3](#2-bootstrap-рост-колонии-до-rcl3)
-- [3. Defense: реальная колония с tower](#3-defense-реальная-колония-с-tower)
+- [3. Defense: колония с tower](#3-defense-колония-с-tower)
 - [4. Defense variation: та же колония без tower](#4-defense-variation-та-же-колония-без-tower)
 - [5. Multi-room: main + reserve](#5-multi-room-main--reserve)
-- [6. Multi-bot: два игрока в одной комнате](#6-multi-bot-два-игрока-в-одной-комнате)
-- [7. Metrics: multi-room time-series](#7-metrics-multi-room-time-series)
-- [8. Каких паттернов придерживаться](#8-каких-паттернов-придерживаться)
+- [6. Metrics: multi-room time-series](#6-metrics-multi-room-time-series)
+- [7. onTick + events + registerEvent](#7-ontick--events--registerevent)
+- [8. memoryOverrides и прямое чтение БД](#8-memoryoverrides-и-прямое-чтение-бд)
+- [9. Профилирование](#9-профилирование)
+- [10. Паттерны](#10-паттерны)
 
 ## 1. Smoke: минимальная проверка запуска
 
 Эталонный файл: `examples/scenarios/smoke-empty.scenario.js`
 
-### Когда использовать
+**Когда использовать:** проверить, что framework стартует и бот не падает.
 
-- проверить, что framework вообще стартует;
-- проверить, что бот делает тики и не падает;
-- быстро валидировать окружение.
-
-### Что демонстрирует
-
-- минимальный `createWorld()` с одной комнатой и одним ботом;
-- простой `world.run()`;
-- базовые assertions.
-
-### Ключевой паттерн
+**Вводит:** `createWorld`, `world.run()`, базовые assertions.
 
 ```javascript
 const world = await createWorld({
@@ -55,30 +48,11 @@ assertBotWorked(world.report);
 assertNoErrors(world.report);
 ```
 
-### Почему это эталон
-
-Самый короткий сценарий, который показывает полный happy path:
-
-- создать мир (multi-room-ready, но с одной комнатой);
-- прогнать тики;
-- проверить, что бот работает.
-
 ## 2. Bootstrap: рост колонии до RCL3
 
-Эталонный файл: `test/integration/scenarios/bootstrap-rcl2-to-rcl3.scenario.js`
+Эталонный файл: _отсутствует в репозитории фреймворка_ `[пример из личного бота]`
 
-### Когда использовать
-
-- проверить прогресс колонии;
-- протестировать bootstrap-логику;
-- завершать сценарий не по фиксированному числу тиков, а по условию.
-
-### Что демонстрирует
-
-- predicate-based termination;
-- проверку `RCL >= N`;
-
-### Ключевой паттерн
+**Вводит:** остановка по условию (`until.predicate`), проверка RCL.
 
 ```javascript
 const world = await createWorld({
@@ -92,7 +66,6 @@ const world = await createWorld({
   ],
   bots: [{ username: 'bot', room: 'W0N1' }],
   ticks: maxTicks,
-
   until: {
     maxTicks,
     predicate: async (w) => {
@@ -103,28 +76,15 @@ const world = await createWorld({
 });
 ```
 
-> Учесть: в `predicate` читает уровень контроллера из Memory, а не из реального объекта.
+> `predicate` читает RCL из Memory — структура `Memory` зависит от вашего
+> бота. `[пример из личного бота]`
 
-## 3. Defense: реальная колония с tower
+## 3. Defense: колония с tower
 
-Эталонный файл: `test/integration/scenarios/defense-invader-rcl3.scenario.js`
+Эталонный файл: _отсутствует в репозитории фреймворка_ `[пример из личного бота]`
 
-### Когда использовать
-
-- нужен почти реальный боевой сценарий;
-- хочется переиспользовать готовую комнату;
-- важно протестировать связку room fixture + memory fixture.
-
-### Что демонстрирует
-
-- `roomFixture: 'rcl3-stable'`;
-- `memory: 'rcl3-stable'`;
-- поэтапный `world.tick()`;
-- runtime spawn hostile creep;
-- event-driven завершение;
-- assertions для боевого сценария.
-
-### Ключевой паттерн
+**Вводит:** room fixture + memory fixture, runtime spawn, event-driven
+завершение.
 
 ```javascript
 const world = await createWorld({
@@ -132,7 +92,6 @@ const world = await createWorld({
   bots: [{ username: 'bot', room: ROOM_NAME }],
   memory: 'rcl3-stable',
   ticks: maxTicks,
-
   until: {
     maxTicks,
     predicate: async (w) => {
@@ -143,45 +102,19 @@ const world = await createWorld({
 });
 
 await world.spawn(spec.dummyTarget(10, 10, { roomName: ROOM_NAME }));
-
 await world.tick(10);
-
 await world.spawn(spec.invader(40, 40, { roomName: ROOM_NAME }));
-
 await world.tick(maxTicks - 10);
 
 assertBotWorked(world.report);
-assertInvaderKilled(world.report, invaderId);
 assertNoBotObjectDestroyed(world.report);
-assertBotUserNotDamaged(world.report, world.bots.bot.id);
 ```
 
-Это пример сценария высокого уровня:
-
-- setup описан декларативно;
-- действия читаются последовательно;
-- проверки отражают смысл сценария;
-- нет прямых DB-записей.
-
-> Про загрузку заранее подготовленной колонии: [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)
+> `rcl3-stable` — пример имени fixture; в пакете fixtures не поставляются.
 
 ## 4. Defense variation: та же колония без tower
 
-Эталонный файл: `test/integration/scenarios/defense-invader-rcl3-no-tower.scenario.js`
-
-### Когда использовать
-
-- нужен тот же baseline, но с локальными вариациями;
-- не хочется копировать всю room spec заново.
-
-### Что демонстрирует
-
-- `roomOverrides.exclude`;
-- `roomOverrides.controller`;
-- `roomOverrides.structures`;
-- reuse одной room fixture для нескольких сценариев.
-
-### Ключевой паттерн
+**Вводит:** `roomOverrides`.
 
 ```javascript
 const world = await createWorld({
@@ -189,11 +122,10 @@ const world = await createWorld({
     {
       name: ROOM_NAME,
       roomFixture: 'rcl3-stable',
-      // Вносим изменения в заренее подготовленную комнату
       roomOverrides: {
         exclude: ['tower'],
         controller: { safeMode: 20000 },
-        structures: [spec.extension(27, 24, { id: '53fca45601fe9dd', energy: 500 })],
+        structures: [spec.extension(27, 24, { id: '53fca45601fe9dd', energy: 200 })],
       },
     },
   ],
@@ -204,70 +136,46 @@ const world = await createWorld({
 
 ## 5. Multi-room: main + reserve
 
+**Вводит:** несколько комнат, per-bot memory map, явный `userId` в multi-bot.
+
 ```javascript
 const world = await createWorld({
   rooms: [
+    { name: 'W0N1', roomFixture: 'rcl3-stable' },
     {
-      name: 'W0N1',
-      roomFixture: 'rcl3-stable',
-      // контроллер и объекты — из fixture
-    },
-    {
-      name: 'W0N2', // reserve room
-      controller: spec.controller({ level: 4, userId: 'reserveBot' }),
+      name: 'W0N2',
+      controller: spec.controller({ level: 4 }),
       sources: [spec.source(20, 20)],
-      structures: [spec.container(5, 5, { userId: 'reserveBot' })],
+      // userId явно — иначе defaultBotUserId (первый бот)
+      structures: [spec.container(5, 5, { userId: 'reserveBot' }), spec.spawn(25, 25, { userId: 'reserveBot' })],
     },
   ],
   bots: [
     { username: 'mainBot', room: 'W0N1' },
     { username: 'reserveBot', room: 'W0N2' },
   ],
+  memory: {
+    mainBot: 'rcl3-stable',
+    reserveBot: { colonies: { W0N2: { stage: 'reserve' } } },
+  },
   ticks: 100,
 });
 
 await world.run();
 ```
 
-## 6. Multi-bot: два игрока в одной комнате
+> В multi-bot всегда указывайте `userId` явно — иначе структуры привяжутся к
+> первому боту. Подробнее — [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md).
 
-```javascript
-const world = await createWorld({
-  rooms: [
-    {
-      name: 'W0N1',
-      controller: spec.controller({ level: 3 }),
-      sources: [spec.source(15, 15), spec.source(35, 35)],
-    },
-  ],
-  bots: [
-    { username: 'player1', room: 'W0N1' },
-    { username: 'player2', room: 'W0N1' },
-  ],
-});
-
-const { bots } = world;
-
-await world.spawn(spec.creep(10, 10, { roomName: 'W0N1', userId: bots['player1'].id, name: 'P1_Harvester' }));
-
-await world.spawn(spec.creep(20, 20, { roomName: 'W0N1', userId: bots['player2'].id, name: 'P2_Harvester' }));
-```
-
-## 7. Metrics: multi-room time-series
+## 6. Metrics: multi-room time-series
 
 Эталонный файл: `examples/scenarios/metrics-multi-room.scenario.js`
 
-### Когда использовать
-
-- проверить, что метрики двух комнат не смешиваются;
-- проверить структуру `report.metrics`;
-- убедиться, что `getWorldSnapshotAtTick` корректно собирает снимок мира.
-
-### Ключевой паттерн
+**Вводит:** сбор метрик, query helpers, metric assertions.
 
 ```javascript
 const { assertLatestMetricAtLeast } = require('screeps-integration-tests/metric-assertions');
-const { getWorldSnapshotAtTick, getRoomMetrics } = require('screeps-integration-tests/metrics');
+const { getRoomMetrics, getWorldSnapshotAtTick } = require('screeps-integration-tests/metrics');
 
 const world = await createWorld({
   rooms: [
@@ -281,30 +189,137 @@ const world = await createWorld({
 
 await world.run();
 
-// Series комнат независимы.
-assert.strictEqual(getRoomMetrics(world.report, 'W0N1').length, 10);
-assert.strictEqual(getRoomMetrics(world.report, 'W0N2').length, 10);
-
+// Комнаты независимы — у каждой свои метрики
 assertLatestMetricAtLeast(world.report, 'rooms', 'W0N1', 'rcl', 2);
+assertLatestMetricAtLeast(world.report, 'rooms', 'W0N1', 'energyCapacity', 300);
+assertLatestMetricAtLeast(world.report, 'rooms', 'W0N2', 'rcl', 1);
 
-// Снимок мира на конкретном тике.
+// Снимок мира на конкретном тике
 const snapshot = getWorldSnapshotAtTick(world.report, 5);
 assert.ok(snapshot.W0N1 && snapshot.W0N2);
 ```
 
-## 8. Каких паттернов придерживаться
+## 7. onTick + events + registerEvent
 
-- использовать `createWorld()` как единую точку setup;
-- не писать напрямую в БД mockup, если это не low-level framework test;
-- описывать комнату через `roomFixture` или inline spec;
-- использовать `roomOverrides`, если сценарий отличается локально;
-- обязательно вызывать `world.dispose()` в `finally`;
-- явно указывать `roomName` и `userId` для `world.spawn()`, `room` для `world.eventLog()`, `username` для `world.readMemory()`;
-- не полагаться на `world.bot` (singular) — теперь только `world.bots`.
+**Вводит:** `onTick` callback, декларативные `events`, кастомный
+`registerEvent`.
+
+```javascript
+let spawned = false;
+
+const world = await createWorld({
+  rooms: [
+    {
+      name: 'W0N1',
+      controller: spec.controller({ level: 3 }),
+      sources: [spec.source(15, 15)],
+      structures: [spec.spawn(25, 25), spec.tower(26, 24)],
+    },
+  ],
+  bots: [{ username: 'bot', room: 'W0N1' }],
+  ticks: 100,
+  events: [{ atTick: 20, action: 'spawnInvader', params: { x: 40, y: 40, room: 'W0N1' } }],
+  onTick: async (world, tick) => {
+    if (tick === 30) {
+      await world.spawn(spec.creep(25, 25, { roomName: 'W0N1', name: 'Defender' }));
+      spawned = true;
+    }
+  },
+});
+
+// Кастомный обработчик: заполняет энергию турели до максимума
+world.registerEvent('boostTower', async (server, room, params) => {
+  const { db } = server.common.storage;
+  const tower = await db['rooms.objects'].findOne({ room, type: 'tower' });
+  if (tower) {
+    await db['rooms.objects'].update({ _id: tower._id }, { $set: { store: { energy: tower.storeCapacityResource?.energy || 1000 } } });
+  }
+});
+
+await world.run();
+assert.ok(spawned);
+```
+
+> `world.spawn()` создаёт крипа в БД, но управлять им должен код вашего бота
+
+## 8. memoryOverrides и прямое чтение БД
+
+**Вводит:** `memoryOverrides`, per-bot memory map, `world.server.common.storage.db`.
+
+```javascript
+const world = await createWorld({
+  rooms: [
+    {
+      name: 'W0N1',
+      controller: spec.controller({ level: 2 }),
+      sources: [spec.source(15, 15)],
+      structures: [spec.spawn(25, 25)],
+    },
+  ],
+  bots: [{ username: 'bot', room: 'W0N1' }],
+  memory: 'baseline',
+  memoryOverrides: {
+    bot: {
+      flags: { testMode: true },
+      colonies: { W0N1: { spawnQueue: ['harvester'] } },
+    },
+  },
+  ticks: 10,
+});
+
+await world.run();
+
+const { db } = world.server.common.storage;
+const creeps = await db['rooms.objects'].find({ room: 'W0N1', type: 'creep' });
+console.log(`spawned ${creeps.length} creeps`);
+```
+
+> `memoryOverrides` deep-merge'ится поверх `memory`. Массивы и примитивы
+> заменяются, plain objects мержатся рекурсивно.
+
+## 9. Профилирование
+
+**Вводит:** `profiling: true`, чтение `report.profileCallgrind`.
+
+```javascript
+const world = await createWorld({
+  rooms: [
+    {
+      name: 'W0N1',
+      controller: spec.controller({ level: 2 }),
+      sources: [spec.source(15, 15)],
+      structures: [spec.spawn(25, 25)],
+    },
+  ],
+  bots: [{ username: 'bot', room: 'W0N1' }],
+  ticks: 100,
+  profiling: true,
+});
+
+await world.run();
+
+const callgrind = world.report.profileCallgrind?.bot;
+if (callgrind) {
+  console.log('Profile captured');
+}
+```
+
+> Требуется, чтобы в проекте бота был установлен `screeps-profiler` и
+> `loop` обёрнут через `profiler.wrap()`. См. подробности в
+> [API-REFERENCE.md](./API-REFERENCE.md#12-профилирование).
+
+## 10. Паттерны
+
+- `createWorld()` — единая точка setup.
+- `try { ... } finally { await world.dispose(); }` — обязательно.
+- `roomFixture` + `roomOverrides` — переиспользуйте комнаты локально.
+- `world.bots[username]` — доступ к боту; singular `world.bot` не
+  существует.
+- `world.eventLog(room)` требует явную комнату.
 
 ## Связанные документы
 
 - [GETTING-STARTED.md](./GETTING-STARTED.md) — быстрый старт
-- [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md) — fixtures подробно
+- [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md) — fixtures
 - [API-REFERENCE.md](./API-REFERENCE.md) — полный API
-- [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — multi-room и multi-bot паттерны
+- [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — multi-room

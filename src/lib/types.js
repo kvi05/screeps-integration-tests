@@ -268,7 +268,7 @@
  * @property {number} [ticks=100]                                  — лимит тиков (если не задан `until.maxTicks`)
  * @property {boolean} [profiling=false]                           — включить профилирование (screeps-profiler + callgrind)
  *
- * @property {'all'|'error'|'warn'} [logLevel='error']           - Порог логов в world.report.logs
+ * @property {'all'|'error'|'warn'} [logLevel='all']             - Порог логов в world.report.logs
  * @property {number} [maxConsoleLines=10000]
  * @property {number} [metricsEvery=0]                             — устаревший shorthand для `metrics.every` (0 = off)
  * @property {MetricsOpts} [metrics]                               — настройки сбора метрик

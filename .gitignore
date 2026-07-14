@@ -26,6 +26,9 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+.opencode/
+AGENTS.md
+opencode.json
 
 # Environment
 .env

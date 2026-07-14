@@ -331,8 +331,23 @@ function wall(x, y, opts = {}) {
 }
 
 /**
+ * Создаёт спецификацию rampart.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, hits? }
+ */
+function rampart(x, y, opts = {}) {
+    return structure(STRUCTURE_RAMPART, x, y, {
+        roomName: opts.roomName,
+        id: opts.id,
+        userId: opts.userId,
+        hits: opts.hits,
+    });
+}
+
+/**
  * Создаёт каноническую спецификацию source.
- *
+
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, id?, energy?, energyCapacity?, ticksToRegeneration? }
@@ -455,6 +470,7 @@ module.exports = {
     storage,
     road,
     wall,
+    rampart,
     source,
     controller,
     creep,

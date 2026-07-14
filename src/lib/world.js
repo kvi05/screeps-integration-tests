@@ -151,7 +151,7 @@ async function createWorld(opts) {
         stopReason: null,
     };
 
-    const globalLogLevel = opts.logLevel || 'errors';
+    const globalLogLevel = opts.logLevel || 'all';
     const maxConsoleLines = opts.maxConsoleLines || 10000;
 
     // ─── 4. Per-bot initialization (единый цикл) ───────────────────────
@@ -199,6 +199,10 @@ async function createWorld(opts) {
         const { materializeCreep } = require('./builders');
         await materializeCreep(_server, room, params);
     });
+
+    /** @type {WorldInstance|undefined} */
+    // eslint-disable-next-line prefer-const
+    let world;
 
     // ─── 8. Основной цикл ────────────────────────────────────────────────
 
@@ -266,7 +270,7 @@ async function createWorld(opts) {
 
         // onTick callback
         if (opts.onTick) {
-            await opts.onTick({ server, bots, report, tick: tickNum, registerEvent, readMemory, exec }, tickNum);
+            await opts.onTick(world, tickNum);
         }
 
         // Predicate check
@@ -498,7 +502,7 @@ async function createWorld(opts) {
 
     // ─── Возврат API ──────────────────────────────────────────────────────
     /** @type {WorldInstance} */
-    const world = {
+    world = {
         run,
         tick,
         exec,
