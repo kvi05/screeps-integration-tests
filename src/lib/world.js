@@ -12,7 +12,21 @@ const { evaluatePredicate } = require('./observers/predicate');
 const { snapshotOwners, mergeOwners } = require('./observers/ownership');
 const { createConsoleCapture } = require('./console');
 
-const DIST_DIR = process.env.BOT_DIST_DIR || path.resolve(__dirname, '..', '..', 'dist');
+function resolveDistDir(opts) {
+    return (
+        opts.distDir ||
+        process.env.BOT_DIST_DIR ||
+        path.resolve(process.cwd(), 'dist')
+    );
+}
+
+function resolveCacheBase(opts) {
+    return (
+        opts.cacheDir ||
+        process.env.SIT_CACHE_DIR ||
+        path.resolve(process.cwd(), '.cache')
+    );
+}
 
 /**
  * @typedef {import('./types').ScreepsServer} ScreepsServer
@@ -91,16 +105,19 @@ async function createWorld(opts) {
     // 3. materializeRoom — controller, spawn, sources, structures, creeps
     //    описываются явно в spec. Никаких других placeholder-ов.
     // 4. server.start — игровой движок.
+    const distDir = resolveDistDir(opts);
+    const cacheBase = resolveCacheBase(opts);
+
     const prepared = await prepareServer({
         rooms: opts.rooms.map((r) => r.name),
-        cacheDir: path.join(__dirname, '..', '.cache', `w-${Date.now()}-${process.pid}`),
+        cacheDir: path.join(cacheBase, `w-${Date.now()}-${process.pid}`),
     });
 
     const { server } = prepared;
     const added = await addBots({
         server,
         bots: opts.bots || [],
-        distDir: DIST_DIR,
+        distDir,
         profiling: opts.profiling,
     });
     const { bots, resolvedBots } = added;

@@ -25,9 +25,9 @@ const { once } = require('events');
  * т.к. server.stop() не полностью освобождает storage (утечка файловых дескрипторов).
  *
  * @example
- * // Запуск из run-all.js:
+ * // Запуск из bin/screeps-integration-tests.js:
  * const cp = require('child_process');
- * const child = cp.fork('runScenario.js');
+ * const child = cp.fork('src/runScenario.js');
  * child.send({ scenarioPath: './scenarios/smoke-empty.scenario.js', opts: { profiling: false } });
  * child.on('message', (msg) => console.log(msg.status)); // 'pass'
  */
@@ -35,6 +35,14 @@ const { once } = require('events');
 (async () => {
     try {
         const [msg] = await once(process, 'message');
+
+        // Загружаем пользовательские room fixtures ДО require сценария,
+        // чтобы они были доступны через публичный API.
+        if (msg.roomFixturesDir) {
+            const { loadRoomFixturesFromDir } = require('./lib/fixtures/roomFixture');
+            loadRoomFixturesFromDir(msg.roomFixturesDir);
+        }
+
         const scenario = require(msg.scenarioPath);
         const opts = msg.opts || {};
         const result = await scenario.run(opts);

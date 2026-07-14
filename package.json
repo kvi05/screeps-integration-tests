@@ -2,14 +2,33 @@
     "name": "screeps-integration-tests",
     "version": "1.0.0",
     "description": "Портативный интеграционный тестовый фреймворк для Screeps ботов на базе screeps-server-mockup.",
-    "main": "src/lib/world.js",
+    "main": "src/index.js",
     "type": "commonjs",
+    "bin": {
+        "screeps-integration-tests": "bin/screeps-integration-tests.js",
+        "sit": "bin/screeps-integration-tests.js"
+    },
+    "exports": {
+        ".": "./src/index.js",
+        "./assertions": "./src/public/assertions.js",
+        "./metrics": "./src/public/metrics.js",
+        "./metric-assertions": "./src/public/metric-assertions.js",
+        "./metric-export": "./src/public/metric-export.js",
+        "./memory-fixtures": "./src/public/memory-fixtures.js",
+        "./room-fixtures": "./src/public/room-fixtures.js",
+        "./events": "./src/public/events.js",
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "bin",
+        "src"
+    ],
     "scripts": {
-        "test:integration": "node src/run-all.js",
-        "test:integration:profiling": "node src/run-all.js --profiling",
-        "test:integration:smoke": "node src/run-all.js --only smoke-empty",
+        "test:integration": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js",
+        "test:integration:profiling": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --profiling",
+        "test:integration:smoke": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --only smoke-empty",
         "test:integration:unit": "jest --config jest.config.js",
-        "test:integration:clean": "node src/tools/clean-cache.js",
+        "test:integration:clean": "node src/tools/clean-cache.js --cacheDir examples/.cache",
         "test:integration:capture": "node src/tools/capture-fixture.js",
         "test": "jest --config jest.config.js"
     },

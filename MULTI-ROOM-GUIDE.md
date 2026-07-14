@@ -13,6 +13,13 @@
 - [Ограничение: ID коллизии](#ограничение-id-коллизии)
 - [Anti-patterns](#anti-patterns)
 
+В этом документе предполагается, что все сценарии начинаются с импорта публичного API:
+
+```javascript
+const { createWorld, spec } = require('screeps-integration-tests');
+const { EVENT_OBJECT_DESTROYED } = require('screeps-integration-tests/events');
+```
+
 ## Модель: комнаты и боты — отдельные сущности
 
 В Screeps-онтологии:
@@ -33,11 +40,12 @@ const world = await createWorld({
       name: 'W0N1',
       controller: spec.controller({ level: 4 }),
       sources: [spec.source(15, 15), spec.source(35, 35)],
-      structures: [spec.spawn(25, 25, { userId: bots.botMain.id }), spec.tower(26, 24, { userId: bots.botMain.id })],
+      // userId не указан — defaultBotUserId (первый бот) будет проставлен автоматически
+      structures: [spec.spawn(25, 25), spec.tower(26, 24)],
     },
     {
       name: 'W0N2', // reserve room
-      controller: spec.controller({ level: 3, userId: bots.botReserve.id }),
+      controller: spec.controller({ level: 3 }),
       sources: [spec.source(20, 20)],
     },
   ],
@@ -46,6 +54,13 @@ const world = await createWorld({
     { username: 'Player2', room: 'W0N2', x: 25, y: 25 },
   ],
 });
+
+// После createWorld можно обращаться к world.bots по username:
+await world.spawn(spec.creep(10, 10, { roomName: 'W0N1', userId: world.bots['Player1'].id, name: 'P1_Harvester' }));
+await world.spawn(spec.creep(20, 20, { roomName: 'W0N2', userId: world.bots['Player2'].id, name: 'P2_Harvester' }));
+```
+
+> **Примечание:** проставление `userId` в структурах **до** вызова `createWorld()` для второго бота — известная сложность. Если нужно привязать здания к конкретному боту, указывайте `userId` вручную после создания мира через `world.spawn()`, либо донастраивайте в `memoryOverrides`.
 ```
 
 ## Управление памятью по ботам

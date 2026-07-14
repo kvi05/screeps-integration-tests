@@ -14,8 +14,31 @@
  */
 
 const { buildCanonicalRoom } = require('../lib/world');
-const { applyRoomOverrides } = require('../lib/fixtures/roomFixture');
+const { applyRoomOverrides, registerRoomFixture } = require('../lib/fixtures/roomFixture');
 const spec = require('../lib/builders/spec');
+
+// Тестовый room fixture вместо бот-специфичного rcl3-stable.
+registerRoomFixture('rcl3-stable', {
+    name: 'rcl3-stable',
+    description: 'Test fixture replacing bot-specific rcl3-stable',
+    controller: spec.controller({ level: 3 }),
+    sources: [spec.source(15, 15), spec.source(35, 35)],
+    structures: [
+        spec.spawn(25, 25),
+        spec.tower(26, 24),
+        spec.extension(27, 24),
+        spec.extension(27, 25),
+        spec.extension(28, 25),
+        spec.extension(29, 26),
+        spec.extension(29, 27),
+        spec.extension(28, 28),
+        spec.extension(27, 27),
+        spec.extension(27, 29),
+        spec.extension(26, 29),
+        spec.extension(26, 28),
+    ],
+    creeps: [],
+});
 
 describe('buildCanonicalRoom', () => {
     describe('inline-поля (без fixture)', () => {

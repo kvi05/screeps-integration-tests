@@ -30,7 +30,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  run-all.js (CLI runner)                                │
+│  bin/screeps-integration-tests.js (CLI runner)                                │
 │  ┌───────────────────────────────────────────────────┐  │
 │  │  runScenario.js (child_process.fork)              │  │
 │  │  ┌─────────────────────────────────────────────┐  │  │
@@ -139,7 +139,8 @@ Runtime разделён на три независимые фазы:
 `createRuntime` сохранён как тонкий facade (prepareServer → addBots → start).
 
 ```js
-// Полный pipeline (createWorld):
+// Полный pipeline (createWorld) — внутренние функции, не экспортируются в public API.
+// В сценариях используйте createWorld().
 const prepared = await prepareServer({ rooms, cacheDir });
 const { bots } = await addBots({ server: prepared.server, bots, distDir });
 const canonical = await buildCanonicalRoom(roomInput, roomName, bots['bot'].id);
@@ -197,7 +198,7 @@ Event log перезаписывается engine'ом каждый тик → �
 
 ### Параллельный запуск
 
-`run-all.js` запускает сценарии с ограничением concurrency (`--jobs <N>`, по
+`bin/screeps-integration-tests.js` запускает сценарии с ограничением concurrency (`--jobs <N>`, по
 умолчанию `min(4, os.cpus().length)`). Каждый сценарий получает собственный
 свободный порт storage через `getFreePort()`, поэтому параллельные запуски не
 конфликтуют.
@@ -218,12 +219,12 @@ Event log перезаписывается engine'ом каждый тик → �
 ## 7. Изоляция памяти
 
 Каждый сценарий работает в изолированной cache-директории
-`test/integration/.cache/<pid>-<ts>/`. Это позволяет запускать сценарии
+`.cache/<pid>-<ts>/`. Это позволяет запускать сценарии
 параллельно и избегать конфликтов.
 
 После завершения сценария `runtime.dispose()` останавливает дочерние процессы
 сервера, дожидается их завершения и удаляет cache-директорию. При timeout
-`run-all.js` убивает всё дерево процессов через `tree-kill`. Это сознательный
+`bin/screeps-integration-tests.js` убивает всё дерево процессов через `tree-kill`. Это сознательный
 компромисс в пользу чистоты каждого прогона.
 
 ## 8. Профилирование
@@ -242,79 +243,73 @@ npm run test:integration -- --profiling
 
 ## 9. Cleanup и cache management
 
-```js
-const { pruneCache } = require('../lib/cleanup');
+`pruneCache` — внутренняя функция; не экспортируется в публичный API.
+Вызывается автоматически при старте `bin/screeps-integration-tests.js`.
 
-pruneCache({ keep: 5 });
-```
-
-Очищает `.cache/`, храня N последних директорий. Вызывается автоматически при старте `run-all.js`.
+Очищает `.cache/`, храня N последних директорий. N настраивается через
+`cacheKeep` в `screeps-integration.config.js`. Путь к кэшу задаётся через
+`cacheDir` в конфиге (по умолчанию `./.cache`).
 
 ## 10. Структура файлов framework
 
 ```
-test/integration/
-├── README.md                              # Навигация
-├── GETTING-STARTED.md                     # Установка, запуск
-├── API-REFERENCE.md                       # Полный справочник API
-├── FIXTURES-GUIDE.md                      # Room + memory fixtures
-├── EXAMPLES.md                            # Эталонные сценарии
-├── MULTI-ROOM-GUIDE.md                    # Multi-room и multi-bot
-├── INTEGRATION-TESTS.md                   # Этот файл
-│
-├── run-all.js                             # CLI runner (concurrency pool)
-├── runScenario.js                         # Forked worker entry
-│
-├── lib/
-│   ├── world.js                           # createWorld — главный API
-│   ├── runtime.js                         # createRuntime — multi-room + multi-bot
-│   ├── loadBot.js                         # Загрузка dist/*.js + profiling inject
-│   ├── console.js                         # Console capture
-│   ├── cli.js                             # parseArgs
-│   ├── assertions.js                      # assert*
-│   ├── metricAssertions.js                # assert* для time-series метрик
-│   ├── metrics.js                         # recorder + query + aggregation
-│   ├── metricExport.js                    # CSV export
-│   ├── metricRegression.js                # current vs baseline
-│   ├── profile.js                         # saveCallgrind
-│   ├── cleanup.js                         # pruneCache
-│   ├── types.js                           # JSDoc-типы
-│   ├── builders/
-│   │   ├── index.js                       # preferred API surface
-│   │   ├── spec.js                        # spec constructors
-│   │   ├── materialize.js                 # DB-aware layer
-│   │   └── memory.js                      # load/save/hasFixture
-│   ├── fixtures/
-│   │   └── roomFixture.js                 # Семантические описания комнат
-│   ├── observers/
-│   │   ├── index.js                       # Export observers
-│   │   ├── eventLog.js
-│   │   ├── metrics.js
-│   │   ├── ownership.js
-│   │   └── predicate.js
-│   └── tests/                             # unit-тесты integration framework
-│       ├── buildCanonicalRoom.test.js
-│       ├── metrics.test.js
-│       ├── metricAssertions.test.js
-│       ├── metricExport.test.js
-│       └── metricRegression.test.js
-│
-├── scenarios/
-│   ├── _template.js
-│   ├── smoke-empty.scenario.js
-│   ├── bootstrap-rcl2-to-rcl3.scenario.js
-│   ├── defense-invader-rcl3.scenario.js
-│   └── defense-invader-rcl3-no-tower.scenario.js
-│
-├── fixtures/
-│   ├── FIXTURE-CAPTURE.md
-│   ├── bootstrap_with_anchor.memory.json
-│   └── rcl3-stable.memory.json
-│
-├── tools/
-│   └── capture-fixture.js
-│
-└── profiles/                              # .callgrind дампы
+screeps-integration-tests/
+├── bin/
+│   └── screeps-integration-tests.js   # CLI runner
+├── src/
+│   ├── index.js                       # Public API (createWorld, spec)
+│   ├── public/                        # Sub-path exports
+│   │   ├── assertions.js              #   screeps-integration-tests/assertions
+│   │   ├── metrics.js                 #   screeps-integration-tests/metrics
+│   │   ├── metric-assertions.js       #   screeps-integration-tests/metric-assertions
+│   │   ├── metric-export.js           #   screeps-integration-tests/metric-export
+│   │   ├── memory-fixtures.js         #   screeps-integration-tests/memory-fixtures
+│   │   ├── room-fixtures.js           #   screeps-integration-tests/room-fixtures
+│   │   └── events.js                  #   screeps-integration-tests/events
+│   ├── runScenario.js                 # Worker entry (fork target)
+│   ├── lib/
+│   │   ├── config.js                  # Config loader (screeps-integration.config.js)
+│   │   ├── world.js                   # createWorld — orchestration API
+│   │   ├── runtime.js                 # ScreepsServer wrapper
+│   │   ├── loadBot.js                 # Загрузка dist/*.js + profiling inject
+│   │   ├── console.js                 # Console capture
+│   │   ├── cli.js                     # parseArgs
+│   │   ├── assertions.js              # assert* (internal)
+│   │   ├── metricAssertions.js        # assert* для метрик (internal)
+│   │   ├── metrics.js                 # Recorder + query + aggregation
+│   │   ├── metricExport.js            # CSV export
+│   │   ├── metricRegression.js        # Current vs baseline
+│   │   ├── profile.js                 # saveCallgrind
+│   │   ├── cleanup.js                 # pruneCache
+│   │   ├── types.js                   # JSDoc-типы
+│   │   ├── builders/
+│   │   │   ├── index.js               # Re-export surface
+│   │   │   ├── spec.js                # Spec constructors
+│   │   │   ├── materialize.js         # DB-aware layer
+│   │   │   └── memory.js              # load/save/hasFixture
+│   │   ├── fixtures/
+│   │   │   └── roomFixture.js         # Room fixture registry
+│   │   └── observers/
+│   │       ├── eventLog.js
+│   │       ├── metrics.js
+│   │       ├── ownership.js
+│   │       └── predicate.js
+│   └── tools/                         # CLI tools
+│       ├── capture-fixture.js
+│       └── clean-cache.js
+├── examples/                          # Self-test examples
+│   ├── screeps-integration.config.js
+│   ├── mock-bot/dist/
+│   │   └── main.js
+│   ├── scenarios/
+│   │   ├── _template.js
+│   │   ├── smoke-empty.scenario.js
+│   │   ├── world-lifecycle.scenario.js
+│   │   └── metrics-multi-room.scenario.js
+│   └── fixtures/
+├── tests/                             # Unit-тесты framework
+├── package.json
+└── jest.config.js
 ```
 
 ## 11. Best practices
@@ -360,7 +355,7 @@ module.exports = { ..., assertMyCondition };
 1. Добавь поле в `collectMetrics()` (`observers/metrics.js`).
 2. Если метрика scalar — она автоматически попадёт в CSV экспорт.
 3. Для не-scalar полей (например, `creepsByRole`) обработай формат в `metricExport.js`.
-4. Добавь unit-тесты в `test/integration/tests/`.
+4. Добавь unit-тесты в `src/tests/`.
 
 ### Как добавить новый room fixture (заготовка комнаты)
 

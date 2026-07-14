@@ -658,7 +658,7 @@
 // ─── CLI ──────────────────────────────────────────────────────────────────
 
 /**
- * CLI-аргументы `run-all.js`.
+ * CLI-аргументы `bin/screeps-integration-tests.js`.
  *
  * @typedef {Object} CliOpts
  * @property {string|null} only       — имя одного сценария

@@ -4,11 +4,10 @@
  * Single source of truth для игровых констант Screeps.
  *
  * Используется одновременно:
- *  - в `test/setup/screepsGlobalsRaw.js` — для установки `global.STRUCTURE_*` и пр.
- *  - в `test/integration/lib/builders/spec.js` — для типов структур в дефолтах
- *  - в `test/integration/lib/builders/materialize.js` — для типа 'spawn' в spec-е
- *  - в `test/integration/lib/observers/metrics.js` — для фильтров объектов
- *  - в `test/integration/lib/assertions.js` — для `BOT_STRUCTURE_TYPES`
+ *  - в `src/lib/builders/spec.js` — для типов структур в дефолтах
+ *  - в `src/lib/builders/materialize.js` — для типа 'spawn' в spec-е
+ *  - в `src/lib/observers/metrics.js` — для фильтров объектов
+ *  - в `src/lib/assertions.js` — для `BOT_STRUCTURE_TYPES`
  *
  * Значения совпадают с `@types/screeps` и с тем, что устанавливает `screeps-server-mockup`.
  *

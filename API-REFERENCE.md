@@ -23,8 +23,7 @@
 ### Минимальный пример
 
 ```javascript
-const { createWorld } = require('../lib/world');
-const spec = require('../lib/builders/spec');
+const { createWorld, spec } = require('screeps-integration-tests');
 
 const world = await createWorld({
   rooms: [
@@ -46,8 +45,7 @@ const world = await createWorld({
 ### Полный пример с fixture
 
 ```javascript
-const { createWorld } = require('../lib/world');
-const spec = require('../lib/builders/spec');
+const { createWorld, spec } = require('screeps-integration-tests');
 
 const world = await createWorld({
   rooms: [
@@ -154,7 +152,7 @@ const destroyed = events.some((e) => e.event === 2);
 `spec` — набор чистых конструкторов canonical spec-объектов. **Не знают** о БД и сервере — только создают plain objects с дефолтами.
 
 ```javascript
-const spec = require('../lib/builders/spec');
+const { spec } = require('screeps-integration-tests');
 ```
 
 Все конструкторы принимают `roomName` (опционально) — чтобы материализатор знал, куда положить объект. По умолчанию `roomName = undefined` и его нужно установить явно (либо из room-петли, либо через `applyColonyOverrides`-подобные помощники).
@@ -217,35 +215,16 @@ spec.dummyTarget(12, 12, { roomName: 'W0N1', name: 'DummyTarget' });
 
 ## 4. Preferred API: materialize
 
-`materialize*` — единственный слой, знающий DB shape (`rooms.objects`, `users.code`).
+`materialize*` — единственный слой, знающий DB shape. Обычно **не нужно** вызывать из сценариев — этим управляет `createWorld()`.
 
-```javascript
-const {
-  materializeStructure,
-  materializeStructures,
-  materializeSource,
-  materializeSources,
-  materializeController,
-  materializeCreep,
-  materializeCreeps,
-  materializeBotCode,
-  materializeRoom,
-  setBotMemory,
-  getBotMemory,
-  loadFixture,
-  hasFixture,
-  saveFixture,
-} = require('../lib/builders');
-```
-
-Обычно **не нужно** вызывать из сценариев — этим управляет `createWorld()`.
+Для продвинутого использования применяются внутренние модули; публичный API их не экспортирует.
 
 ## 5. Room fixtures API
 
 Room fixture — это **семантическое** описание комнаты (controller, sources, structures, creeps).
 
 ```javascript
-const { getRoomFixture, hasRoomFixture, loadRoomFixture, applyRoomOverrides } = require('../lib/fixtures/roomFixture');
+const { getRoomFixture, hasRoomFixture, loadRoomFixture, applyRoomOverrides } = require('screeps-integration-tests/room-fixtures');
 ```
 
 | Функция                                  | Назначение                         |
@@ -262,7 +241,7 @@ const { getRoomFixture, hasRoomFixture, loadRoomFixture, applyRoomOverrides } = 
 Memory fixture — snapshot `Memory` бота. Подключается через `memory: 'fixture-name'`, `memory: { fixture: 'fixture-name' }` или per-bot map в multi-bot сценариях.
 
 ```javascript
-const { loadFixture, hasFixture, saveFixture } = require('../lib/builders/memory');
+const { loadFixture, hasFixture, saveFixture } = require('screeps-integration-tests/memory-fixtures');
 ```
 
 | Функция                            | Назначение                |
@@ -282,16 +261,15 @@ const {
   assertRclAtLeast,
   assertRclBelow,
   assertObjectDestroyed,
-  assertNoObjectDestroyed,
+  assertObjectNoDestroyed,
   assertNoBotObjectDestroyed,
-  assertInvaderKilled,
   assertObjectAttacking,
   assertObjectNotAttacking,
   assertObjectDamaged,
   assertObjectNotDamaged,
   assertBotUserDamaged,
   assertBotUserNotDamaged,
-} = require('../lib/assertions');
+} = require('screeps-integration-tests/assertions');
 
 const {
   assertHasMetricSamples,
@@ -299,7 +277,7 @@ const {
   assertLatestMetricBelow,
   assertMetricReached,
   assertMetricMonotonic,
-} = require('../lib/metricAssertions');
+} = require('screeps-integration-tests/metric-assertions');
 ```
 
 | Категория        | Функция                                      | Назначение                      |
@@ -311,18 +289,88 @@ const {
 | Destroyed        | `assertObjectDestroyed(report, opts)`        | Объект(ы) разрушен              |
 | Destroyed        | `assertNoObjectDestroyed(report, opts)`      | Объекты НЕ разрушены            |
 | Destroyed        | `assertNoBotObjectDestroyed(report, opts)`   | Здания бота не разрушены        |
-| Destroyed        | `assertInvaderKilled(report, invaderId)`     | Invader уничтожен               |
 | Бой              | `assertObjectAttacking(report, objectId)`    | Атака была                      |
 | Бой              | `assertObjectNotAttacking(report, objectId)` | Атаки не было                   |
 | Бой              | `assertObjectDamaged(report, targetId)`      | Урон получен                    |
 | Бой              | `assertObjectNotDamaged(report, targetId)`   | Урон не получен                 |
 | Бой              | `assertBotUserDamaged(report, userId)`       | Объект бота получил урон        |
 | Бой              | `assertBotUserNotDamaged(report, userId)`    | Объекты бота НЕ получили урон   |
+| Бой              | `assertBotUserAttacking(report, userId)`     | Бот инициировал атаку           |
+| Бой              | `assertBotUserNotAttacking(report, userId)`  | Бот НЕ атаковал                 |
 | Метрики          | `assertHasMetricSamples(report, type, id)`   | Есть сэмплы для сущности        |
 | Метрики          | `assertLatestMetricAtLeast(...)`             | Последнее значение ≥ expected   |
 | Метрики          | `assertLatestMetricBelow(...)`               | Последнее значение < expected   |
 | Метрики          | `assertMetricReached(...)`                   | Значение достигалось            |
 | Метрики          | `assertMetricMonotonic(...)`                 | Метрика не убывает              |
+
+## 8. Metrics API
+
+### Query / aggregation helpers
+
+```javascript
+const {
+  getRoomMetrics,
+  getLatestRoomMetrics,
+  getMetricAtTick,
+  getWorldSnapshotAtTick,
+  averageMetric,
+  deltaMetric,
+  rateMetric,
+} = require('screeps-integration-tests/metrics');
+```
+
+| Функция                                            | Назначение                                        |
+| -------------------------------------------------- | ------------------------------------------------- |
+| `getRoomMetrics(report, roomName)`                 | Вернуть time-series комнаты                       |
+| `getLatestRoomMetrics(report, roomName)`           | Последний сэмпл комнаты                           |
+| `getMetricAtTick(report, 'rooms', roomName, tick)` | Сэмпл ровно на указанном тике                     |
+| `getWorldSnapshotAtTick(report, tick)`             | `{ [roomName]: sample }` для тика                 |
+| `averageMetric(series, 'energyAvailable')`         | Среднее по числовым значениям                     |
+| `sumMetric(series, 'containerEnergy')`             | Сумма числовых значений                           |
+| `deltaMetric(series, 'rclProgress')`               | Последнее − первое значение                       |
+| `rateMetric(series, 'rclProgress')`                | Изменение на тик между первым и последним сэмплом |
+
+### Metric assertions
+
+```javascript
+const {
+  assertHasMetricSamples,
+  assertLatestMetricAtLeast,
+  assertLatestMetricBelow,
+  assertMetricReached,
+  assertMetricMonotonic,
+} = require('screeps-integration-tests/metric-assertions');
+```
+
+| Функция                                                           | Назначение                       |
+| ----------------------------------------------------------------- | -------------------------------- |
+| `assertHasMetricSamples(report, 'rooms', 'W0N1')`                 | Есть хотя бы один сэмпл          |
+| `assertLatestMetricAtLeast(report, 'rooms', 'W0N1', 'rcl', 3)`    | Последнее значение ≥ expected    |
+| `assertLatestMetricBelow(report, 'rooms', 'W0N1', 'cpu', 20)`     | Последнее значение < expected    |
+| `assertMetricReached(report, 'rooms', 'W0N1', 'rcl', 3)`          | Значение достигалось хотя бы раз |
+| `assertMetricMonotonic(report, 'rooms', 'W0N1', 'totalProgress')` | Метрика не убывает               |
+
+### Export
+
+```javascript
+const { toCsv, flattenMetricSeries } = require('screeps-integration-tests/metric-export');
+
+const csv = toCsv(report, { entityTypes: ['rooms'], metrics: ['rcl', 'energyAvailable'] });
+```
+
+`toCsv` возвращает CSV-строку с колонками `entityType,entityId,tick,metric,value`.
+Объекты `spawnHits` не экспортируются; `creepsByRole` разворачивается в `creepsByRole.<role>`.
+
+### Regression (без baseline-файлов)
+
+```javascript
+const { compareMetric, selectWindow } = require('screeps-integration-tests/metrics');
+
+const current = selectWindow(report.metrics.rooms.W0N1, { startTick: 100, endTick: 200 });
+const baseline = loadBaselineSomehow(); // JSON/CSV fixture (НЕ реализованно)
+const result = compareMetric(current, baseline, 'cpuUsed', { tolerance: 5, direction: 'increase' });
+// { passed, actual, expected, delta, relativeDelta }
+```
 
 ## 9. Основные типы
 
@@ -402,75 +450,6 @@ const {
     },
     stopReason: 'predicate',
 }
-```
-
-## 8. Metrics API
-
-### Query / aggregation helpers
-
-```javascript
-const {
-  getRoomMetrics,
-  getLatestRoomMetrics,
-  getMetricAtTick,
-  getWorldSnapshotAtTick,
-  averageMetric,
-  deltaMetric,
-  rateMetric,
-} = require('../lib/metrics');
-```
-
-| Функция                                            | Назначение                                        |
-| -------------------------------------------------- | ------------------------------------------------- |
-| `getRoomMetrics(report, roomName)`                 | Вернуть time-series комнаты                       |
-| `getLatestRoomMetrics(report, roomName)`           | Последний сэмпл комнаты                           |
-| `getMetricAtTick(report, 'rooms', roomName, tick)` | Сэмпл ровно на указанном тике                     |
-| `getWorldSnapshotAtTick(report, tick)`             | `{ [roomName]: sample }` для тика                 |
-| `averageMetric(series, 'energyAvailable')`         | Среднее по числовым значениям                     |
-| `sumMetric(series, 'containerEnergy')`             | Сумма числовых значений                           |
-| `deltaMetric(series, 'rclProgress')`               | Последнее − первое значение                       |
-| `rateMetric(series, 'rclProgress')`                | Изменение на тик между первым и последним сэмплом |
-
-### Metric assertions
-
-```javascript
-const {
-  assertHasMetricSamples,
-  assertLatestMetricAtLeast,
-  assertLatestMetricBelow,
-  assertMetricReached,
-  assertMetricMonotonic,
-} = require('../lib/metricAssertions');
-```
-
-| Функция                                                           | Назначение                       |
-| ----------------------------------------------------------------- | -------------------------------- |
-| `assertHasMetricSamples(report, 'rooms', 'W0N1')`                 | Есть хотя бы один сэмпл          |
-| `assertLatestMetricAtLeast(report, 'rooms', 'W0N1', 'rcl', 3)`    | Последнее значение ≥ expected    |
-| `assertLatestMetricBelow(report, 'rooms', 'W0N1', 'cpu', 20)`     | Последнее значение < expected    |
-| `assertMetricReached(report, 'rooms', 'W0N1', 'rcl', 3)`          | Значение достигалось хотя бы раз |
-| `assertMetricMonotonic(report, 'rooms', 'W0N1', 'totalProgress')` | Метрика не убывает               |
-
-### Export
-
-```javascript
-const { toCsv, flattenMetricSeries } = require('../lib/metricExport');
-
-const csv = toCsv(report, { entityTypes: ['rooms'], metrics: ['rcl', 'energyAvailable'] });
-```
-
-`toCsv` возвращает CSV-строку с колонками `entityType,entityId,tick,metric,value`.
-Объекты `spawnHits` не экспортируются; `creepsByRole` разворачивается в `creepsByRole.<role>`.
-
-### Regression (без baseline-файлов)
-
-```javascript
-const { compareMetric, selectWindow } = require('../lib/metricRegression');
-
-const current = selectWindow(report.metrics.rooms.W0N1, { startTick: 100, endTick: 200 });
-const baseline = loadBaselineSomehow(); // JSON/CSV fixture (НЕ реализованно)
-const result = compareMetric(current, baseline, 'cpuUsed', { tolerance: 5, direction: 'increase' });
-// { passed, actual, expected, delta, relativeDelta }
 ```
 
 ## Связанные документы

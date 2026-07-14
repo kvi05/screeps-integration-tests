@@ -2,6 +2,11 @@
 
 Этот документ показывает эталонные сценарии и типовые способы проверки поведения бота.
 
+> **Note:** после выноса фреймворка в отдельный npm-пакет bot-специфичные сценарии
+> (bootstrap, defense) переехали в репозиторий бота (`inter_tests/scenarios/`).
+> В этом репозитории остались универсальные примеры (`examples/scenarios/`),
+> на которых фреймворк самотестируется.
+
 ## Содержание
 
 - [1. Smoke: минимальная проверка запуска](#1-smoke-минимальная-проверка-запуска)
@@ -15,7 +20,7 @@
 
 ## 1. Smoke: минимальная проверка запуска
 
-Эталонный файл: `test/integration/scenarios/smoke-empty.scenario.js`
+Эталонный файл: `examples/scenarios/smoke-empty.scenario.js`
 
 ### Когда использовать
 
@@ -250,7 +255,7 @@ await world.spawn(spec.creep(20, 20, { roomName: 'W0N1', userId: bots['player2']
 
 ## 7. Metrics: multi-room time-series
 
-Эталонный файл: `test/integration/scenarios/metrics-multi-room.scenario.js`
+Эталонный файл: `examples/scenarios/metrics-multi-room.scenario.js`
 
 ### Когда использовать
 
@@ -261,8 +266,8 @@ await world.spawn(spec.creep(20, 20, { roomName: 'W0N1', userId: bots['player2']
 ### Ключевой паттерн
 
 ```javascript
-const { assertLatestMetricAtLeast } = require('../lib/metricAssertions');
-const { getWorldSnapshotAtTick, getRoomMetrics } = require('../lib/metrics');
+const { assertLatestMetricAtLeast } = require('screeps-integration-tests/metric-assertions');
+const { getWorldSnapshotAtTick, getRoomMetrics } = require('screeps-integration-tests/metrics');
 
 const world = await createWorld({
   rooms: [

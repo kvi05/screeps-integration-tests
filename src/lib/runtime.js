@@ -63,6 +63,12 @@ async function prepareServer(opts) {
 
     const cacheDir = opts.cacheDir || path.join(__dirname, '..', '.cache', String(process.pid));
     const port = opts.port ?? (await getFreePort());
+
+    // screeps-server-mockup пишет логи в ./server/logs относительно cwd.
+    // Создаём папку автоматически, чтобы пользователю не приходилось держать
+    // её вручную в своём репозитории.
+    fs.mkdirSync(path.join(process.cwd(), 'server', 'logs'), { recursive: true });
+
     const server = new ScreepsServer({ path: cacheDir, port });
 
     await server.world.reset();

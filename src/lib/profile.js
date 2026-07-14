@@ -7,7 +7,7 @@ const path = require('path');
  * Сохраняет callgrind-дамп в локально файл.
  * @param {string} callgrindData — строка callgrind-формата (работаем просто как со строкой)
  * @param {string} scenarioName — имя сценария (пойдет в имя файла)
- * @param {string} profilesDir — путь к test/integration/profiles/
+ * @param {string} profilesDir — путь к папке для callgrind-файлов
  * @returns {string} путь к созданному файлу
  */
 function saveCallgrind(callgrindData, scenarioName, profilesDir) {

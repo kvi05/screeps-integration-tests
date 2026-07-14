@@ -1,11 +1,10 @@
 ﻿'use strict';
 
 const assert = require('node:assert');
-const { createWorld } = require('../lib/world');
-const { assertBotWorked, assertNoErrors } = require('../lib/assertions');
-const { assertLatestMetricAtLeast, assertMetricReached } = require('../lib/metricAssertions');
-const { getWorldSnapshotAtTick, getRoomMetrics } = require('../lib/metrics');
-const spec = require('../lib/builders/spec');
+const { createWorld, spec } = require('screeps-integration-tests');
+const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/assertions');
+const { assertLatestMetricAtLeast, assertMetricReached } = require('screeps-integration-tests/metric-assertions');
+const { getWorldSnapshotAtTick, getRoomMetrics } = require('screeps-integration-tests/metrics');
 
 const BOT_USERNAME = 'bot';
 const ROOM_1 = 'W0N1';

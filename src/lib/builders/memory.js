@@ -3,7 +3,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const FIXTURES_DIR = path.join(__dirname, '..', '..', 'fixtures');
+function resolveFixturesDir() {
+    return process.env.SIT_FIXTURES_DIR || path.resolve(process.cwd(), 'fixtures');
+}
 
 /**
  * @typedef {import('screeps-server-mockup').ScreepsServer} ScreepsServer
@@ -44,7 +46,7 @@ async function getBotMemory(server, userId) {
  * @throws {Error} если файл не найден
  */
 function loadFixture(fixtureName) {
-    const fixturePath = path.join(FIXTURES_DIR, `${fixtureName}.memory.json`);
+    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
     if (!fs.existsSync(fixturePath)) {
         throw new Error(
             `Fixture "${fixtureName}" не найден: ${fixturePath}\n` +
@@ -61,7 +63,7 @@ function loadFixture(fixtureName) {
  * @returns {boolean}
  */
 function hasFixture(fixtureName) {
-    const fixturePath = path.join(FIXTURES_DIR, `${fixtureName}.memory.json`);
+    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
     return fs.existsSync(fixturePath);
 }
 
@@ -77,7 +79,7 @@ function hasFixture(fixtureName) {
  */
 function saveFixture(fixtureName, memory, opts = {}) {
     const force = opts.force !== false;
-    const fixturePath = path.join(FIXTURES_DIR, `${fixtureName}.memory.json`);
+    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
     const existed = fs.existsSync(fixturePath);
 
     if (existed && !force) {
@@ -87,7 +89,7 @@ function saveFixture(fixtureName, memory, opts = {}) {
     }
 
     const json = JSON.stringify(memory, null, 2);
-    fs.mkdirSync(FIXTURES_DIR, { recursive: true });
+    fs.mkdirSync(resolveFixturesDir(), { recursive: true });
     fs.writeFileSync(fixturePath, json, 'utf8');
 
     return { path: fixturePath, size: Buffer.byteLength(json, 'utf8'), existed };

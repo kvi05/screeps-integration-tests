@@ -1,9 +1,8 @@
 'use strict';
 
 const assert = require('node:assert');
-const { createWorld } = require('../lib/world');
-const { assertBotWorked, assertNoErrors } = require('../lib/assertions');
-const spec = require('../lib/builders/spec');
+const { createWorld, spec } = require('screeps-integration-tests');
+const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/assertions');
 
 /**
  * Сценарий: smoke-empty.

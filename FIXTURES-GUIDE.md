@@ -20,7 +20,7 @@
 
 ### Room fixture (семантическая модель комнаты)
 
-Файл: `test/integration/lib/fixtures/roomFixture.js`
+Файл: `src/lib/fixtures/roomFixture.js`
 
 Это **семантический spec** — описание состояния комнаты как набора игровых объектов:
 
@@ -34,7 +34,7 @@ Room fixture отвечает на вопрос:
 
 ### Memory fixture (snapshot Memory бота)
 
-Файл: `test/integration/fixtures/*.memory.json`
+Файл: `fixtures/*.memory.json`
 
 Это **snapshot `Memory`** бота после прогретого состояния:
 
@@ -136,7 +136,7 @@ const world = await createWorld({
 ### Пример 2. Изменить controller и energy extension
 
 ```javascript
-const spec = require('../lib/builders/spec');
+const { createWorld, spec } = require('screeps-integration-tests');
 
 const world = await createWorld({
   rooms: [
@@ -156,7 +156,7 @@ const world = await createWorld({
 ### Пример 3. Добавить hostile creeps
 
 ```javascript
-const spec = require('../lib/builders/spec');
+const { createWorld, spec } = require('screeps-integration-tests');
 
 const world = await createWorld({
   rooms: [
@@ -214,7 +214,7 @@ const world = await createWorld({
 ### Проверка существования fixture
 
 ```javascript
-const { hasFixture } = require('../lib/builders/memory');
+const { hasFixture } = require('screeps-integration-tests/memory-fixtures');
 
 if (!hasFixture('rcl3-stable')) {
   console.log('SKIP: memory fixture не найден');
@@ -293,7 +293,7 @@ createWorld({
 
 ### Шаг 1. Откройте registry
 
-Файл: `test/integration/lib/fixtures/roomFixture.js`
+Файл: `src/lib/fixtures/roomFixture.js`
 
 ### Шаг 2. Опишите fixture через `spec.*`
 
@@ -340,7 +340,7 @@ const world = await createWorld({
 
 ## 8. Как создать или обновить memory fixture
 
-Для memory fixtures есть CLI tool `test/integration/tools/capture-fixture.js`.
+Для memory fixtures есть CLI tool `src/tools/capture-fixture.js`.
 
 ### Базовый запуск
 
@@ -349,7 +349,7 @@ const world = await createWorld({
 npm run test:integration:smoke
 
 # Затем создайте / пересоберите fixture
-node test/integration/tools/capture-fixture.js rcl3-stable
+node src/tools/capture-fixture.js rcl3-stable
 ```
 
 ### Что делает tool
@@ -374,10 +374,10 @@ node test/integration/tools/capture-fixture.js rcl3-stable
 
 ```bash
 # RCL3 fixture
-node test/integration/tools/capture-fixture.js rcl3-stable
+node src/tools/capture-fixture.js rcl3-stable
 
 # RCL5 fixture
-node test/integration/tools/capture-fixture.js rcl5-stable --rcl 5 --ticks 20000
+node src/tools/capture-fixture.js rcl5-stable --rcl 5 --ticks 20000
 ```
 
 ## 9. Рекомендации и анти-паттерны

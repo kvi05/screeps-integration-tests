@@ -18,14 +18,16 @@ const schema = {
     usage: 'node src/tools/clean-cache.js [options]',
     options: {
         keep: { type: 'int', default: 5, min: 0, description: 'сколько последних кешей хранить' },
+        cacheDir: { type: 'string', description: 'путь к .cache директории (по умолчанию src/.cache)' },
     },
 };
 
 try {
     const { options } = parseArgs(schema, process.argv.slice(2));
 
+    const cacheDir = options.cacheDir || process.env.SIT_CACHE_DIR || undefined;
     console.log(`[clean-cache] Очистка .cache/, хранить ${options.keep} последних...`);
-    const result = pruneCache({ keep: options.keep });
+    const result = pruneCache({ keep: options.keep, cacheDir });
     console.log(`[clean-cache] Удалено: ${result.removed}, оставлено: ${result.kept}`);
     if (result.errors.length > 0) {
         console.error('[clean-cache] Ошибки:', result.errors);
