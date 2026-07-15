@@ -287,8 +287,12 @@ function assertBotUserAttacking(report, botUserName) {
 function assertBotUserNotAttacking(report, botUserName) {
     /** @type {EventLogEntry[]} */
     const attackingEvents = filterByType(report.events, EVENT_ATTACK);
-    const attacking = attackingEvents.some((e) => e && e.objectId && ownerOf(report, e.objectId) === botUserName);
-    assert.ok(!attacking, `объекты пользователя ${botUserName} нанесли урон (${attacking.length} EVENT_ATTACK)`);
+    const attacking = attackingEvents.filter((e) => e && e.objectId && ownerOf(report, e.objectId) === botUserName);
+    assert.strictEqual(
+        attacking.length,
+        0,
+        `объекты пользователя ${botUserName} нанесли урон (${attacking.length} EVENT_ATTACK)`,
+    );
 }
 
 module.exports = {
