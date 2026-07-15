@@ -40,7 +40,7 @@ async function run(opts = {}) {
         bots: [{ username: BOT_USERNAME, room: ROOM_1 }],
         ticks,
         profiling: opts.profiling,
-        logLevel: 'errors',
+        logLevel: 'error',
         metrics: { every: 1, rooms: true },
     });
 

@@ -15,7 +15,7 @@
  *   --rcl <level>        — целевой RCL (по умолчанию: 3, диапазон: 1..8)
  *   --ticks <N>          — макс. тиков на достижение RCL (по умолчанию: 10000)
  *   --stabilize <N>      — доп. тики после достижения RCL (по умолчанию: 2000)
- *   --log-level <level>  — 'silent'|'errors'|'all' (по умолчанию: 'errors')
+ *   --log-level <level>  — 'all'|'error'|'warn' (по умолчанию: 'error')
  *   --progress <N>       — логировать каждые N тиков (0 = выключено, по умолчанию: 0)
  *   --room <name>        — имя комнаты (по умолчанию: W0N1)
  *   --sources <JSON>     — позиции источников (по умолчанию: [{"x":15,"y":15},{"x":35,"y":35}])
@@ -56,8 +56,8 @@ const SCHEMA = {
         stabilize: { type: 'int', default: 2000, min: 0, description: 'доп. тики после достижения RCL' },
         logLevel: {
             type: 'enum',
-            values: ['silent', 'errors', 'all'],
-            default: 'errors',
+            values: ['all', 'error', 'warn'],
+            default: 'error',
             cli: '--log-level',
             description: 'уровень логирования',
         },
@@ -109,7 +109,7 @@ function getRclFromMemory(memory, roomName) {
  * @property {number}  [targetRcl=3]
  * @property {number}  [maxTicks=10000]
  * @property {number}  [stabilize=2000]
- * @property {'silent'|'errors'|'all'} [logLevel='errors']
+ * @property {'all'|'error'|'warn'} [logLevel='error']
  * @property {number}  [progress=0]              — шаг progress-логов (0 = off)
  * @property {string}  [room='W0N1']
  * @property {Array<{x:number,y:number}>} [sources]
@@ -147,7 +147,7 @@ async function captureFixture(cfg) {
         targetRcl = 3,
         maxTicks = 10000,
         stabilize = 2000,
-        logLevel = 'errors',
+        logLevel = 'error',
         progress = 0,
         room = 'W0N1',
         sources = [

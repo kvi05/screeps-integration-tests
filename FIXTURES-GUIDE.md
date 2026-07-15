@@ -383,7 +383,7 @@ node src/tools/capture-fixture.js my-memory
 | `--room`      | `W0N1`                                                 | Имя комнаты                             |
 | `--sources`   | `[{"x":15,"y":15},{"x":35,"y":35}]`                    | Позиции источников (JSON)               |
 | `--progress`  | `0`                                                    | Логировать каждые N тиков (0 = выкл.)   |
-| `--log-level` | `errors`                                               | `silent` / `errors` / `all`             |
+| `--log-level` | `error`                                                | `all` / `error` / `warn`                |
 | `--warn-size` | `50000`                                                | Порог предупреждения по размеру (байты) |
 | `--force`     | `false`                                                | Разрешить перезапись                    |
 

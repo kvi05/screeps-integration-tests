@@ -35,15 +35,15 @@ describe('console capture', () => {
 
     describe('createConsoleCapture', () => {
         // Семантика logLevel:
-        //   'all'   — нормальные логи → logs; ошибки → errors; предупреждения → warnings
-        //   'error' — ошибки → errors + logs; нормальные логи → никуда
-        //   'warn'  — предупреждения → warnings + logs; ошибки → errors; нормальные → никуда
+        //   'all'   — ошибки → errors + logs; предупреждения → warnings + logs; нормальные → logs
+        //   'error' — ошибки → errors + logs; предупреждения → warnings; нормальные → никуда
+        //   'warn'  — ошибки → errors + logs; предупреждения → warnings + logs; нормальные → никуда
 
-        it('классифицирует [ERROR] строку как ошибку (logLevel=all: только errors)', () => {
+        it('классифицирует [ERROR] строку как ошибку (logLevel=all: errors + logs)', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all' });
             handler(['[ERROR] Something went wrong']);
             expect(report.errors).toEqual(['[ERROR] Something went wrong']);
-            expect(report.logs).toEqual([]);
+            expect(report.logs).toEqual(['[ERROR] Something went wrong']);
         });
 
         it('классифицирует [ERROR] строку как ошибку (logLevel=error: errors + logs)', () => {
@@ -59,11 +59,11 @@ describe('console capture', () => {
             expect(report.errors).toEqual(['ReferenceError: x is not defined']);
         });
 
-        it('классифицирует [WARN] строку как предупреждение (logLevel=all: только warnings)', () => {
+        it('классифицирует [WARN] строку как предупреждение (logLevel=all: warnings + logs)', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all' });
             handler(['[WARN] Low energy']);
             expect(report.warnings).toEqual(['[WARN] Low energy']);
-            expect(report.logs).toEqual([]);
+            expect(report.logs).toEqual(['[WARN] Low energy']);
         });
 
         it('классифицирует [WARN] строку как предупреждение (logLevel=warn: warnings + logs)', () => {
@@ -111,7 +111,7 @@ describe('console capture', () => {
             handler(['line1']);
             handler(['[ERROR] err']);
             expect(report.errors).toEqual(['[ERROR] err']);
-            expect(report.logs).toEqual(['line1']);
+            expect(report.logs).toEqual(['line1', '[ERROR] err']);
         });
 
         it('создаёт свой report если не передан внешний', () => {
@@ -140,6 +140,32 @@ describe('console capture', () => {
             const { handler, report } = createConsoleCapture();
             handler(['message']);
             expect(report.logs).toEqual([]);
+        });
+
+        describe('logLevel validation', () => {
+            it('бросает TypeError при logLevel="errors"', () => {
+                expect(() => createConsoleCapture({ logLevel: 'errors' })).toThrow('Invalid logLevel');
+            });
+
+            it('бросает TypeError при logLevel="silent"', () => {
+                expect(() => createConsoleCapture({ logLevel: 'silent' })).toThrow('Invalid logLevel');
+            });
+
+            it('бросает TypeError при logLevel="unknown"', () => {
+                expect(() => createConsoleCapture({ logLevel: 'unknown' })).toThrow('Invalid logLevel');
+            });
+
+            it('не бросает при logLevel="all"', () => {
+                expect(() => createConsoleCapture({ logLevel: 'all' })).not.toThrow();
+            });
+
+            it('не бросает при logLevel="warn"', () => {
+                expect(() => createConsoleCapture({ logLevel: 'warn' })).not.toThrow();
+            });
+
+            it('не бросает при logLevel="error"', () => {
+                expect(() => createConsoleCapture({ logLevel: 'error' })).not.toThrow();
+            });
         });
     });
 

@@ -28,6 +28,8 @@ const ERROR_PATTERNS = [
  */
 const WARN_PATTERNS = [];
 
+const VALID_LOG_LEVELS = ['all', 'error', 'warn'];
+
 /**
  * Проверяет содержит ли строка признаки ошибки.
  * @param {string} line
@@ -56,13 +58,18 @@ function looksLikeWarn(line) {
  *
  * @param {Object} [opts]
  * @param {Object} [opts.report] — внешний report объект (если не передан — создаётся свой)
- * @param {'all'|'error'|'warn'} [opts.logLevel='errors'] — 'errors' (только ошибки) | 'all' (+ предупреждения и логи)
+ * @param {'all'|'error'|'warn'} [opts.logLevel='error'] — порог для report.logs: 'all' — все логи, 'warn' — ошибки и предупреждения, 'error' — только ошибки
  * @param {number} [opts.maxConsoleLines=10000] — максимум строк в report (защита от спама)
  * @returns {{ handler: Function, report: { errors: string[], warnings: string[], logs: string[] } }}
  */
 function createConsoleCapture(opts = {}) {
     const report = opts.report || { errors: [], warnings: [], logs: [] };
     const logLevel = opts.logLevel || 'error';
+    if (!VALID_LOG_LEVELS.includes(logLevel)) {
+        throw new Error(
+            `Invalid logLevel "${logLevel}". Valid values: ${VALID_LOG_LEVELS.map((v) => `"${v}"`).join(', ')}`,
+        );
+    }
     const maxConsoleLines = opts.maxConsoleLines || 10000;
 
     const handler = (logs /*, results, userid, username */) => {
@@ -73,17 +80,14 @@ function createConsoleCapture(opts = {}) {
             const isError = line.includes('[ERROR]') || looksLikeError(line);
             const isWarn = line.includes('[WARN]') || looksLikeWarn(line);
 
-            const addLog = (target, level) => {
-                report[target].push(line);
-                if (logLevel === level) {
+            if (isError) {
+                report.errors.push(line);
+                report.logs.push(line);
+            } else if (isWarn) {
+                report.warnings.push(line);
+                if (logLevel !== 'error') {
                     report.logs.push(line);
                 }
-            };
-
-            if (isError) {
-                addLog('errors', 'error');
-            } else if (isWarn) {
-                addLog('warnings', 'warn');
             } else if (logLevel === 'all') {
                 report.logs.push(line);
             }
