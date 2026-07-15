@@ -79,7 +79,6 @@ const world = await createWorld({
 | `profiling`       | `boolean=false`                  | Включить callgrind-профилирование, см. [Profiler](https://github.com/screepers/screeps-profiler) |
 | `logLevel`        | `'all' \| 'error' \| 'warn'`     | Порог для `report.logs` (по умолчанию `'all'`)                                                   |
 | `maxConsoleLines` | `number=10000`                   | Общий лимит строк `errors + warnings + logs`                                                     |
-| `metricsEvery`    | `number=0`                       | Устаревший shorthand для `metrics.every`                                                         |
 | `metrics`         | `MetricsOpts`                    | `{ every, rooms }` (только `rooms` реализовано)                                                  |
 | `until`           | `UntilOpts`                      | Жёсткое условие остановки                                                                        |
 | `onTick`          | `(world, tick) => Promise<void>` | Callback на каждом тике, вызывается после bot-tick и перед predicate                             |

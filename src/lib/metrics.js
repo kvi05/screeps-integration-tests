@@ -33,8 +33,7 @@ const VALID_ENTITY_TYPES = [...MAP_ENTITY_TYPES, 'world'];
 /**
  * Разрешает effective настройки сбора метрик из `WorldOpts`.
  *
- * Поддерживает backward-совместимый `metricsEvery` и новый `metrics.every`.
- * При конфликте побеждает `metrics.every`. Флаги `colonies`, `bots`, `world`
+ * Флаги `colonies`, `bots`, `world`
  * пока не поддерживаются и вызывают ошибку, чтобы не было скрытого поведения.
  *
  * @param {WorldOpts} opts
@@ -42,8 +41,7 @@ const VALID_ENTITY_TYPES = [...MAP_ENTITY_TYPES, 'world'];
  */
 function resolveMetricsConfig(opts) {
     const metricsOpts = opts.metrics || {};
-    const every =
-        metricsOpts.every !== undefined ? metricsOpts.every : opts.metricsEvery !== undefined ? opts.metricsEvery : 0;
+    const every = metricsOpts.every !== undefined ? metricsOpts.every : 0;
     const rooms = metricsOpts.rooms !== undefined ? metricsOpts.rooms : true;
 
     const unsupported = [];

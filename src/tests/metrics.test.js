@@ -108,17 +108,6 @@ describe('metrics (recorder + query + aggregation)', () => {
             expect(resolveMetricsConfig({})).toEqual({ every: 0, rooms: true });
         });
 
-        it('читает metricsEvery', () => {
-            expect(resolveMetricsConfig({ metricsEvery: 10 })).toEqual({ every: 10, rooms: true });
-        });
-
-        it('metrics.every имеет приоритет над metricsEvery', () => {
-            expect(resolveMetricsConfig({ metricsEvery: 10, metrics: { every: 5 } })).toEqual({
-                every: 5,
-                rooms: true,
-            });
-        });
-
         it('rooms=false отключает сбор комнат', () => {
             expect(resolveMetricsConfig({ metrics: { every: 10, rooms: false } })).toEqual({ every: 10, rooms: false });
         });

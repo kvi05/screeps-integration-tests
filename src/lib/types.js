@@ -270,7 +270,6 @@
  *
  * @property {'all'|'error'|'warn'} [logLevel='all']             - Порог логов в world.report.logs
  * @property {number} [maxConsoleLines=10000]
- * @property {number} [metricsEvery=0]                             — устаревший shorthand для `metrics.every` (0 = off)
  * @property {MetricsOpts} [metrics]                               — настройки сбора метрик
  *
  * @property {UntilOpts} [until]                                   — условие досрочного завершения
