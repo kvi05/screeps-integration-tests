@@ -11,6 +11,7 @@ const { createMetricsReport, resolveMetricsConfig } = require('./metrics');
 const { evaluatePredicate } = require('./observers/predicate');
 const { snapshotOwners, mergeOwners } = require('./observers/ownership');
 const { createConsoleCapture } = require('./console');
+const { createWorldHelpers } = require('./worldHelpers');
 
 function resolveDistDir(opts) {
     return opts.distDir || process.env.BOT_DIST_DIR || path.resolve(process.cwd(), 'dist');
@@ -500,6 +501,9 @@ async function createWorld(opts) {
         await runtime.dispose();
     }
 
+    // ─── Хелперы ─────────────────────────────────────────────────────────
+    const helpers = createWorldHelpers(server, defaultBotUserId);
+
     // ─── Возврат API ──────────────────────────────────────────────────────
     /** @type {WorldInstance} */
     world = {
@@ -516,6 +520,7 @@ async function createWorld(opts) {
         bots,
         rooms: roomStatus,
         dispose,
+        ...helpers,
     };
 
     return world;

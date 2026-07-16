@@ -471,6 +471,16 @@
  * @property {WriteMemoryFn} writeMemory          — обновить Memory (мерж)
  * @property {RegisterEventFn} registerEvent      — зарегистрировать обработчик события
  *
+ * @property {SetTicksToDowngradeFn} setTicksToDowngrade — установить время до даунгрейда контроллера
+ * @property {SetHitsStructureFn} setHitsStructure       — установить HP структуры
+ * @property {DamageHitsStructureFn} damageHitsStructure — нанести урон структуре (вычесть HP)
+ * @property {DeleteStructureFn} deleteStructure         — удалить структуру из БД
+ * @property {CreateStructureFn} createStructure          — создать структуру через spec (userId по умолч. — первый бот)
+ * @property {WorldFindFn} find                          — найти объекты в `rooms.objects` (query c userId/id)
+ * @property {WorldFindOneFn} findOne                    — найти один объект
+ * @property {WorldFindIdsFn} findIds                    — найти _id объектов
+ * @property {WorldFindIdFn} findId                      — найти _id одного объекта
+ *
  * @property {WorldReport} report                 — накопленный отчёт
  * @property {ScreepsServer} server               — экземпляр ScreepsServer
  * @property {Object<string,Bot>} bots            — боты по `username`
@@ -527,6 +537,68 @@
  * @param {string} action
  * @param {Function} handler                       — async (server, room, params) => void
  * @returns {void}
+ */
+
+/**
+ * @callback SetTicksToDowngradeFn
+ * @param {string} roomName
+ * @param {number|null} ticks — число тиков (>=0) или null для сброса
+ * @returns {Promise<void>}
+ */
+
+/**
+ * @callback SetHitsStructureFn
+ * @param {string|Object} idOrObject — _id строкой или объект с полем _id/id
+ * @param {number} hits — новое значение hits (>=0, clamp по hitsMax)
+ * @returns {Promise<void>}
+ */
+
+/**
+ * @callback DamageHitsStructureFn
+ * @param {string|Object} idOrObject
+ * @param {number} amount — количество урона (>=0)
+ * @returns {Promise<void>}
+ */
+
+/**
+ * @callback DeleteStructureFn
+ * @param {string|Object} idOrObject
+ * @returns {Promise<void>}
+ */
+
+/**
+ * @callback CreateStructureFn
+ * @param {import('./types').StructureSpec} spec — spec-объект структуры (type, x, y, roomName обязательны)
+ * @returns {Promise<string>} _id созданной структуры
+ */
+
+/**
+ * @callback WorldFindFn
+ * @param {Object} query — фильтр (room, type, userId — мапится в user, id — в _id)
+ * @param {Object} [opts]
+ * @returns {Promise<Object[]>} документы с полем id (alias _id)
+ */
+
+/**
+ * @callback WorldFindOneFn
+ * @param {Object} query
+ * @param {Object} [opts]
+ * @param {number} [opts.index] — N-й объект (по порядку вставки)
+ * @returns {Promise<Object|null>}
+ */
+
+/**
+ * @callback WorldFindIdsFn
+ * @param {Object} query
+ * @returns {Promise<string[]>} массив _id
+ */
+
+/**
+ * @callback WorldFindIdFn
+ * @param {Object} query
+ * @param {Object} [opts]
+ * @param {number} [opts.index]
+ * @returns {Promise<string|null>}
  */
 
 /**

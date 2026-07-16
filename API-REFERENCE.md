@@ -19,6 +19,7 @@
 - [12. Профилирование](#12-профилирование)
 - [13. Таймаут](#13-таймаут)
 - [14. Основные типы](#14-основные-типы)
+- [15. Хелперы модификации и поиска объектов](#15-хелперы-модификации-и-поиска-объектов)
 
 ## 1. Главная точка входа: createWorld
 
@@ -143,10 +144,16 @@ const world = await createWorld({
 | `world.tick(n)`                        | Выполнить `n` тиков; уважает `until.maxTicks`, игнорирует `opts.ticks`    |
 | `world.exec(code, username?)`          | Выполнить JS-код в контексте бота                                         |
 | `world.spawn(spec)`                    | Создать крипа (`roomName` обязателен, `userId` — первый бот по умолчанию) |
+| `world.createStructure(spec)`           | Создать структуру через spec (см. §Хелперы)                               |
 | `world.eventLog(room)`                 | Event log комнаты за текущий тик                                          |
 | `world.readMemory(username?)`          | Прочитать Memory бота                                                     |
 | `world.writeMemory(username, patch)`   | Deep-merge patch в Memory бота                                            |
 | `world.registerEvent(action, handler)` | Зарегистрировать обработчик для `opts.events`                             |
+| `world.setTicksToDowngrade(room, n)`   | Установить время до даунгрейда контроллера (см. §Хелперы)                 |
+| `world.setHitsStructure(id, hits)`     | Установить HP структуры (см. §Хелперы)                                    |
+| `world.damageHitsStructure(id, dmg)`   | Нанести урон структуре (см. §Хелперы)                                     |
+| `world.deleteStructure(id)`            | Удалить структуру из БД (см. §Хелперы)                                    |
+| `world.find(query)` / `findOne`/…      | Поиск объектов в `rooms.objects` (см. §Хелперы)                           |
 | `world.dispose()`                      | Остановить сервер и удалить cache-директорию                              |
 
 ### Поля
@@ -613,6 +620,78 @@ CLI сохраняет `report.profileCallgrind` в
     },
     stopReason: 'predicate',
 }
+```
+
+## 15. Хелперы модификации и поиска объектов
+
+Методы, доступные на `WorldInstance`. Работают напрямую с БД Screeps `db['rooms.objects']`.
+
+### Controller
+
+| Метод                                        | Описание                                                                           |
+| -------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `world.setTicksToDowngrade(roomName, ticks)` | Установить `downgradeTime = gameTime + ticks`. `ticks >= 0` или `null` для сброса. |
+
+```javascript
+await world.setTicksToDowngrade('W0N1', 4000);
+await world.setTicksToDowngrade('W0N1', null); // сбросить таймер
+```
+
+### Структуры
+
+| Метод                                           | Описание                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| `world.setHitsStructure(idOrObject, hits)`      | Установить HP. `hits >= 0`, clamp по `hitsMax`.                     |
+| `world.damageHitsStructure(idOrObject, amount)` | Вычесть `amount` из HP (не ниже 0).                                 |
+| `world.deleteStructure(idOrObject)`             | Удалить структуру из `rooms.objects` напрямую (без event log).      |
+| `world.createStructure(spec)`                    | Создать структуру из spec-объекта. `userId` по умолч. — первый бот. |
+
+Аргумент `idOrObject` может быть:
+
+- строкой (`_id`);
+- объектом с полем `_id` или `id` (например, документ из `world.find`).
+
+```javascript
+const wallId = await world.createStructure(spec.wall(10, 20, { roomName: 'W0N1', hits: 500000 }));
+await world.damageHitsStructure(wallId, 100);
+await world.damageHitsStructure({ id: wallId }, 50);
+await world.setHitsStructure(wallId, 2000);
+
+// прямое удаление
+await world.deleteStructure(wallId);
+```
+
+### Поиск объектов
+
+Универсальные методы вместо прямого обращения к `db['rooms.objects'].find(...)`.
+
+| Метод                         | Назначение                                               |
+| ----------------------------- | -------------------------------------------------------- |
+| `world.find(query)`           | Массив документов (с полем `id` = `_id`).                |
+| `world.findOne(query, opts?)` | Первый документ или `null`. `opts.index` — N-й по счёту. |
+| `world.findIds(query)`        | Массив `_id`.                                            |
+| `world.findId(query, opts?)`  | `_id` первого или `null`. `opts.index` — N-й.            |
+
+Поля `query`:
+
+- `room`, `type`, `name`, `x`, `y` — как в БД.
+- `userId` — автоматически мапится в БД-поле `user`.
+- `id` — мапится в `_id`.
+
+```javascript
+const { STRUCTURE_TOWER } = require('screeps-integration-tests/constants');
+
+// Все towers комнаты
+const towers = await world.find({ room: 'W0N1', type: STRUCTURE_TOWER });
+
+// Первая башня
+const tower = await world.findOne({ room: 'W0N1', type: STRUCTURE_TOWER });
+
+// _id первой башни
+const towerId = await world.findId({ room: 'W0N1', type: STRUCTURE_TOWER });
+
+// _id первого источника (index=0)
+const sourceId = await world.findId({ room: 'W0N1', type: 'source' }, { index: 0 });
 ```
 
 ## Связанные документы

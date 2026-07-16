@@ -16,6 +16,7 @@
         "./metric-export": "./src/public/metric-export.js",
         "./memory-fixtures": "./src/public/memory-fixtures.js",
         "./room-fixtures": "./src/public/room-fixtures.js",
+        "./world-helpers": "./src/public/worldHelpers.js",
         "./events": "./src/public/events.js",
         "./constants": "./src/public/constants.js",
         "./package.json": "./package.json"
