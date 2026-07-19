@@ -352,6 +352,8 @@
  * @property {MetricsReport} metrics                    — time-series метрик по сущностям
  * @property {Object<string,string>} objectOwners       — _id → user (owner)
  *
+ * @property {string[]} frameworkWarnings               — технические предупреждения фреймворка (не ошибки бота)
+ *
  * @property {string|null} stopReason                   — причина остановки (predicate / signal / maxTicks)
  */
 

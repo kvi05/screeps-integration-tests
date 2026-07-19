@@ -19,8 +19,8 @@
 
 /**
  * Снимает соответствие `_id → user` для всех объектов комнаты, у которых
- * есть владелец (creep, spawn, tower, extension, ...). Объекты без `user`
- * (source, wall, road) пропускаются.
+ * есть владелец (creep, spawn, tower, extension, ...). 
+ * Объекты без `user` (source, wall, road) пропускаются.
  *
  * @param {ScreepsServer} server
  * @param {string} roomName

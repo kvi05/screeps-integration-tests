@@ -149,6 +149,7 @@ async function createWorld(opts) {
         events: [],
         metrics: createMetricsReport(),
         objectOwners: {},
+        frameworkWarnings: [],
         stopReason: null,
     };
 
@@ -228,16 +229,16 @@ async function createWorld(opts) {
                 const eventLog = await readEventLog(server, name);
                 accumulateEvents(report, eventLog, tickNum);
                 roomStatus[name].events += eventLog.length;
-            } catch {
-                // event log может быть недоступен на первых тиках
+            } catch (e) {
+                report.frameworkWarnings.push(`eventLog room ${name}: ${e.message ?? String(e)}`);
             }
 
             // Owners snapshot
             try {
                 const owners = await snapshotOwners(server, name);
                 mergeOwners(report, owners);
-            } catch {
-                // не критично
+            } catch (e) {
+                report.frameworkWarnings.push(`ownersSnapshot room ${name}: ${e.message ?? String(e)}`);
             }
 
             // Metrics сэмплинг
@@ -245,16 +246,16 @@ async function createWorld(opts) {
                 try {
                     const metrics = await collectMetrics(server, name);
                     sampleMetrics(report, name, metrics, tickNum);
-                } catch {
-                    // metrics не критичен
+                } catch (e) {
+                    report.frameworkWarnings.push(`metrics room ${name} tick ${tickNum}: ${e.message ?? String(e)}`);
                 }
             }
 
             // RCL tracking (обновляем каждый тик для доступности после tick())
             try {
                 report.finalRcl[name] = await getRcl(server, name);
-            } catch {
-                // ok
+            } catch (e) {
+                report.frameworkWarnings.push(`RCL room ${name}: ${e.message ?? String(e)}`);
             }
 
             roomStatus[name].ticks++;

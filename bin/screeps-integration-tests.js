@@ -227,12 +227,24 @@ function printSummary(results) {
     let failed = 0;
     let skipped = 0;
 
-    for (const { name, status, error, time } of results) {
+    for (const { name, status, error, time, result } of results) {
         const icon = status === 'pass' ? 'PASS' : status === 'skip' ? 'SKIP' : 'FAIL';
         const timeStr = time !== undefined ? ` (${Math.round(time / 1000)}s)` : '';
         console.log(`  ${icon} ${name}${timeStr}`);
         if (error) {
             console.log(`       ${error.split('\n')[0]}`);
+        }
+        if (result?.frameworkWarnings?.length > 0) {
+            const limit = 3;
+            const warnings = result.frameworkWarnings;
+            const count = warnings.length;
+            console.log(`       ⚠ framework warnings (${count}):`);
+            for (let i = 0; i < Math.min(count, limit); i++) {
+                console.log(`         - ${warnings[i]}`);
+            }
+            if (count > limit) {
+                console.log(`         ... and ${count - limit} more`);
+            }
         }
         if (status === 'pass') {
             passed++;
