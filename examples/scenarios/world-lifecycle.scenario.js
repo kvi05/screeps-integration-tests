@@ -8,9 +8,6 @@ const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/a
  * Сценарий: world-lifecycle.
  *
  * Проверяет корректное взаимодействие `world.run()` и `world.tick()`.
- * Сценарий сознательно использует минимальное число серверов (2), потому что
- * `@screeps/common/lib/storage.js` — синглтон, и частая смена storage-порта
- * внутри одного процесса приводит к race между старым сокетом и reconnect.
  *
  * Покрытые проверки:
  * - tick() перед run() учитывается в общем лимите ticks

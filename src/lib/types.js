@@ -468,6 +468,7 @@
  * @property {TickFn} tick                        — выполнить `n` тиков
  * @property {ExecFn} exec                        — выполнить JS-код в боте
  * @property {SpawnFn} spawn                      — создать крипа (room обязателен)
+ * @property {BotIdFn} botId                      — _id бота по username/индексу/первого
  * @property {EventLogFn} eventLog                   — прочитать event log комнаты
  * @property {ReadMemoryFn} readMemory            — прочитать Memory бота (по username)
  * @property {WriteMemoryFn} writeMemory          — обновить Memory (мерж)
@@ -601,6 +602,14 @@
  * @param {Object} [opts]
  * @param {number} [opts.index]
  * @returns {Promise<string|null>}
+ */
+
+/**
+ * @callback BotIdFn
+ * @param {string|number} [bot] — username бота (string) или индекс (number, 0-based).
+ *   Если не указан — _id единственного бота.
+ * @returns {string} _id бота
+ * @throws {Error} если бот не найден
  */
 
 /**

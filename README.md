@@ -35,6 +35,10 @@
 - **Управляет ходом теста** — фиксированное число тиков, досрочная
   остановка по `predicate` или `signal`, пошаговый `world.tick(n)`,
   runtime-спавн крипов, `onTick` callback, декларативные события.
+- **High-level хелперы** — поиск объектов (`world.find`, `world.findOne`),
+  создание/удаление/дамаг структур (`world.createStructure`,
+  `world.setHitsStructure`, `world.damageHitsStructure`) и др.
+  установка downgrade timer (`world.setTicksToDowngrade`).
 - **Профилирует** — встроенная поддержка [screeps-profiler](https://github.com/screepers/screeps-profiler) с выгрузкой
   callgrind-файлов.
 - **Изолирует сценарии** — каждый сценарий работает в отдельном
@@ -125,6 +129,14 @@ npx screeps-integration-tests [options]
 - **console.log:** сервер выводит только один `console.log` за тик.
 - **Задержка profiler:** запись начинается со 2-го тика (0 — init,
   1 — запуск, 2 — первый замер).
+- **Storage-singleton race:** `@screeps/common/lib/storage.js` держит один
+  TCP-сокет на процесс. При нескольких `createWorld` подряд в одном
+  сценарии (например, `world-spawn` с 15 мирами) между `dispose()` и
+  следующим `server.start()` есть узкое окно, где старый сокет ещё не
+  закрыт, а новый storage-процесс ещё не слушает порт. На практике не
+  проявляется: 1-секундный reconnect в `storage.js` (Screeps) + длительность
+  пайплайна `createWorld` перекрывают гонку. Признак — `Storage
+connection lost` в stderr (фильтруется в `pipeChildStreams`).
 - **Задержка исполнения пользовательских команд:** Как и в игре, команды игрока исполняются в следующем тике. Но `world.exec()` в фреймворке выглядит так:
   ```javaScript
   await world.exec();

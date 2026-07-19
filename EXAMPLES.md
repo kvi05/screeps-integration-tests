@@ -20,6 +20,7 @@
 - [8. memoryOverrides и прямое чтение БД](#8-memoryoverrides-и-прямое-чтение-бд)
 - [9. Профилирование](#9-профилирование)
 - [10. Паттерны](#10-паттерны)
+- [11. Несколько миров в одном сценарии](#11-несколько-миров-в-одном-сценарии)
 
 ## 1. Smoke: минимальная проверка запуска
 
@@ -316,6 +317,70 @@ if (callgrind) {
 - `world.bots[username]` — доступ к боту; singular `world.bot` не
   существует.
 - `world.eventLog(room)` требует явную комнату.
+
+## 11. Несколько миров в одном сценарии
+
+**Вводит:** block-scoped подтесты в одном файле, переиспользование констант
+комнат и ботов, изоляция подтестов (у каждого свой `createWorld` +
+`try/finally`).
+
+**Эталонные файлы:**
+
+- `examples/scenarios/world-spawn.scenario.js`
+- `examples/scenarios/world-lifecycle.scenario.js`
+
+```javascript
+const ROOM = 'W0N1';
+const BASE_ROOM = {
+  name: ROOM,
+  controller: spec.controller({ level: 1 }),
+  sources: [spec.source(15, 15)],
+  structures: [spec.spawn(25, 25)],
+};
+const BOT_SPEC = [{ username: 'bot', room: ROOM }];
+
+async function run(opts = {}) {
+  // ─── Test 1 ─────────────────────────────────────
+  {
+    const world = await createWorld({
+      rooms: [BASE_ROOM],
+      bots: BOT_SPEC,
+      ticks: 10,
+    });
+    try {
+      await world.run();
+      // ...assertions...
+    } finally {
+      await world.dispose();
+    }
+  }
+
+  // ─── Test 2 ─────────────────────────────────────
+  {
+    const world = await createWorld({
+      rooms: [BASE_ROOM],
+      bots: BOT_SPEC,
+      ticks: 20,
+      until: { maxTicks: 15 },
+    });
+    try {
+      await world.tick(5);
+      await world.spawn(spec.invader(40, 40, { roomName: ROOM }));
+      await world.run();
+      // ...assertions...
+    } finally {
+      await world.dispose();
+    }
+  }
+}
+```
+
+> **Ключевые правила**:
+>
+> - Каждый подтест **обязан** быть в своём block-scoped `{ }` блоке с
+>   собственным `createWorld` и `try/finally dispose`.
+> - Без `dispose` mockup-сервер утекает между подтестами.
+>   переиспользуются; variations per-тест — через копирование / spread.
 
 ## Связанные документы
 

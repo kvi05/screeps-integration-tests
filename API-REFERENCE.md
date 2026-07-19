@@ -138,23 +138,23 @@ const world = await createWorld({
 
 ### Методы
 
-| Метод                                  | Назначение                                                                |
-| -------------------------------------- | ------------------------------------------------------------------------- |
-| `world.run()`                          | Прогнать сценарий до `opts.ticks` / `until.maxTicks` / predicate          |
-| `world.tick(n)`                        | Выполнить `n` тиков; уважает `until.maxTicks`, игнорирует `opts.ticks`    |
-| `world.exec(code, username?)`          | Выполнить JS-код в контексте бота                                         |
-| `world.spawn(spec)`                    | Создать крипа (`roomName` обязателен, `userId` — первый бот по умолчанию) |
-| `world.createStructure(spec)`          | Создать структуру через spec (см. §Хелперы)                               |
-| `world.eventLog(room)`                 | Event log комнаты за текущий тик                                          |
-| `world.readMemory(username?)`          | Прочитать Memory бота                                                     |
-| `world.writeMemory(username, patch)`   | Deep-merge patch в Memory бота                                            |
-| `world.registerEvent(action, handler)` | Зарегистрировать обработчик для `opts.events`                             |
-| `world.setTicksToDowngrade(room, n)`   | Установить время до даунгрейда контроллера (см. §Хелперы)                 |
-| `world.setHitsStructure(id, hits)`     | Установить HP структуры (см. §Хелперы)                                    |
-| `world.damageHitsStructure(id, dmg)`   | Нанести урон структуре (см. §Хелперы)                                     |
-| `world.deleteStructure(id)`            | Удалить структуру из БД (см. §Хелперы)                                    |
-| `world.find(query)` / `findOne`/…      | Поиск объектов в `rooms.objects` (см. §Хелперы)                           |
-| `world.dispose()`                      | Остановить сервер и удалить cache-директорию                              |
+| Метод                                  | Назначение                                                             |
+| -------------------------------------- | ---------------------------------------------------------------------- |
+| `world.run()`                          | Прогнать сценарий до `opts.ticks` / `until.maxTicks` / predicate       |
+| `world.tick(n)`                        | Выполнить `n` тиков; уважает `until.maxTicks`, игнорирует `opts.ticks` |
+| `world.exec(code, username?)`          | Выполнить JS-код в контексте бота                                      |
+| `world.spawn(spec)`                    | Создать крипа. Подробнее о формате `spec` см. `SpawnSpecInput` (§14).  |
+| `world.createStructure(spec)`          | Создать структуру через spec (см. §Хелперы)                            |
+| `world.eventLog(room)`                 | Event log комнаты за текущий тик                                       |
+| `world.readMemory(username?)`          | Прочитать Memory бота                                                  |
+| `world.writeMemory(username, patch)`   | Deep-merge patch в Memory бота                                         |
+| `world.registerEvent(action, handler)` | Зарегистрировать обработчик для `opts.events`                          |
+| `world.setTicksToDowngrade(room, n)`   | Установить время до даунгрейда контроллера (см. §Хелперы)              |
+| `world.setHitsStructure(id, hits)`     | Установить HP структуры (см. §Хелперы)                                 |
+| `world.damageHitsStructure(id, dmg)`   | Нанести урон структуре (см. §Хелперы)                                  |
+| `world.deleteStructure(id)`            | Удалить структуру из БД (см. §Хелперы)                                 |
+| `world.find(query)` / `findOne`/…      | Поиск объектов в `rooms.objects` (см. §Хелперы)                        |
+| `world.dispose()`                      | Остановить сервер и удалить cache-директорию                           |
 
 ### Поля
 
@@ -189,6 +189,16 @@ const { EVENT_OBJECT_DESTROYED } = require('screeps-integration-tests/events');
 const events = await world.eventLog('W0N1');
 const destroyed = events.some((e) => e.event === EVENT_OBJECT_DESTROYED);
 ```
+
+### Детали
+
+#### `world.run()` / `world.tick(n)`
+
+- `tick()` перед `run()` учитывается в общем лимите: после `tick(3)` вызов `run()` доберёт только до `opts.ticks`.
+- Повторный `run()` после достижения `opts.ticks` или `until.maxTicks` **не добавляет** тиков — `stopReason` уже выставлен.
+- `tick(n)` после `run()` продолжает тикать (если нет `until`), игнорируя мягкий лимит `opts.ticks`.
+- И `run()`, и `tick(n)` уважают `until.maxTicks` — жёсткий лимит, который нельзя превысить.
+- `run()` без `until` останавливается при достижении `opts.ticks` (мягкий лимит).
 
 ## 3. Spec-конструкторы
 
@@ -243,6 +253,22 @@ spec.controller({ roomName: 'W0N1', level: 3, safeMode: 20000, userId: botId });
 | `spec.creep(x, y, opts)`       | Обычный creep           |
 | `spec.invader(x, y, opts)`     | Invader (`userId: '2'`) |
 | `spec.dummyTarget(x, y, opts)` | Целевой dummy creep     |
+
+### Кастомные spec через `overrides`
+
+`spec.structure()` — единственный конструктор, поддерживающий произвольные
+кастомные поля через **вложенное** `overrides`.
+
+```javascript
+const { STRUCTURE_LAB } = require('screeps-integration-tests/constants');
+
+const lab = spec.structure(STRUCTURE_LAB, 26, 26, {
+  roomName: 'W0N1',
+  userId: botId,
+  // вложенный overrides — произвольные поля
+  overrides: { mineralType: 'X', mineralAmount: 3000 },
+});
+```
 
 ## 4. Materialize
 
@@ -599,6 +625,28 @@ CLI сохраняет `report.profileCallgrind` в
     profiling?: boolean,
 }
 ```
+
+### SpawnSpecInput
+
+```typescript
+{
+    roomName: string,            // обязательно
+    x: number,
+    y: number,
+    name?: string,               // если не указан — генерируется
+    body: { type: string, hits: number }[],  // обязательно
+    userId?: string,             // fallback к первому боту, если не указан
+    hits?: number,               // по умолчанию сумма hits body
+    hitsMax?: number,            // по умолчанию hits
+    energy?: number,
+    energyCapacity?: number,
+    overrides?: Object,          // произвольные поля для материализатора
+}
+```
+
+`spawn()` принимает как plain-объект этого формата, так и результат
+`spec.creep()`, `spec.invader()` или `spec.dummyTarget()` — все они
+возвращают совместимый `SpawnSpecInput`.
 
 ### WorldReport
 

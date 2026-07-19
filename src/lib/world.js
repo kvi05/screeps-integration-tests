@@ -49,6 +49,7 @@ function resolveCacheBase(opts) {
  * @typedef {import('./types').ReadMemoryFn} ReadMemoryFn
  * @typedef {import('./types').WriteMemoryFn} WriteMemoryFn
  * @typedef {import('./types').RegisterEventFn} RegisterEventFn
+ * @typedef {import('./types').BotIdFn} BotIdFn
  * @typedef {import('./types').DisposeFn} DisposeFn
  */
 
@@ -504,6 +505,39 @@ async function createWorld(opts) {
         await runtime.dispose();
     }
 
+    // ─── botId ────────────────────────────────────────────────────────────
+
+    /**
+     * Возвращает _id бота по username, индексу или первого бота.
+     *
+     * @param {string|number} [bot] — username бота (string) или индекс (number, 0-based)
+     *   Если не указан — возвращает _id единственного бота (single-bot сценарий).
+     * @returns {string} _id бота
+     * @throws {Error} если бот не найден или (при пустом аргументе) ботов ≠ 1
+     * @type {BotIdFn}
+     */
+    function botId(bot) {
+        if (bot === undefined) {
+            return bots[defaultBot(bots)].id;
+        }
+        if (typeof bot === 'number') {
+            const entries = Object.values(bots);
+            if (bot < 0 || bot >= entries.length) {
+                throw new Error(
+                    `botId: индекс ${bot} вне диапазона (0..${entries.length - 1}). Доступные боты: ${Object.keys(bots).join(', ')}`,
+                );
+            }
+            return entries[bot].id;
+        }
+        if (typeof bot === 'string') {
+            if (!bots[bot]) {
+                throw new Error(`botId: бот "${bot}" не найден. Доступные боты: ${Object.keys(bots).join(', ')}`);
+            }
+            return bots[bot].id;
+        }
+        throw new Error('botId: аргумент должен быть username (string), индексом (number) или undefined');
+    }
+
     // ─── Хелперы ─────────────────────────────────────────────────────────
     const helpers = createWorldHelpers(server, defaultBotUserId);
 
@@ -514,6 +548,7 @@ async function createWorld(opts) {
         tick,
         exec,
         spawn,
+        botId,
         eventLog: getEventLog,
         readMemory,
         writeMemory,

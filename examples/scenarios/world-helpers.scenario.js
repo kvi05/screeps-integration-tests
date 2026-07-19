@@ -55,7 +55,7 @@ async function run(opts = {}) {
         assert.strictEqual(towers[0].id, towerId, 'id башни из find совпадает с id из createStructure');
 
         // Ищем по userId + type (мапится в user)
-        const myTower = await world.findOne({ type: STRUCTURE_TOWER, userId: world.bots.bot.id });
+        const myTower = await world.findOne({ type: STRUCTURE_TOWER, userId: world.botId() });
         assert.ok(myTower, 'должна найтись башня');
         assert.strictEqual(myTower.type, STRUCTURE_TOWER);
 
