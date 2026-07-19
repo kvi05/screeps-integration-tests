@@ -397,6 +397,10 @@ async function createWorld(opts) {
 
     /**
      * Создаёт нового крипа в комнате.
+     *
+     * Для удобства используйте `spec.creep()`, `spec.invader()` или
+     * `spec.dummyTarget()` — они заполняют body и hits.
+     *
      * @param {SpawnSpecInput} spawnSpec
      * @type {SpawnFn}
      */
