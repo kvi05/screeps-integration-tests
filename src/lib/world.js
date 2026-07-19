@@ -611,4 +611,11 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
     };
 }
 
-module.exports = { createWorld, buildCanonicalRoom };
+module.exports = {
+    createWorld,
+    buildCanonicalRoom,
+    // Для unit тестов
+    defaultBot,
+    resolveDistDir,
+    resolveCacheBase,
+};

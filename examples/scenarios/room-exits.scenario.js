@@ -83,11 +83,8 @@ async function run(opts = {}) {
         ]);
         try {
             const ex = await readExits(world, ['W0N1', 'W0N2']);
-            console.log(`[vertical] describeExits('W0N1')=${JSON.stringify(ex['W0N1'])}`);
-            console.log(`[vertical] describeExits('W0N2')=${JSON.stringify(ex['W0N2'])}`);
             assert.strictEqual(ex['W0N1'][TOP], 'W0N2', 'W0N1.TOP -> W0N2');
             assert.strictEqual(ex['W0N2'][BOTTOM], 'W0N1', 'W0N2.BOTTOM -> W0N1');
-            console.log('PASS: vertical adjacency (W0N1 ↔ W0N2)');
         } finally {
             await world.dispose();
         }
@@ -110,11 +107,8 @@ async function run(opts = {}) {
         ]);
         try {
             const ex = await readExits(world, ['W0N1', 'W1N1']);
-            console.log(`[horizontal] describeExits('W0N1')=${JSON.stringify(ex['W0N1'])}`);
-            console.log(`[horizontal] describeExits('W1N1')=${JSON.stringify(ex['W1N1'])}`);
             assert.strictEqual(ex['W0N1'][LEFT], 'W1N1', 'W0N1.LEFT -> W1N1');
             assert.strictEqual(ex['W1N1'][RIGHT], 'W0N1', 'W1N1.RIGHT -> W0N1');
-            console.log('PASS: horizontal adjacency (W0N1 ↔ W1N1)');
         } finally {
             await world.dispose();
         }
@@ -137,13 +131,10 @@ async function run(opts = {}) {
         ]);
         try {
             const ex = await readExits(world, ['W0N1', 'W5N5']);
-            console.log(`[non-adjacent] describeExits('W0N1')=${JSON.stringify(ex['W0N1'])}`);
-            console.log(`[non-adjacent] describeExits('W5N5')=${JSON.stringify(ex['W5N5'])}`);
             const e1Vals = Object.values(ex['W0N1'] || {});
             assert.ok(!e1Vals.includes('W5N5'), 'W0N1 не должен иметь exit на W5N5');
             const e5Vals = Object.values(ex['W5N5'] || {});
             assert.ok(!e5Vals.includes('W0N1'), 'W5N5 не должен иметь exit на W0N1');
-            console.log('PASS: non-adjacency (W0N1 ↔ W5N5 не имеют прямого exit)');
         } finally {
             await world.dispose();
         }
@@ -172,16 +163,12 @@ async function run(opts = {}) {
             await world.run();
             const logs = (world.report.logs || []).map((l) => l.message || l).join('\n');
             const joined = logs.replace(/&#x22;/g, '"');
-            console.log('--- route raw ---\n' + joined + '\n----------------');
             const mRoute = joined.match(/__ROUTE_V__=(\[.*?\]|null|-?\d+|undefined)/);
             const mFindEx = joined.match(/__ROUTE_FIND_EX__=(-?\d+|null|undefined)/);
             const route = mRoute ? mRoute[1] : '<NOT_FOUND>';
             const exit = mFindEx ? mFindEx[1] : '<NOT_FOUND>';
-            console.log(`[route] findRoute('W0N1','W0N2')=${route}`);
-            console.log(`[route] findExitTo('W0N2')=${exit}`);
             // findRoute возвращает массив ходов [{exit, room}] или ERR_NO_PATH (-2)
             assert.ok(route.startsWith('['), `findRoute должен вернуть array ходов, получил: ${route}`);
-            console.log('PASS: findRoute работает между смежными комнатами');
         } finally {
             await world.dispose();
         }
