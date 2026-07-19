@@ -266,6 +266,13 @@ async function materializeCreep(server, roomName, c) {
     const { db } = server.common.storage;
     const crypto = require('crypto');
 
+    if (!c.body || !Array.isArray(c.body) || c.body.length === 0) {
+        throw new Error(
+            `materializeCreep: spec.body обязателен — массив BodyPart (получено: ${JSON.stringify(c.body)}). ` +
+                'Используйте spec.creep() / spec.invader() или передайте body явно.',
+        );
+    }
+
     const body = c.body;
     const hits = c.hits || body.reduce((sum, p) => sum + p.hits, 0);
 

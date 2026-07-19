@@ -612,13 +612,17 @@
  * Спецификация крипа для `world.spawn()`. В multi-room моде все
  * параметры, зависящие от контекста, должны быть переданы явно.
  *
+ * Для удобства используйте `spec.creep()`, `spec.invader()` или
+ * `spec.dummyTarget()` — они подставляют дефолтный body и
+ * автоматически вычисляют hits.
+ *
  * @typedef {Object} SpawnSpecInput
  * @property {string} roomName                     — целевая комната (обязательно)
  * @property {number} x
  * @property {number} y
  * @property {string} [userId]                     — _id бота-владельца или '2' (Invader); по умолч. первый бот
  * @property {string} [name]
- * @property {BodyPart[]} [body]
+ * @property {BodyPart[]} [body]                   — массив BodyPart; обязателен (spec-конструкторы подставляют сами)
  */
 
 // ─── Runtime ───────────────────────────────────────────────────────────────
