@@ -468,7 +468,7 @@
  * @property {TickFn} tick                        — выполнить `n` тиков
  * @property {ExecFn} exec                        — выполнить JS-код в боте
  * @property {SpawnFn} spawn                      — создать крипа (room обязателен)
- * @property {EventLogFn} getEventLog                — прочитать event log комнаты
+ * @property {EventLogFn} eventLog                   — прочитать event log комнаты
  * @property {ReadMemoryFn} readMemory            — прочитать Memory бота (по username)
  * @property {WriteMemoryFn} writeMemory          — обновить Memory (мерж)
  * @property {RegisterEventFn} registerEvent      — зарегистрировать обработчик события

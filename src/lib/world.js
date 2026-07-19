@@ -2,7 +2,7 @@
 
 const path = require('path');
 const { prepareServer, addBots } = require('./runtime');
-const { materializeRoom } = require('./builders');
+const { materializeRoom, materializeCreep } = require('./builders');
 const { setBotMemory, getBotMemory, deepMergeMemory, resolveInitialMemoryByBot } = require('./builders/memory');
 const { loadRoomFixture, applyRoomOverrides } = require('./fixtures/roomFixture');
 const { readEventLog, accumulateEvents } = require('./observers/eventLog');
@@ -186,9 +186,8 @@ async function createWorld(opts) {
         eventsRegistry[action] = handler;
     }
 
-    registerEvent('spawnInvader', async (_server, room, params) => {
-        const { materializeCreep } = require('./builders');
-        await materializeCreep(_server, room, {
+    registerEvent('spawnInvader', async (srv, room, params) => {
+        await materializeCreep(srv, room, {
             x: params.x ?? 10,
             y: params.y ?? 25,
             name: params.name || `Invader_${Date.now()}`,
@@ -197,12 +196,12 @@ async function createWorld(opts) {
         });
     });
 
-    registerEvent('spawnCreep', async (_server, room, params) => {
-        const { materializeCreep } = require('./builders');
-        await materializeCreep(_server, room, params);
+    registerEvent('spawnCreep', async (srv, room, params) => {
+        await materializeCreep(srv, room, params);
     });
 
     /** @type {WorldInstance|undefined} */
+    // world is referenced by onTick before assignment — circular dependency requires let
     // eslint-disable-next-line prefer-const
     let world;
 
@@ -409,7 +408,6 @@ async function createWorld(opts) {
         if (!userId) {
             throw new Error('world.spawn: spawnSpec.userId обязателен (username бота или "2" для Invader)');
         }
-        const { materializeCreep } = require('./builders');
         return materializeCreep(server, spawnSpec.roomName, { ...spawnSpec, userId });
     }
 
@@ -598,7 +596,7 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
         return {
             ...s,
             roomName: s.roomName || name,
-            userId: userInvader ? '2' : s.userId || defaultBotUserId,
+            userId: userInvader ? '2' : (s.userId ?? defaultBotUserId),
         };
     };
 

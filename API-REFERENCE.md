@@ -144,7 +144,7 @@ const world = await createWorld({
 | `world.tick(n)`                        | Выполнить `n` тиков; уважает `until.maxTicks`, игнорирует `opts.ticks`    |
 | `world.exec(code, username?)`          | Выполнить JS-код в контексте бота                                         |
 | `world.spawn(spec)`                    | Создать крипа (`roomName` обязателен, `userId` — первый бот по умолчанию) |
-| `world.createStructure(spec)`           | Создать структуру через spec (см. §Хелперы)                               |
+| `world.createStructure(spec)`          | Создать структуру через spec (см. §Хелперы)                               |
 | `world.eventLog(room)`                 | Event log комнаты за текущий тик                                          |
 | `world.readMemory(username?)`          | Прочитать Memory бота                                                     |
 | `world.writeMemory(username, patch)`   | Deep-merge patch в Memory бота                                            |
@@ -644,7 +644,7 @@ await world.setTicksToDowngrade('W0N1', null); // сбросить таймер
 | `world.setHitsStructure(idOrObject, hits)`      | Установить HP. `hits >= 0`, clamp по `hitsMax`.                     |
 | `world.damageHitsStructure(idOrObject, amount)` | Вычесть `amount` из HP (не ниже 0).                                 |
 | `world.deleteStructure(idOrObject)`             | Удалить структуру из `rooms.objects` напрямую (без event log).      |
-| `world.createStructure(spec)`                    | Создать структуру из spec-объекта. `userId` по умолч. — первый бот. |
+| `world.createStructure(spec)`                   | Создать структуру из spec-объекта. `userId` по умолч. — первый бот. |
 
 Аргумент `idOrObject` может быть:
 
