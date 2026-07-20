@@ -4,7 +4,7 @@
  * @file Императивные хелперы для WorldInstance: мутация объектов БД и поиск.
  *
  * Responsibility:
- *   Набор функций, которые работают напрямую с `server.common.storage.db`
+ *   Набор функций, которые работают напрямую с adapter.db
  *   и `builders/materialize` (только для createStructure). Каждый хелпер
  *   выполняет одну атомарную операцию: установить/уронить HP, удалить
  *   структуру, заспавнить, найти объекты.
@@ -23,7 +23,7 @@
 const { materializeStructure } = require('./builders/materialize');
 
 /**
- * @typedef {import('./types').ScreepsServer} ScreepsServer
+ * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
  */
 
 // ─── Вспомогательные функции ─────────────────────────────────────────────────
@@ -31,11 +31,11 @@ const { materializeStructure } = require('./builders/materialize');
 /**
  * Возвращает текущий `gameTime` из env сервера.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @returns {Promise<number>}
  */
-async function getGameTime(server) {
-    const { env } = server.common.storage;
+async function getGameTime(adapter) {
+    const { env } = adapter;
     const raw = await env.get(env.keys.GAMETIME);
     return parseInt(raw, 10);
 }
@@ -86,14 +86,14 @@ function addIdAlias(doc) {
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
 /**
- * Создаёт набор хелперов, привязанных к серверу и первому боту.
+ * Создаёт набор хелперов, привязанных к адаптеру и первому боту.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} [defaultBotUserId] — _id первого бота
  * @returns {Object}
  */
-function createWorldHelpers(server, defaultBotUserId) {
-    const { db } = server.common.storage;
+function createWorldHelpers(adapter, defaultBotUserId) {
+    const { db } = adapter;
 
     // ─── Controller ────────────────────────────────────────────────────────
 
@@ -113,7 +113,7 @@ function createWorldHelpers(server, defaultBotUserId) {
         if (typeof ticks !== 'number' || ticks < 0 || !Number.isFinite(ticks)) {
             throw new Error(`setTicksToDowngrade: ticks должен быть >= 0 или null, получено ${ticks}`);
         }
-        const gameTime = await getGameTime(server);
+        const gameTime = await getGameTime(adapter);
         const downgradeTime = gameTime + ticks;
         await db['rooms.objects'].update({ _id: controller._id }, { $set: { downgradeTime } });
     }
@@ -167,7 +167,7 @@ function createWorldHelpers(server, defaultBotUserId) {
         if (merged.userId === undefined && defaultBotUserId) {
             merged.userId = defaultBotUserId;
         }
-        return materializeStructure(server, spec.roomName, merged);
+        return materializeStructure(adapter, spec.roomName, merged);
     }
 
     // ─── Поиск ─────────────────────────────────────────────────────────────

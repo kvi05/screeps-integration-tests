@@ -60,7 +60,7 @@
         "node": ">=22.12.0"
     },
     "dependencies": {
-        "screeps-server-mockup": "screepers/screeps-server-mockup#master",
+        "screeps-server-mockup": "screepers/screeps-server-mockup#703645f",
         "tree-kill": "^1.2.2"
     },
     "devDependencies": {

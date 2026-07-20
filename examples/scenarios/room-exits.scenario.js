@@ -164,7 +164,6 @@ async function run(opts = {}) {
             const logs = (world.report.logs || []).map((l) => l.message || l).join('\n');
             const joined = logs.replace(/&#x22;/g, '"');
             const mRoute = joined.match(/__ROUTE_V__=(\[.*?\]|null|-?\d+|undefined)/);
-            const mFindEx = joined.match(/__ROUTE_FIND_EX__=(-?\d+|null|undefined)/);
             const route = mRoute ? mRoute[1] : '<NOT_FOUND>';
             // findRoute возвращает массив ходов [{exit, room}] или ERR_NO_PATH (-2)
             assert.ok(route.startsWith('['), `findRoute должен вернуть array ходов, получил: ${route}`);

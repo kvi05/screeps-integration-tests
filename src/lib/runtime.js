@@ -5,10 +5,12 @@ const net = require('net');
 const path = require('path');
 const { EventEmitter, once } = require('events');
 const { ScreepsServer } = require('screeps-server-mockup');
+const { createStorageAdapter } = require('./storageAdapter');
 const { loadBotModules } = require('./loadBot');
 
 /**
  * @typedef {import('./types').ScreepsServer} ScreepsServer
+ * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
  * @typedef {import('./types').Bot} Bot
  * @typedef {import('./types').BotSpec} BotSpec
  * @typedef {import('./types').RuntimeOpts} RuntimeOpts
@@ -73,11 +75,13 @@ async function prepareServer(opts) {
 
     await server.world.reset();
 
+    const adapter = createStorageAdapter(server);
+
     for (const roomName of opts.rooms) {
-        await prepareRoom(server, roomName);
+        await prepareRoom(adapter, roomName);
     }
 
-    return { server, dispose: createDispose(server, cacheDir) };
+    return { server, adapter, dispose: createDispose(server, adapter, cacheDir) };
 }
 
 /**
@@ -107,7 +111,7 @@ async function addBots(opts) {
                 profiling: effectiveProfiling,
             });
 
-        const bot = await addBot(opts.server, b.username, {
+        const bot = await addBot(opts.adapter, b.username, {
             room: b.room,
             cpu: b.cpu,
             cpuAvailable: b.cpuAvailable,
@@ -132,7 +136,7 @@ async function addBots(opts) {
  *
  * Controller и spawn намеренно не трогает: они принадлежат materialize-слою.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} username
  * @param {Object} [opts]
  * @param {number} [opts.cpu=100]
@@ -141,15 +145,15 @@ async function addBots(opts) {
  * @param {Object} [opts.modules={}]
  * @returns {Promise<Bot>}
  */
-async function addBot(server, username, opts = {}) {
-    const { db, env } = server.common.storage;
+async function addBot(adapter, username, opts = {}) {
+    const { db, env } = adapter;
     const user = await db.users.insert({
         username,
         cpu: opts.cpu ?? 100,
         cpuAvailable: opts.cpuAvailable ?? 10000,
         gcl: opts.gcl ?? 1,
         active: 10000,
-        badge: server.world.genRandomBadge(),
+        badge: adapter.world.genRandomBadge(),
     });
 
     await Promise.all([
@@ -164,7 +168,7 @@ async function addBot(server, username, opts = {}) {
         }),
     ]);
 
-    return new TestBot(server, user).init();
+    return new TestBot(adapter, user).init();
 }
 
 /**
@@ -173,9 +177,9 @@ async function addBot(server, username, opts = {}) {
  * не зависел от реализации `world.addBot`.
  */
 class TestBot extends EventEmitter {
-    constructor(server, data) {
+    constructor(adapter, data) {
         super();
-        this._server = server;
+        this._adapter = adapter;
         this._id = data._id;
         this._username = data.username;
     }
@@ -189,17 +193,17 @@ class TestBot extends EventEmitter {
     }
 
     get memory() {
-        const { env } = this._server.common.storage;
+        const { env } = this._adapter;
         return env.get(env.keys.MEMORY + this._id);
     }
 
     async console(expression) {
-        const { db } = this._server.common.storage;
+        const { db } = this._adapter;
         return db['users.console'].insert({ user: this._id, expression, hidden: false });
     }
 
     async init() {
-        const { pubsub } = this._server.common.storage;
+        const { pubsub } = this._adapter;
         await pubsub.subscribe(`user:${this._id}/console`, (event) => {
             const data = JSON.parse(event);
             const { messages, error } = data;
@@ -232,7 +236,7 @@ async function createRuntime(opts) {
 
     try {
         const added = await addBots({
-            server: prepared.server,
+            adapter: prepared.adapter,
             bots: opts.bots || [],
             distDir: opts.distDir,
             profiling: opts.profiling,
@@ -248,20 +252,20 @@ async function createRuntime(opts) {
 /**
  * Создаёт комнату и terrain без controller.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @returns {Promise<void>}
  */
-async function prepareRoom(server, roomName) {
-    await server.world.addRoom(roomName);
+async function prepareRoom(adapter, roomName) {
+    await adapter.world.addRoom(roomName);
 
     // addRoom() не создаёт terrain — добавляем plain terrain, чтобы processor
     // не падал на первом тике.
     try {
-        await server.world.getTerrain(roomName);
+        await adapter.world.getTerrain(roomName);
     } catch {
         const TerrainMatrix = require('screeps-server-mockup/dist/src/terrainMatrix').default;
-        await server.world.setTerrain(roomName, new TerrainMatrix());
+        await adapter.world.setTerrain(roomName, new TerrainMatrix());
     }
 }
 
@@ -304,12 +308,13 @@ async function waitForProcessExit(proc, timeoutMs) {
  * процессов и конфликты портов между последовательными запусками.
  *
  * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} cacheDir
  * @returns {DisposeFn}
  */
-function createDispose(server, cacheDir) {
+function createDispose(server, adapter, cacheDir) {
     return async () => {
-        const processes = Object.values(server.processes || {});
+        const processes = adapter.getProcesses();
 
         for (const proc of processes) {
             try {

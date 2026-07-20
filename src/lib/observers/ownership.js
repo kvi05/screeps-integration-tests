@@ -11,7 +11,7 @@
  */
 
 /**
- * @typedef {import('screeps-server-mockup').ScreepsServer} ScreepsServer
+ * @typedef {import('../storageAdapter').StorageAdapter} StorageAdapter
  * @typedef {import('../types').WorldReport} WorldReport
  *
  * @typedef {Object<string,string>} OwnersMap
@@ -22,12 +22,12 @@
  * есть владелец (creep, spawn, tower, extension, ...).
  * Объекты без `user` (source, wall, road) пропускаются.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @returns {Promise<OwnersMap>} — map `{_id: user}`
  */
-async function snapshotOwners(server, roomName) {
-    const { db } = server.common.storage;
+async function snapshotOwners(adapter, roomName) {
+    const { db } = adapter;
     const objects = await db['rooms.objects'].find({ room: roomName });
     /** @type {OwnersMap} */
     const owners = {};

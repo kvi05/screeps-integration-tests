@@ -23,6 +23,7 @@ function resolveCacheBase(opts) {
 
 /**
  * @typedef {import('./types').ScreepsServer} ScreepsServer
+ * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
  * @typedef {import('./types').Bot} Bot
  * @typedef {import('./types').WorldOpts} WorldOpts
  * @typedef {import('./types').WorldInstance} WorldInstance
@@ -59,12 +60,12 @@ function resolveCacheBase(opts) {
  * Определяет RCL комнаты по контроллеру в `rooms.objects`.
  * Если контроллера нет в комнате — возвращает 0.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @returns {Promise<number>}
  */
-async function getRcl(server, roomName) {
-    const { db } = server.common.storage;
+async function getRcl(adapter, roomName) {
+    const { db } = adapter;
     const controller = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
     return controller ? controller.level : 0;
 }
@@ -107,9 +108,9 @@ async function createWorld(opts) {
         cacheDir: path.join(cacheBase, `w-${Date.now()}-${process.pid}`),
     });
 
-    const { server } = prepared;
+    const { server, adapter } = prepared;
     const added = await addBots({
-        server,
+        adapter,
         bots: opts.bots || [],
         distDir,
         profiling: opts.profiling,
@@ -122,7 +123,7 @@ async function createWorld(opts) {
     for (const roomInput of opts.rooms) {
         const name = roomInput.name;
         const canonical = await buildCanonicalRoom(roomInput, name, defaultBotUserId);
-        const ids = await materializeRoom(server, canonical);
+        const ids = await materializeRoom(adapter, canonical);
         roomStatus[name] = {
             name,
             canonical,
@@ -169,7 +170,7 @@ async function createWorld(opts) {
         // Memory
         const initialMemory = initialMemoryByBot[username];
         if (initialMemory) {
-            await setBotMemory(server, bot.id, initialMemory);
+            await setBotMemory(adapter, bot.id, initialMemory);
         }
 
         // Console handler с per-bot logLevel
@@ -180,15 +181,15 @@ async function createWorld(opts) {
     const startTime = Date.now();
 
     // ─── 7. Event registry ───────────────────────────────────────────────
-    /** @type {Object<string,(server:ScreepsServer,room:string,params:Object)=>Promise<void>>} */
+    /** @type {Object<string,(adapter:StorageAdapter,room:string,params:Object)=>Promise<void>>} */
     const eventsRegistry = {};
     /** @type {RegisterEventFn} */
     function registerEvent(action, handler) {
         eventsRegistry[action] = handler;
     }
 
-    registerEvent('spawnInvader', async (srv, room, params) => {
-        await materializeCreep(srv, room, {
+    registerEvent('spawnInvader', async (adpt, room, params) => {
+        await materializeCreep(adpt, room, {
             x: params.x ?? 10,
             y: params.y ?? 25,
             name: params.name || `Invader_${Date.now()}`,
@@ -197,8 +198,8 @@ async function createWorld(opts) {
         });
     });
 
-    registerEvent('spawnCreep', async (srv, room, params) => {
-        await materializeCreep(srv, room, params);
+    registerEvent('spawnCreep', async (adpt, room, params) => {
+        await materializeCreep(adpt, room, params);
     });
 
     /** @type {WorldInstance|undefined} */
@@ -226,7 +227,7 @@ async function createWorld(opts) {
         const roomNames = Object.keys(roomStatus);
         for (const name of roomNames) {
             try {
-                const eventLog = await readEventLog(server, name);
+                const eventLog = await readEventLog(adapter, name);
                 accumulateEvents(report, eventLog, tickNum);
                 roomStatus[name].events += eventLog.length;
             } catch (e) {
@@ -235,7 +236,7 @@ async function createWorld(opts) {
 
             // Owners snapshot
             try {
-                const owners = await snapshotOwners(server, name);
+                const owners = await snapshotOwners(adapter, name);
                 mergeOwners(report, owners);
             } catch (e) {
                 report.frameworkWarnings.push(`ownersSnapshot room ${name}: ${e.message ?? String(e)}`);
@@ -244,7 +245,7 @@ async function createWorld(opts) {
             // Metrics сэмплинг
             if (metricsConfig.rooms && metricsConfig.every > 0 && tickNum % metricsConfig.every === 0) {
                 try {
-                    const metrics = await collectMetrics(server, name);
+                    const metrics = await collectMetrics(adapter, name);
                     sampleMetrics(report, name, metrics, tickNum);
                 } catch (e) {
                     report.frameworkWarnings.push(`metrics room ${name} tick ${tickNum}: ${e.message ?? String(e)}`);
@@ -253,7 +254,7 @@ async function createWorld(opts) {
 
             // RCL tracking (обновляем каждый тик для доступности после tick())
             try {
-                report.finalRcl[name] = await getRcl(server, name);
+                report.finalRcl[name] = await getRcl(adapter, name);
             } catch (e) {
                 report.frameworkWarnings.push(`RCL room ${name}: ${e.message ?? String(e)}`);
             }
@@ -265,7 +266,7 @@ async function createWorld(opts) {
         if (opts.events) {
             for (const event of opts.events) {
                 if (event.atTick === tickNum && eventsRegistry[event.action]) {
-                    await eventsRegistry[event.action](server, event.room, event.params || {});
+                    await eventsRegistry[event.action](adapter, event.room, event.params || {});
                 }
             }
         }
@@ -413,7 +414,7 @@ async function createWorld(opts) {
         if (!userId) {
             throw new Error('world.spawn: spawnSpec.userId обязателен (username бота или "2" для Invader)');
         }
-        return materializeCreep(server, spawnSpec.roomName, { ...spawnSpec, userId });
+        return materializeCreep(adapter, spawnSpec.roomName, { ...spawnSpec, userId });
     }
 
     /**
@@ -424,7 +425,7 @@ async function createWorld(opts) {
         if (!room) {
             throw new Error('world.eventLog: room обязателен');
         }
-        return readEventLog(server, room);
+        return readEventLog(adapter, room);
     }
 
     /**
@@ -433,7 +434,7 @@ async function createWorld(opts) {
      */
     async function readMemory(botUsername) {
         const username = botUsername || defaultBot(bots);
-        return getBotMemory(server, bots[username].id);
+        return getBotMemory(adapter, bots[username].id);
     }
 
     /**
@@ -447,9 +448,9 @@ async function createWorld(opts) {
      */
     async function writeMemory(botUsername, patch) {
         const username = botUsername || defaultBot(bots);
-        const current = await getBotMemory(server, bots[username].id);
+        const current = await getBotMemory(adapter, bots[username].id);
         const next = deepMergeMemory(current, patch || {});
-        await setBotMemory(server, bots[username].id, next);
+        await setBotMemory(adapter, bots[username].id, next);
     }
 
     /**
@@ -467,7 +468,7 @@ async function createWorld(opts) {
         // finalMemory per-bot
         for (const [username, bot] of Object.entries(bots)) {
             try {
-                report.finalMemory[username] = await getBotMemory(server, bot.id);
+                report.finalMemory[username] = await getBotMemory(adapter, bot.id);
             } catch {
                 report.finalMemory[username] = {};
             }
@@ -477,7 +478,7 @@ async function createWorld(opts) {
         /** @type {string[]} */
         const roomNames = Object.keys(roomStatus);
         for (const name of roomNames) {
-            report.finalRcl[name] = await getRcl(server, name);
+            report.finalRcl[name] = await getRcl(adapter, name);
         }
 
         // Profiler per-bot (text + callgrind)
@@ -539,7 +540,7 @@ async function createWorld(opts) {
     }
 
     // ─── Хелперы ─────────────────────────────────────────────────────────
-    const helpers = createWorldHelpers(server, defaultBotUserId);
+    const helpers = createWorldHelpers(adapter, defaultBotUserId);
 
     // ─── Возврат API ──────────────────────────────────────────────────────
     /** @type {WorldInstance} */

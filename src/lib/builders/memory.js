@@ -8,32 +8,32 @@ function resolveFixturesDir() {
 }
 
 /**
- * @typedef {import('screeps-server-mockup').ScreepsServer} ScreepsServer
+ * @typedef {import('../storageAdapter').StorageAdapter} StorageAdapter
  * @typedef {Object<string,*>} BotMemory
  */
 
 /**
  * Записывает Memory бота напрямую в storage.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} userId              — _id пользователя из БД
  * @param {BotMemory} memory           — объект Memory
  * @returns {Promise<void>}
  */
-async function setBotMemory(server, userId, memory) {
-    const { env } = server.common.storage;
+async function setBotMemory(adapter, userId, memory) {
+    const { env } = adapter;
     await env.set(env.keys.MEMORY + userId, JSON.stringify(memory));
 }
 
 /**
  * Читает Memory бота из storage.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} userId
  * @returns {Promise<BotMemory>}
  */
-async function getBotMemory(server, userId) {
-    const { env } = server.common.storage;
+async function getBotMemory(adapter, userId) {
+    const { env } = adapter;
     const raw = await env.get(env.keys.MEMORY + userId);
     return JSON.parse(raw || '{}');
 }

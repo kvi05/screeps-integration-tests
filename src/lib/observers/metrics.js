@@ -12,7 +12,7 @@ const {
 const { appendMetricSample } = require('../metrics');
 
 /**
- * @typedef {import('screeps-server-mockup').ScreepsServer} ScreepsServer
+ * @typedef {import('../storageAdapter').StorageAdapter} StorageAdapter
  * @typedef {import('../types').RoomMetrics} RoomMetrics
  * @typedef {import('../types').WorldReport} WorldReport
  */
@@ -20,12 +20,12 @@ const { appendMetricSample } = require('../metrics');
 /**
  * Собирает метрики состояния комнаты.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @returns {Promise<RoomMetrics>}
  */
-async function collectMetrics(server, roomName) {
-    const { db } = server.common.storage;
+async function collectMetrics(adapter, roomName) {
+    const { db } = adapter;
     const objects = await db['rooms.objects'].find({ room: roomName });
 
     const controller = objects.find((o) => o.type === STRUCTURE_CONTROLLER);

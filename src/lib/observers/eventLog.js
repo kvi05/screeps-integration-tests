@@ -6,8 +6,7 @@
  */
 
 /**
- * @typedef {import('screeps-server-mockup').ScreepsServer} ScreepsServer
- * @typedef {import('../types').ScreepsServer} _ScreepsServerAlias
+ * @typedef {import('../storageAdapter').StorageAdapter} StorageAdapter
  * @typedef {import('../types').EventLogEntry} EventLogEntry
  * @typedef {import('../types').WorldReport} WorldReport
  * @typedef {Object} DestroyedFilter
@@ -45,12 +44,12 @@ const EVENT_TRANSFER = 12;
  * Event log хранится как hset в `env.keys.ROOM_EVENT_LOG`.
  * Возвращает `[]`, если событий ещё нет или JSON битый.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @returns {Promise<EventLogEntry[]>}
  */
-async function readEventLog(server, roomName) {
-    const { env } = server.common.storage;
+async function readEventLog(adapter, roomName) {
+    const { env } = adapter;
     const raw = await env.hget(env.keys.ROOM_EVENT_LOG, roomName);
     if (!raw) {
         return [];

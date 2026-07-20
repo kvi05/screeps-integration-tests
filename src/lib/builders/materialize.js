@@ -29,7 +29,7 @@
  */
 
 /**
- * @typedef {import('screeps-server-mockup').ScreepsServer} ScreepsServer
+ * @typedef {import('../storageAdapter').StorageAdapter} StorageAdapter
  * @typedef {import('../types').StructureSpec} StructureSpec
  * @typedef {import('../types').SourceSpecCanonical} SourceSpecCanonical
  * @typedef {import('../types').ControllerSpec} ControllerSpec
@@ -49,13 +49,13 @@ const { STRUCTURE_SPAWN } = require('../../constants/screepsConstants');
 /**
  * Создаёт один structure-объект в `rooms.objects`.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {StructureSpec} s
  * @returns {Promise<string>} _id созданного объекта
  */
-async function materializeStructure(server, roomName, s) {
-    const { db } = server.common.storage;
+async function materializeStructure(adapter, roomName, s) {
+    const { db } = adapter;
 
     const doc = {
         room: roomName,
@@ -115,15 +115,15 @@ async function materializeStructure(server, roomName, s) {
 /**
  * Создаёт несколько structure-объектов в `rooms.objects`.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {StructureSpec[]} structures
  * @returns {Promise<string[]>} _id созданных объектов
  */
-async function materializeStructures(server, roomName, structures) {
+async function materializeStructures(adapter, roomName, structures) {
     const ids = [];
     for (const s of structures) {
-        const id = await materializeStructure(server, roomName, s);
+        const id = await materializeStructure(adapter, roomName, s);
         ids.push(id);
     }
     return ids;
@@ -134,13 +134,13 @@ async function materializeStructures(server, roomName, structures) {
 /**
  * Создаёт source в `rooms.objects`.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {SourceSpecCanonical} src
  * @returns {Promise<string>} _id
  */
-async function materializeSource(server, roomName, src) {
-    const { db } = server.common.storage;
+async function materializeSource(adapter, roomName, src) {
+    const { db } = adapter;
     const doc = {
         room: roomName,
         type: 'source',
@@ -160,15 +160,15 @@ async function materializeSource(server, roomName, src) {
 /**
  * Создаёт несколько sources.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {SourceSpecCanonical[]} sources
  * @returns {Promise<string[]>} _id
  */
-async function materializeSources(server, roomName, sources) {
+async function materializeSources(adapter, roomName, sources) {
     const ids = [];
     for (const src of sources) {
-        const id = await materializeSource(server, roomName, src);
+        const id = await materializeSource(adapter, roomName, src);
         ids.push(id);
     }
     return ids;
@@ -183,13 +183,13 @@ async function materializeSources(server, roomName, sources) {
  * поля; иначе вставляет новый документ. Это безопасно для тиковой среды —
  * повторный вызов не дублирует контроллер.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {ControllerSpec} ctrl
  * @returns {Promise<string>} _id существующего или созданного controller
  */
-async function materializeController(server, roomName, ctrl) {
-    const { db } = server.common.storage;
+async function materializeController(adapter, roomName, ctrl) {
+    const { db } = adapter;
     const existing = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
 
     if (!existing) {
@@ -257,13 +257,13 @@ async function materializeController(server, roomName, ctrl) {
 /**
  * Создаёт creep в `rooms.objects`.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {CreepSpecCanonical} c
  * @returns {Promise<string>} _id
  */
-async function materializeCreep(server, roomName, c) {
-    const { db } = server.common.storage;
+async function materializeCreep(adapter, roomName, c) {
+    const { db } = adapter;
     const crypto = require('crypto');
 
     if (!c.body || !Array.isArray(c.body) || c.body.length === 0) {
@@ -301,15 +301,15 @@ async function materializeCreep(server, roomName, c) {
 /**
  * Создаёт нескольких creeps.
  *
- * @param {ScreepsServer} server
+ * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {CreepSpecCanonical[]} creeps
  * @returns {Promise<string[]>} _id
  */
-async function materializeCreeps(server, roomName, creeps) {
+async function materializeCreeps(adapter, roomName, creeps) {
     const ids = [];
     for (const c of creeps) {
-        const id = await materializeCreep(server, roomName, c);
+        const id = await materializeCreep(adapter, roomName, c);
         ids.push(id);
     }
     return ids;
@@ -320,13 +320,13 @@ async function materializeCreeps(server, roomName, creeps) {
 /**
  * Загружает код бота в `users.code`.
  *
- * @param {ScreepsServer} server
+ * @param {import('../storageAdapter').StorageAdapter} adapter
  * @param {string} userId                            — _id бота
  * @param {MaterializeBotCodeOpts} [opts]
  * @returns {Promise<void>}
  */
-async function materializeBotCode(server, userId, opts = {}) {
-    const { db } = server.common.storage;
+async function materializeBotCode(adapter, userId, opts = {}) {
+    const { db } = adapter;
     const strategy = opts.code || 'default';
 
     let modules;
@@ -359,36 +359,36 @@ async function materializeBotCode(server, userId, opts = {}) {
  * 4. creeps (обычные)
  * 5. hostiles
  *
- * @param {ScreepsServer} server
+ * @param {import('../storageAdapter').StorageAdapter} adapter
  * @param {RoomSpecCanonical} roomSpec
  * @returns {Promise<{sourceIds: string[], structureIds: string[], creepIds: string[]}>}
  */
-async function materializeRoom(server, roomSpec) {
+async function materializeRoom(adapter, roomSpec) {
     const results = { sourceIds: [], structureIds: [], creepIds: [] };
 
     // 1. Controller
     if (roomSpec.controller) {
-        await materializeController(server, roomSpec.name, roomSpec.controller);
+        await materializeController(adapter, roomSpec.name, roomSpec.controller);
     }
 
     // 2. Sources
     if (roomSpec.sources && roomSpec.sources.length > 0) {
-        results.sourceIds = await materializeSources(server, roomSpec.name, roomSpec.sources);
+        results.sourceIds = await materializeSources(adapter, roomSpec.name, roomSpec.sources);
     }
 
     // 3. Structures
     if (roomSpec.structures && roomSpec.structures.length > 0) {
-        results.structureIds = await materializeStructures(server, roomSpec.name, roomSpec.structures);
+        results.structureIds = await materializeStructures(adapter, roomSpec.name, roomSpec.structures);
     }
 
     // 4. Creeps (обычные)
     if (roomSpec.creeps && roomSpec.creeps.length > 0) {
-        results.creepIds = await materializeCreeps(server, roomSpec.name, roomSpec.creeps);
+        results.creepIds = await materializeCreeps(adapter, roomSpec.name, roomSpec.creeps);
     }
 
     // 5. Hostiles
     if (roomSpec.hostiles && roomSpec.hostiles.length > 0) {
-        const hostileIds = await materializeCreeps(server, roomSpec.name, roomSpec.hostiles);
+        const hostileIds = await materializeCreeps(adapter, roomSpec.name, roomSpec.hostiles);
         results.creepIds.push(...hostileIds);
     }
 

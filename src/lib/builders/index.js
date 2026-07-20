@@ -49,7 +49,7 @@ const {
  * @typedef {import('../types').ControllerSpec} ControllerSpec
  * @typedef {import('../types').CreepSpecCanonical} CreepSpecCanonical
  * @typedef {import('../types').RoomSpecCanonical} RoomSpecCanonical
- * @typedef {import('../types').ScreepsServer} ScreepsServer
+ * @typedef {import('../storageAdapter').StorageAdapter} StorageAdapter
  */
 
 module.exports = {

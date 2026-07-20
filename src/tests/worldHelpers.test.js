@@ -44,24 +44,20 @@ function createFakeCollection(docs) {
     };
 }
 
-// ─── Fake server ─────────────────────────────────────────────────────────────
+// ─── Fake adapter ────────────────────────────────────────────────────────────
 
-function createFakeServer(objects) {
+function createFakeAdapter(objects) {
     const envGet = jest.fn((key) => {
         if (key === 'gameTime') return Promise.resolve('10000');
         return Promise.resolve(null);
     });
     return {
-        common: {
-            storage: {
-                db: {
-                    'rooms.objects': createFakeCollection(objects),
-                },
-                env: {
-                    keys: { GAMETIME: 'gameTime' },
-                    get: envGet,
-                },
-            },
+        db: {
+            'rooms.objects': createFakeCollection(objects),
+        },
+        env: {
+            keys: { GAMETIME: 'gameTime' },
+            get: envGet,
         },
     };
 }
@@ -71,8 +67,8 @@ function createFakeServer(objects) {
 describe('createWorldHelpers', () => {
     /** @type {Object} */
     let helpers;
-    /** @type {ScreepsServer} */
-    let server;
+    /** @type {Object} */
+    let adapter;
 
     const defaultBotUserId = 'bot_123';
 
@@ -117,8 +113,8 @@ describe('createWorldHelpers', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        server = createFakeServer([controller, wall, tower, source]);
-        helpers = createWorldHelpers(server, defaultBotUserId);
+        adapter = createFakeAdapter([controller, wall, tower, source]);
+        helpers = createWorldHelpers(adapter, defaultBotUserId);
     });
 
     // ─── setTicksToDowngrade ────────────────────────────────────────────────
@@ -126,13 +122,13 @@ describe('createWorldHelpers', () => {
     describe('setTicksToDowngrade', () => {
         it('устанавливает downgradeTime = gameTime + ticks', async () => {
             await helpers.setTicksToDowngrade('W0N1', 4000);
-            const ctrl = server.common.storage.db['rooms.objects'].findOne({ _id: 'ctrl_1' });
+            const ctrl = adapter.db['rooms.objects'].findOne({ _id: 'ctrl_1' });
             await expect(ctrl).resolves.toMatchObject({ downgradeTime: 14000 });
         });
 
         it('при null сбрасывает downgradeTime в null', async () => {
             await helpers.setTicksToDowngrade('W0N1', null);
-            const ctrl = server.common.storage.db['rooms.objects'].findOne({ _id: 'ctrl_1' });
+            const ctrl = adapter.db['rooms.objects'].findOne({ _id: 'ctrl_1' });
             await expect(ctrl).resolves.toMatchObject({ downgradeTime: null });
         });
 
@@ -152,25 +148,25 @@ describe('createWorldHelpers', () => {
     describe('setHitsStructure', () => {
         it('устанавливает hits (строка _id)', async () => {
             await helpers.setHitsStructure('wall_1', 500000);
-            const obj = await server.common.storage.db['rooms.objects'].findOne({ _id: 'wall_1' });
+            const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(500000);
         });
 
         it('clamp по hitsMax', async () => {
             await helpers.setHitsStructure('tower_1', 5000);
-            const obj = await server.common.storage.db['rooms.objects'].findOne({ _id: 'tower_1' });
+            const obj = await adapter.db['rooms.objects'].findOne({ _id: 'tower_1' });
             expect(obj.hits).toBe(3000);
         });
 
         it('принимает объект с полем _id', async () => {
             await helpers.setHitsStructure({ _id: 'wall_1' }, 777);
-            const obj = await server.common.storage.db['rooms.objects'].findOne({ _id: 'wall_1' });
+            const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(777);
         });
 
         it('принимает объект с полем id', async () => {
             await helpers.setHitsStructure({ id: 'wall_1' }, 888);
-            const obj = await server.common.storage.db['rooms.objects'].findOne({ _id: 'wall_1' });
+            const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(888);
         });
 
@@ -190,13 +186,13 @@ describe('createWorldHelpers', () => {
     describe('damageHitsStructure', () => {
         it('вычитает amount из hits', async () => {
             await helpers.damageHitsStructure('wall_1', 500);
-            const obj = await server.common.storage.db['rooms.objects'].findOne({ _id: 'wall_1' });
+            const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(99500);
         });
 
         it('не опускается ниже 0', async () => {
             await helpers.damageHitsStructure('wall_1', 999999);
-            const obj = await server.common.storage.db['rooms.objects'].findOne({ _id: 'wall_1' });
+            const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(0);
         });
 
@@ -210,13 +206,13 @@ describe('createWorldHelpers', () => {
     describe('deleteStructure', () => {
         it('удаляет объект из БД', async () => {
             await helpers.deleteStructure('wall_1');
-            const obj = await server.common.storage.db['rooms.objects'].findOne({ _id: 'wall_1' });
+            const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj).toBeNull();
         });
 
         it('принимает объект с полем id', async () => {
             await helpers.deleteStructure({ id: 'wall_1' });
-            const obj = await server.common.storage.db['rooms.objects'].findOne({ _id: 'wall_1' });
+            const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj).toBeNull();
         });
 
@@ -234,7 +230,7 @@ describe('createWorldHelpers', () => {
             const id = await helpers.createStructure(spec);
             expect(id).toBe('mocked_structure_id');
             expect(materializeStructure).toHaveBeenCalledWith(
-                server,
+                adapter,
                 'W0N1',
                 expect.objectContaining({ userId: defaultBotUserId }),
             );
@@ -245,7 +241,7 @@ describe('createWorldHelpers', () => {
             const spec = { type: 'tower', x: 30, y: 30, roomName: 'W0N1', userId: 'custom' };
             await helpers.createStructure(spec);
             expect(materializeStructure).toHaveBeenCalledWith(
-                server,
+                adapter,
                 'W0N1',
                 expect.objectContaining({ userId: 'custom' }),
             );

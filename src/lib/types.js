@@ -25,6 +25,11 @@
  */
 
 /**
+ * StorageAdapter — фасад для доступа к БД, env, pubsub и world API.
+ * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
+ */
+
+/**
  * Бот, возвращаемый `server.world.addBot()`. Соответствует User в БД mockup.
  * @typedef {Object} Bot
  * @property {string} id          — _id пользователя в БД (в spec — `userId`, в БД — `user`)
@@ -538,7 +543,7 @@
 /**
  * @callback RegisterEventFn
  * @param {string} action
- * @param {Function} handler                       — async (server, room, params) => void
+ * @param {(adapter: import('./storageAdapter').StorageAdapter, room: string, params: Object) => Promise<void>} handler
  * @returns {void}
  */
 
@@ -673,6 +678,7 @@
  *
  * @typedef {Object} PreparedServer
  * @property {ScreepsServer} server
+ * @property {StorageAdapter} adapter
  * @property {DisposeFn} dispose
  */
 
@@ -680,7 +686,7 @@
  * Опции `addBots` (вызывается после `prepareServer`).
  *
  * @typedef {Object} AddBotsOpts
- * @property {ScreepsServer} server                    — из `prepareServer`
+ * @property {StorageAdapter} adapter                  — из `prepareServer`
  * @property {BotSpec[]} bots                          — боты для addBot
  * @property {string} distDir                          — путь к dist/
  * @property {boolean} [profiling]                    — глобальный fallback
