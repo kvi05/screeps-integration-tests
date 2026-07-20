@@ -13,4 +13,5 @@ module.exports = {
     fixturesDir: './fixtures',
     cacheDir: './.cache',
     profilesDir: './profiles',
+    jobs: 12,
 };

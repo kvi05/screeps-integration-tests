@@ -201,8 +201,12 @@ class TestBot extends EventEmitter {
     async init() {
         const { pubsub } = this._server.common.storage;
         await pubsub.subscribe(`user:${this._id}/console`, (event) => {
-            const { messages } = JSON.parse(event);
+            const data = JSON.parse(event);
+            const { messages, error } = data;
             const { log = [], results = [] } = messages || {};
+            if (error) {
+                log.push(error);
+            }
             this.emit('console', log, results, this._id, this._username);
         });
         return this;
