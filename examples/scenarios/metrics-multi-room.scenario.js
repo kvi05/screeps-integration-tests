@@ -3,8 +3,7 @@
 const assert = require('node:assert');
 const { createWorld, spec } = require('screeps-integration-tests');
 const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/assertions');
-const { assertLatestMetricAtLeast, assertMetricReached } = require('screeps-integration-tests/metric-assertions');
-const { getWorldSnapshotAtTick, getRoomMetrics } = require('screeps-integration-tests/metrics');
+const { MetricsAssert } = require('screeps-integration-tests/metric-assertions');
 
 const BOT_USERNAME = 'bot';
 const ROOM_1 = 'W0N1';
@@ -51,27 +50,31 @@ async function run(opts = {}) {
         assertBotWorked(report);
         assertNoErrors(report);
 
+        // MetricsReport — report.metrics содержит data + методы.
+        const m = report.metrics;
+
         // Series комнат независимы.
-        const r1 = getRoomMetrics(report, ROOM_1);
-        const r2 = getRoomMetrics(report, ROOM_2);
+        const r1 = m.room(ROOM_1);
+        const r2 = m.room(ROOM_2);
 
         assert.strictEqual(r1.length, ticks, `${ROOM_1}: ожидали ${ticks} сэмплов`);
         assert.strictEqual(r2.length, ticks, `${ROOM_2}: ожидали ${ticks} сэмплов`);
 
         // Разные начальные RCL.
-        assertLatestMetricAtLeast(report, 'rooms', ROOM_1, 'rcl', 2);
-        assertMetricReached(report, 'rooms', ROOM_2, 'rcl', 1);
+        const ma = new MetricsAssert(m);
+        ma.latestAtLeast('rooms', ROOM_1, 'rcl', 2);
+        ma.reached('rooms', ROOM_2, 'rcl', 1);
         assert.strictEqual(r2[r2.length - 1].rcl, 1, `${ROOM_2}: RCL должен оставаться 1`);
 
-        // Снимок мира включает обе комнаты.
-        const snapshot = getWorldSnapshotAtTick(report, 5);
+        // Снимок обеих комнат на тике 5.
+        const snapshot = m.snapshotAtTick('rooms', 5);
         assert.ok(snapshot[ROOM_1], `снимок на tick 5 должен включать ${ROOM_1}`);
         assert.ok(snapshot[ROOM_2], `снимок на tick 5 должен включать ${ROOM_2}`);
 
-        // Структура отчёта стабильна.
-        assert.ok(report.metrics.colonies, 'должен быть раздел colonies');
-        assert.ok(report.metrics.bots, 'должен быть раздел bots');
-        assert.ok(Array.isArray(report.metrics.world), 'world должен быть массивом');
+        // Структура отчёта стабильна (геттеры MetricsReport).
+        assert.deepStrictEqual(m.colonies, {}, 'colonies должен быть пустым объектом');
+        assert.deepStrictEqual(m.bots, {}, 'bots должен быть пустым объектом');
+        assert.ok(Array.isArray(m.world), 'world должен быть массивом');
 
         console.log(`PASS: metrics-multi-room (${report.ticksRun} ticks)`);
         return report;

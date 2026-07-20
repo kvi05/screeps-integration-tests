@@ -7,7 +7,7 @@ const { setBotMemory, getBotMemory, deepMergeMemory, resolveInitialMemoryByBot }
 const { loadRoomFixture, applyRoomOverrides } = require('./fixtures/roomFixture');
 const { readEventLog, accumulateEvents } = require('./observers/eventLog');
 const { collectMetrics, sampleMetrics } = require('./observers/metrics');
-const { createMetricsReport, resolveMetricsConfig } = require('./metrics');
+const { MetricsReport } = require('./metricsReport');
 const { evaluatePredicate } = require('./observers/predicate');
 const { snapshotOwners, mergeOwners } = require('./observers/ownership');
 const { createConsoleCapture } = require('./console');
@@ -90,7 +90,7 @@ async function createWorld(opts) {
         throw new Error('createWorld: opts.rooms обязателен и должен быть непустым массивом');
     }
 
-    const metricsConfig = resolveMetricsConfig(opts);
+    const metricsConfig = MetricsReport.resolveConfig(opts);
 
     // Pipeline:
     // 1. prepareServer — сервер + комнаты + terrain.
@@ -149,7 +149,7 @@ async function createWorld(opts) {
         profileCallgrind: {},
         wallClockMs: 0,
         events: [],
-        metrics: createMetricsReport(),
+        metrics: new MetricsReport(),
         objectOwners: {},
         frameworkWarnings: [],
         stopReason: null,
@@ -246,7 +246,7 @@ async function createWorld(opts) {
             if (metricsConfig.rooms && metricsConfig.every > 0 && tickNum % metricsConfig.every === 0) {
                 try {
                     const metrics = await collectMetrics(adapter, name);
-                    sampleMetrics(report, name, metrics, tickNum);
+                    sampleMetrics(report.metrics, name, metrics, tickNum);
                 } catch (e) {
                     report.frameworkWarnings.push(`metrics room ${name} tick ${tickNum}: ${e.message ?? String(e)}`);
                 }

@@ -13,9 +13,9 @@
  * | Sub-path | Contents |
  * |---|---|
  * | `screeps-integration-tests/assertions` | Bot behaviour and battle assertions |
- * | `screeps-integration-tests/metrics` | Metric query helpers and regression |
- * | `screeps-integration-tests/metric-assertions` | Assertions on metric values |
- * | `screeps-integration-tests/metric-export` | CSV export utilities |
+ * | `screeps-integration-tests/metrics` | `MetricsReport` (query + aggregation + CSV) and `MetricsRegression` |
+ * | `screeps-integration-tests/metric-assertions` | `MetricsAssert` — assertions on metric values |
+ * | `screeps-integration-tests/metric-export` | CSV export (use `metricsReport.toCsv()`) — *удалён, функциональность в MetricsReport*. |
  * | `screeps-integration-tests/memory-fixtures` | Memory snapshot load / save / merge |
  * | `screeps-integration-tests/room-fixtures` | Room fixture registry and overrides |
  * | `screeps-integration-tests/events` | Event log constants (`EVENT_ATTACK`, …) and filters |

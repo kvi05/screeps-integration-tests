@@ -9,12 +9,11 @@ const {
     STRUCTURE_CONTAINER,
     TYPE_CREEPS,
 } = require('../../constants/screepsConstants');
-const { appendMetricSample } = require('../metrics');
 
 /**
  * @typedef {import('../storageAdapter').StorageAdapter} StorageAdapter
  * @typedef {import('../types').RoomMetrics} RoomMetrics
- * @typedef {import('../types').WorldReport} WorldReport
+ * @typedef {import('../types').MetricsReport} MetricsReport
  */
 
 /**
@@ -82,16 +81,16 @@ function groupCreepsByRole(creeps) {
 }
 
 /**
- * Накапливает сэмпл метрик комнаты в `report.metrics.rooms[roomName]`.
+ * Добавляет сэмпл метрик комнаты в MetricsReport.
  *
- * @param {WorldReport} report
+ * @param {import('../types').MetricsReport} metricsReport
  * @param {string} roomName
  * @param {RoomMetrics} metrics
  * @param {number} tick
  * @returns {void}
  */
-function sampleMetrics(report, roomName, metrics, tick) {
-    appendMetricSample(report.metrics, 'rooms', roomName, tick, metrics);
+function sampleMetrics(metricsReport, roomName, metrics, tick) {
+    metricsReport.append('rooms', roomName, tick, metrics);
 }
 
 module.exports = { collectMetrics, sampleMetrics };

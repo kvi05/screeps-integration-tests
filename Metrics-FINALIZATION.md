@@ -1,5 +1,9 @@
 ﻿# METRICS-FINALIZATION
 
+> **⚠️ УСТАРЕЛО.** Рефакторинг метрик выполнен по плану [METRICS-CLASS-REFACTOR.md](./METRICS-CLASS-REFACTOR.md).  
+> Классы `MetricsReport`, `MetricsAssert`, `MetricsRegression` реализованы, старые файлы удалены.  
+> Этот документ оставлен для истории.
+
 Список действий, необходимых для доведения рефакторинга метрик integration tests до конечного, стабильного состояния.
 
 Все изменения — в `test/integration/` (кроме явно указанных).

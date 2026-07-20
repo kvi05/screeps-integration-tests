@@ -172,11 +172,12 @@ await world.run();
 
 Эталонный файл: `examples/scenarios/metrics-multi-room.scenario.js`
 
-**Вводит:** сбор метрик, query helpers, metric assertions.
+**Вводит:** сбор метрик, классы `MetricsReport` / `MetricsAssert`, агрегацию,
+CSV-экспорт, regression-сравнение.
 
 ```javascript
-const { assertLatestMetricAtLeast } = require('screeps-integration-tests/metric-assertions');
-const { getRoomMetrics, getWorldSnapshotAtTick } = require('screeps-integration-tests/metrics');
+const { MetricsAssert } = require('screeps-integration-tests/metric-assertions');
+const { MetricsReport, MetricsRegression } = require('screeps-integration-tests/metrics');
 
 const world = await createWorld({
   rooms: [
@@ -190,14 +191,31 @@ const world = await createWorld({
 
 await world.run();
 
-// Комнаты независимы — у каждой свои метрики
-assertLatestMetricAtLeast(world.report, 'rooms', 'W0N1', 'rcl', 2);
-assertLatestMetricAtLeast(world.report, 'rooms', 'W0N1', 'energyCapacity', 300);
-assertLatestMetricAtLeast(world.report, 'rooms', 'W0N2', 'rcl', 1);
+const m = report.metrics; // MetricsReport — все методы на одном объекте
 
-// Снимок мира на конкретном тике
-const snapshot = getWorldSnapshotAtTick(world.report, 5);
+// Комнаты независимы — у каждой свои time-series
+const ma = new MetricsAssert(m);
+ma.latestAtLeast('rooms', 'W0N1', 'rcl', 2);
+ma.latestAtLeast('rooms', 'W0N1', 'energyCapacity', 300);
+ma.latestAtLeast('rooms', 'W0N2', 'rcl', 1);
+
+// Снимок всех комнат на конкретном тике
+const snapshot = m.snapshotAtTick('rooms', 5);
 assert.ok(snapshot.W0N1 && snapshot.W0N2);
+
+// Агрегация (среднее, сумма, дельта, скорость) — единый API для любой сущности
+const r1 = m.room('W0N1');
+console.log('avg RCL:', m.average(r1, 'rcl'));
+// Для ботов (когда будет реализовано): m.average(m.bot('bot1'), 'cpu')
+
+// CSV одной строкой (не нужен отдельный import)
+const csv = m.toCsv({ entityTypes: ['rooms'] });
+
+// Regression: сравнение с baseline
+const baseline = MetricsReport.fromJSON(JSON.parse(require('fs').readFileSync('baseline.json', 'utf-8')));
+const reg = new MetricsRegression(baseline);
+const result = reg.compare(m, 'rooms', 'W0N1', 'rcl', { aggregator: 'average' });
+console.log('regression:', result.passed ? 'OK' : 'REGRESSION', result.delta);
 ```
 
 ## 7. onTick + events + registerEvent

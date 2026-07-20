@@ -336,8 +336,7 @@ screeps-integration-tests/
 │   │   ├── events.js                  #   screeps-integration-tests/events
 │   │   ├── memory-fixtures.js         #   screeps-integration-tests/memory-fixtures
 │   │   ├── metric-assertions.js       #   screeps-integration-tests/metric-assertions
-│   │   ├── metric-export.js           #   screeps-integration-tests/metric-export
-│   │   ├── metrics.js                 #   screeps-integration-tests/metrics
+│   │   ├── metrics.js                 #   screeps-integration-tests/metrics (MetricsReport + MetricsRegression)
 │   │   └── room-fixtures.js           #   screeps-integration-tests/room-fixtures
 │   ├── runScenario.js                 # Worker entry (fork target)
 │   ├── constants/

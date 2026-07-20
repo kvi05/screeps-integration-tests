@@ -423,7 +423,10 @@
  */
 
 /**
- * Отчёт метрик по всем сущностям.
+ * Структура данных экземпляра `MetricsReport` (см. lib/metricsReport.js).
+ *
+ * Геттеры класса повторяют эту структуру. Используется для JSDoc-ссылок
+ * (например, `@property {MetricsReport} metrics` в WorldReport).
  *
  * @typedef {Object} MetricsReport
  * @property {MetricEntityMap} rooms     — time-series по комнатам

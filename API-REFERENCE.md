@@ -353,40 +353,67 @@ const {
 | Бой              | `assertBotUserAttacking(report, username)`    | Бот инициировал атаку           |
 | Бой              | `assertBotUserNotAttacking(report, username)` | Бот НЕ атаковал                 |
 
-Metric assertions:
-
-```javascript
-const {
-  assertHasMetricSamples,
-  assertLatestMetricAtLeast,
-  assertLatestMetricBelow,
-  assertMetricReached,
-  assertMetricMonotonic,
-} = require('screeps-integration-tests/metric-assertions');
-```
-
-| Функция                                                        | Назначение                       |
-| -------------------------------------------------------------- | -------------------------------- |
-| `assertHasMetricSamples(report, 'rooms', 'W0N1')`              | Есть сэмплы                      |
-| `assertLatestMetricAtLeast(report, 'rooms', 'W0N1', 'rcl', 3)` | Последнее значение ≥ expected    |
-| `assertLatestMetricBelow(...)`                                 | Последнее значение < expected    |
-| `assertMetricReached(...)`                                     | Значение достигалось хотя бы раз |
-| `assertMetricMonotonic(...)`                                   | Метрика не убывает               |
+Metric assertions — см. [§8. Metrics API](#8-metrics-api) (класс `MetricsAssert`).
 
 ## 8. Metrics API
 
-### Сбор
+Метрики — time-series данные, снимаемые по ходу прогона. Архитектура едина для
+всех типов сущностей (`rooms`, `colonies`, `bots`, `world`): методы работы с
+series одни и те же, но **набор полей у каждой сущности свой**. Например, у
+`rooms` есть `rcl` и `energyAvailable`, у `bots` будут `cpu` и `gcl` и т.д.
+
+Три класса образуют пайплайн:
+
+| Класс               | Sub-path              | Назначение                                |
+| ------------------- | --------------------- | ----------------------------------------- |
+| `MetricsReport`     | `…/metrics`           | Хранение, запросы, агрегация, CSV-экспорт |
+| `MetricsAssert`     | `…/metric-assertions` | Assertions на значениях метрик            |
+| `MetricsRegression` | `…/metrics`           | Сравнение с baseline                      |
+
+### Быстрый старт
 
 ```javascript
+const { MetricsAssert } = require('screeps-integration-tests/metric-assertions');
+const { MetricsReport, MetricsRegression } = require('screeps-integration-tests/metrics');
+
 const world = await createWorld({
-  rooms: [{ name: 'W0N1', controller: spec.controller({ level: 2 }), sources: [spec.source(15, 15)] }],
-  bots: [{ username: 'bot', room: 'W0N1' }],
-  ticks: 100,
-  metrics: { every: 1, rooms: true },
+  // …
+  metrics: { every: 10, rooms: true },
 });
+await world.run();
+
+const m = report.metrics; // MetricsReport
+
+// Запросы (entityType = 'rooms' | 'colonies' | 'bots' | 'world')
+const series = m.series('rooms', 'W0N1'); // универсальный доступ
+const latest = m.latest('rooms', 'W0N1'); // последний сэмпл
+// Краткие обёртки:
+const same = m.room('W0N1'); // ≡ series('rooms', …)
+const last = m.latestRoom('W0N1'); // ≡ latest('rooms', …)
+
+// Агрегация (работает с любым числовым полем любой сущности)
+m.average(series, 'rcl');
+m.sum(series, 'energyAvailable');
+m.delta(series, 'rclProgress');
+
+// Assertions
+const ma = new MetricsAssert(m);
+ma.latestAtLeast('rooms', 'W0N1', 'rcl', 3);
+
+// CSV (встроен в MetricsReport)
+const csv = m.toCsv({ entityTypes: ['rooms'] });
+
+// Regression
+const baseline = MetricsReport.fromJSON(/* … */);
+const reg = new MetricsRegression(baseline);
+reg.compare(m, 'rooms', 'W0N1', 'rcl', { aggregator: 'average' });
 ```
 
-`MetricsOpts`:
+### Сбор метрик
+
+```javascript
+metrics: { every: 1, rooms: true }
+```
 
 | Поле       | Тип       | Назначение                                       |
 | ---------- | --------- | ------------------------------------------------ |
@@ -396,43 +423,23 @@ const world = await createWorld({
 | `bots`     | `boolean` | **Не реализовано** — бросает ошибку              |
 | `world`    | `boolean` | **Не реализовано** — бросает ошибку              |
 
-### Query helpers
+### CSV экспорт
 
 ```javascript
-const {
-  getRoomMetrics,
-  getLatestRoomMetrics,
-  getMetricAtTick,
-  getWorldSnapshotAtTick,
-  averageMetric,
-  sumMetric,
-  deltaMetric,
-  rateMetric,
-  compareMetric,
-  selectWindow,
-} = require('screeps-integration-tests/metrics');
+const csv = report.metrics.toCsv({ entityTypes: ['rooms'], metrics: ['rcl', 'energyAvailable'] });
 ```
 
-| Функция                                            | Назначение                      |
-| -------------------------------------------------- | ------------------------------- |
-| `getRoomMetrics(report, roomName)`                 | Time-series комнаты             |
-| `getLatestRoomMetrics(report, roomName)`           | Последний сэмпл комнаты         |
-| `getMetricAtTick(report, 'rooms', roomName, tick)` | Сэмпл ровно на тике             |
-| `getWorldSnapshotAtTick(report, tick)`             | `{ [roomName]: sample }`        |
-| `averageMetric(series, 'energyAvailable')`         | Среднее по числовым значениям   |
-| `sumMetric(series, 'containerEnergy')`             | Сумма                           |
-| `deltaMetric(series, 'rclProgress')`               | Последнее − первое              |
-| `rateMetric(series, 'rclProgress')`                | Изменение на тик                |
-| `selectWindow(series, { startTick, endTick })`     | Вырезать окно из series         |
-| `compareMetric(current, baseline, metric, opts)`   | Сравнение с baseline без файлов |
+Метод `toCsv()` принимает те же опции, что и `flatten()`: `entityTypes` для фильтрации
+по типу сущностей и `metrics` для фильтрации по именам метрик.
 
-### Export
+### Детали
 
-```javascript
-const { toCsv, flattenMetricSeries } = require('screeps-integration-tests/metric-export');
+Полный список методов `MetricsReport`, `MetricsAssert` и `MetricsRegression` —
+см. JSDoc в `src/lib/metricsReport.js`, `src/lib/metricAssertions.js`,
+`src/lib/metricRegression.js`.
 
-const csv = toCsv(report, { entityTypes: ['rooms'], metrics: ['rcl', 'energyAvailable'] });
-```
+Список полей метрик по типам сущностей — см. `src/lib/observers/metrics.js`
+(`collectMetrics` для rooms; для остальных — по мере реализации).
 
 ## 9. onTick, events и registerEvent
 
