@@ -326,6 +326,10 @@ async function createWorld(opts) {
      * One tick: collect event log / owners / metrics for each room,
      * execute declarative events, onTick callback, predicate check.
      *
+     * Ownership snapshot is taken BEFORE server.tick() so that
+     * objects destroyed during the tick still have their owner
+     * in report.objectOwners (see ownership.js).
+     *
      * @param {number} tickNum  — tick number (0-based); usually passed
      *   as `report.ticksRun` before increment so events/metrics
      *   reference the actual tick number.
@@ -333,6 +337,16 @@ async function createWorld(opts) {
      * @returns {Promise<boolean>} true if the test should stop
      */
     async function doTick(tickNum, worldInstance) {
+        // Ownership snapshot BEFORE tick — captures objects that may be destroyed
+        for (const name of Object.keys(roomStatus)) {
+            try {
+                const owners = await snapshotOwners(adapter, name);
+                mergeOwners(report, owners);
+            } catch {
+                // non-critical
+            }
+        }
+
         await doServerTick(server, report);
         await observeAllRooms(adapter, roomStatus, report, metricsConfig, tickNum);
 

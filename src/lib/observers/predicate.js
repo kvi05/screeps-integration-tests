@@ -13,6 +13,8 @@
  * @property {ScreepsServer} server
  * @property {Object<string,import('../types').Bot>} bots
  * @property {(username?: string) => Promise<Object>} readMemory
+ * @property {(room: string) => Promise<Object[]>} getEventLog
+ * @property {(room: string) => Promise<Object[]>} eventLog — alias for getEventLog (consistent with WorldInstance)
  *
  * @typedef {Object} PredicateResult
  * @property {boolean} shouldStop
@@ -129,7 +131,7 @@ async function checkStopCondition(opts, report, server, bots, readMemory, getEve
     }
 
     const { shouldStop, reason } = await evaluatePredicate(
-        { report, server, bots, readMemory, getEventLog },
+        { report, server, bots, readMemory, getEventLog, eventLog: getEventLog },
         opts.until,
     );
     if (shouldStop) {
