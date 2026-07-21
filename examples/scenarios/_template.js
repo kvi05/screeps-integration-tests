@@ -17,7 +17,7 @@ const BASE_ROOM = {
 };
 
 /** @type {import('screeps-integration-tests').BotSpec[]} */
-const BOT_SPEC = [{ username: 'bot', room: ROOM }];
+const BOT_SPEC = [{ username: 'bot', rooms: ROOM }];
 
 /**
  * Сценарий: <имя файла без .scenario.js>.

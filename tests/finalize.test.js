@@ -47,10 +47,7 @@ describe('finalizeReport', () => {
     it('reads finalMemory per bot', async () => {
         const report = createMinimalReport();
         const bots = { bot1: { id: 'id1' }, bot2: { id: 'id2' } };
-        const getBotMemoryFn = jest
-            .fn()
-            .mockResolvedValueOnce({ energy: 100 })
-            .mockResolvedValueOnce({ energy: 200 });
+        const getBotMemoryFn = jest.fn().mockResolvedValueOnce({ energy: 100 }).mockResolvedValueOnce({ energy: 200 });
 
         await finalizeReport(report, Date.now(), bots, {}, {}, {}, getBotMemoryFn, jest.fn());
 

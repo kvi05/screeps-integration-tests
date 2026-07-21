@@ -50,9 +50,7 @@ describe('createEventRegistry', () => {
             // No handler registered for 'unknown'
 
             // Should not throw
-            await expect(
-                dispatch([{ action: 'unknown', atTick: 3, room: 'W0N1' }], 3, {}),
-            ).resolves.toBeUndefined();
+            await expect(dispatch([{ action: 'unknown', atTick: 3, room: 'W0N1' }], 3, {})).resolves.toBeUndefined();
         });
 
         it('passes params to handler', async () => {
@@ -60,11 +58,9 @@ describe('createEventRegistry', () => {
             const handler = jest.fn();
 
             register('testAction', handler);
-            await dispatch(
-                [{ action: 'testAction', atTick: 7, room: 'W1N1', params: { x: 15, y: 20 } }],
-                7,
-                { db: {} },
-            );
+            await dispatch([{ action: 'testAction', atTick: 7, room: 'W1N1', params: { x: 15, y: 20 } }], 7, {
+                db: {},
+            });
 
             expect(handler).toHaveBeenCalledWith({ db: {} }, 'W1N1', { x: 15, y: 20 });
         });
@@ -145,7 +141,14 @@ describe('registerDefaultEvents', () => {
 
         await expect(
             registry.dispatch(
-                [{ action: 'spawnInvader', atTick: 1, room: 'W0N1', params: { body: [{ type: 'attack', hits: 100 }] } }],
+                [
+                    {
+                        action: 'spawnInvader',
+                        atTick: 1,
+                        room: 'W0N1',
+                        params: { body: [{ type: 'attack', hits: 100 }] },
+                    },
+                ],
                 1,
                 adapter,
             ),

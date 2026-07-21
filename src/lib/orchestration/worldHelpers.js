@@ -86,13 +86,14 @@ function addIdAlias(doc) {
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
 /**
- * Creates a set of helpers bound to the adapter and the first bot.
+ * Creates a set of helpers bound to the adapter and bot user IDs.
  *
  * @param {StorageAdapter} adapter
- * @param {string} [defaultBotUserId] — _id of the first bot
+ * @param {string} [defaultBotUserId] — _id of the first bot (fallback)
+ * @param {Object<string, string>} [roomToBotUserId] — per-room bot user id lookup
  * @returns {Object}
  */
-function createWorldHelpers(adapter, defaultBotUserId) {
+function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
     const { db } = adapter;
 
     // ─── Controller ────────────────────────────────────────────────────────
@@ -164,8 +165,8 @@ function createWorldHelpers(adapter, defaultBotUserId) {
             throw new Error('createStructure: spec.roomName is required in spec object');
         }
         const merged = { ...spec };
-        if (merged.userId === undefined && defaultBotUserId) {
-            merged.userId = defaultBotUserId;
+        if (merged.userId === undefined) {
+            merged.userId = roomToBotUserId?.[spec.roomName] || defaultBotUserId;
         }
         return materializeStructure(adapter, spec.roomName, merged);
     }

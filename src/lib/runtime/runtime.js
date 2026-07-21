@@ -104,7 +104,7 @@ async function addBots(opts) {
             });
 
         const bot = await addBot(opts.adapter, b.username, {
-            room: b.room,
+            rooms: b.rooms,
             cpu: b.cpu,
             cpuAvailable: b.cpuAvailable,
             gcl: b.gcl,
@@ -131,6 +131,7 @@ async function addBots(opts) {
  * @param {StorageAdapter} adapter
  * @param {string} username
  * @param {Object} [opts]
+ * @param {string|string[]} [opts.rooms] — room(s) where the bot will be active
  * @param {number} [opts.cpu=100]
  * @param {number} [opts.cpuAvailable=10000]
  * @param {number} [opts.gcl=1]
@@ -148,10 +149,13 @@ async function addBot(adapter, username, opts = {}) {
         badge: adapter.world.genRandomBadge(),
     });
 
+    // Normalize rooms to array
+    const roomList = Array.isArray(opts.rooms) ? opts.rooms : [opts.rooms];
+
     await Promise.all([
         env.set(env.keys.MEMORY + user._id, '{}'),
-        env.sadd(env.keys.ACTIVE_ROOMS, opts.room),
-        db.rooms.update({ _id: opts.room }, { $set: { active: true } }),
+        ...roomList.map((room) => env.sadd(env.keys.ACTIVE_ROOMS, room)),
+        ...roomList.map((room) => db.rooms.update({ _id: room }, { $set: { active: true } })),
         db['users.code'].insert({
             user: user._id,
             branch: DEFAULT_BOT_BRANCH,

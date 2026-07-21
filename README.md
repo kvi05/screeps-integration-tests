@@ -63,7 +63,7 @@ async function run() {
         structures: [spec.spawn(25, 25)], // A spawn for your creeps
       },
     ],
-    bots: [{ username: 'bot', room: 'W0N1' }], // Your bot, placed in W0N1
+    bots: [{ username: 'bot', rooms: 'W0N1' }], // Your bot, placed in W0N1
     ticks: 30, // Run simulation for 30 ticks
   });
 

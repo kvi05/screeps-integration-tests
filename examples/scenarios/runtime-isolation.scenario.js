@@ -30,7 +30,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 5,
             profiling: opts.profiling,
         });
@@ -52,7 +52,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 5,
             profiling: opts.profiling,
         });
@@ -76,7 +76,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 3,
             profiling: opts.profiling,
         });
@@ -100,7 +100,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 3,
             profiling: opts.profiling,
         });

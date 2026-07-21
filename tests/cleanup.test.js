@@ -142,7 +142,9 @@ describe('createDispose', () => {
     });
 
     it('handles kill throwing gracefully', async () => {
-        const kill1 = jest.fn(() => { throw new Error('kill failed'); });
+        const kill1 = jest.fn(() => {
+            throw new Error('kill failed');
+        });
         const proc1 = { kill: kill1 };
         const adapter = { getProcesses: () => [proc1] };
 

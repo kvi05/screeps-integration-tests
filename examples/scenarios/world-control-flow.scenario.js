@@ -33,7 +33,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 100,
             until: {
                 maxTicks: 15,
@@ -67,7 +67,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 100,
             until: { maxTicks: 10, signal: 'stopFlag', signalBot: BOT },
             onTick: async (w, tick) => {
@@ -99,7 +99,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 5,
             profiling: opts.profiling,
         });
@@ -146,7 +146,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 10,
             profiling: opts.profiling,
         });
@@ -195,7 +195,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 10,
             profiling: opts.profiling,
             events: [
@@ -238,7 +238,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: BOT, room: ROOM }],
+            bots: [{ username: BOT, rooms: ROOM }],
             ticks: 5,
             onTick: async (w, tick) => {
                 onTickCalled++;

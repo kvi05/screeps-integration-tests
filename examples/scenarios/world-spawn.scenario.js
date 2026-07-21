@@ -19,7 +19,7 @@ const BASE_ROOM_WITH_SPAWN = {
 /**
  * Единый бот для большинства тестов.
  */
-const BOT_SPEC = [{ username: 'bot', room: ROOM }];
+const BOT_SPEC = [{ username: 'bot', rooms: ROOM }];
 
 /**
  * Сценарий: world-spawn.
@@ -399,8 +399,8 @@ async function run(opts = {}) {
                 },
             ],
             bots: [
-                { username: 'bot1', room: ROOM },
-                { username: 'bot2', room: ROOM },
+                { username: 'bot1', rooms: ROOM },
+                { username: 'bot2', rooms: ROOM },
             ],
             ticks: 5,
             profiling: opts.profiling,

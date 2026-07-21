@@ -25,7 +25,7 @@ async function run(opts = {}) {
             bots: [
                 {
                     username: 'bot',
-                    room: rooms[0].name,
+                    rooms: rooms[0].name,
                     modules: { main: 'module.exports.loop = function() {};' },
                 },
             ],

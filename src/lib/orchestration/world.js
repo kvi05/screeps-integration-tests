@@ -178,14 +178,15 @@ function createEmptyReport() {
  * @param {import('./types').RoomSpecInput[]} roomInputs
  * @param {import('./storageAdapter').StorageAdapter} adapter
  * @param {string} [defaultBotUserId] — _id of the first bot for default structure ownership
+ * @param {Object<string, string>} [roomToBotUserId] — per-room bot user id lookup
  * @returns {Promise<Object<string, import('./types').RoomStatus>>}
  */
-async function materializeRooms(roomInputs, adapter, defaultBotUserId) {
+async function materializeRooms(roomInputs, adapter, defaultBotUserId, roomToBotUserId) {
     /** @type {Object<string, import('./types').RoomStatus>} */
     const roomStatus = {};
     for (const roomInput of roomInputs) {
         const name = roomInput.name;
-        const canonical = await buildCanonicalRoom(roomInput, name, defaultBotUserId);
+        const canonical = await buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUserId);
         const ids = await materializeRoom(adapter, canonical);
         roomStatus[name] = {
             name,
@@ -275,7 +276,19 @@ async function createWorld(opts) {
     const { bots, resolvedBots } = added;
     const defaultBotUserId = bots[opts.bots?.[0]?.username]?.id;
 
-    const roomStatus = await materializeRooms(opts.rooms, adapter, defaultBotUserId);
+    // Build per-room user-id lookup: first bot claiming a room wins.
+    /** @type {Object<string, string>} */
+    const roomToBotUserId = {};
+    for (const botSpec of opts.bots || []) {
+        const rooms = Array.isArray(botSpec.rooms) ? botSpec.rooms : [botSpec.rooms];
+        for (const room of rooms) {
+            if (!roomToBotUserId[room]) {
+                roomToBotUserId[room] = bots[botSpec.username]?.id;
+            }
+        }
+    }
+
+    const roomStatus = await materializeRooms(opts.rooms, adapter, defaultBotUserId, roomToBotUserId);
 
     await server.start();
     const runtime = { ...prepared, ...added };
@@ -416,7 +429,7 @@ async function createWorld(opts) {
         if (!spawnSpec.roomName) {
             throw new Error('world.spawn: roomName is required (multi-room mode)');
         }
-        const userId = spawnSpec.userId || defaultBotUserId;
+        const userId = spawnSpec.userId || roomToBotUserId[spawnSpec.roomName] || defaultBotUserId;
         if (!userId) {
             throw new Error('world.spawn: spawnSpec.userId is required (bot username or "2" for Invader)');
         }
@@ -501,7 +514,7 @@ async function createWorld(opts) {
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
-    const helpers = createWorldHelpers(adapter, defaultBotUserId);
+    const helpers = createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId);
 
     // ─── Return API ──────────────────────────────────────────────────────
     /** @type {WorldInstance} */
@@ -555,15 +568,16 @@ function defaultBot(bots) {
  * - apply `roomOverrides` on top of the base;
  * - set `roomName` on each object so materialize knows
  *   where to put it in the DB;
- * - if `defaultBotUserId` is set, attach structures without userId to the bot
- *   (needed for towers, spawns, etc.).
+ * - if a bot claims this room via `roomToBotUserId`, its userId is used for
+ *   objects without an explicit userId; otherwise falls back to `defaultBotUserId`.
  *
  * @param {RoomSpecInput} roomInput
  * @param {string} name - roomName
- * @param {string} [defaultBotUserId] — _id of the bot for structure attachment
+ * @param {string} [defaultBotUserId] — fallback _id (first bot)
+ * @param {Object<string, string>} [roomToBotUserId] — per-room bot user id lookup
  * @returns {RoomSpecCanonical}
  */
-async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
+async function buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUserId) {
     /** @type {RoomFixtureSpec | {controller, sources, structures, creeps, hostiles}} */
     let base;
 
@@ -592,6 +606,9 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
         base = applyRoomOverrides(base, roomInput.roomOverrides);
     }
 
+    // Determine the per-room default userId: explicit room claim → first bot fallback
+    const roomDefaultUserId = roomToBotUserId?.[name] ?? defaultBotUserId;
+
     // final canonicalRoom with fixed roomName and userId on each object
     // For hostiles - user - '2'
     /** @param {Object} s @param {boolean} [userInvader] */
@@ -599,7 +616,7 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
         return {
             ...s,
             roomName: s.roomName || name,
-            userId: userInvader ? INVADER_USER_ID : (s.userId ?? defaultBotUserId),
+            userId: userInvader ? INVADER_USER_ID : (s.userId ?? roomDefaultUserId),
         };
     };
 
