@@ -33,7 +33,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: 'bot', room: 'W0N1' }],
+            bots: [{ username: 'bot', rooms: 'W0N1' }],
             ticks: 10,
             profiling: opts.profiling,
         });
@@ -80,7 +80,7 @@ async function run(opts = {}) {
                     structures: [spec.spawn(25, 25)],
                 },
             ],
-            bots: [{ username: 'bot', room: 'W0N1' }],
+            bots: [{ username: 'bot', rooms: 'W0N1' }],
             ticks: 20,
             until: { maxTicks: 10 },
             profiling: opts.profiling,

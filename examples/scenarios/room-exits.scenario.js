@@ -19,13 +19,13 @@ const { createWorld, spec } = require('screeps-integration-tests');
 async function run(opts = {}) {
     const ticks = parseInt(process.env.TEST_TICKS || '3', 10);
 
-    async function buildWorld(rooms) {
+    async function buildWorld(roomsInput) {
         return createWorld({
-            rooms,
+            rooms: roomsInput,
             bots: [
                 {
                     username: 'bot',
-                    room: rooms[0].name,
+                    rooms: roomsInput[0].name,
                     modules: { main: 'module.exports.loop = function() {};' },
                 },
             ],

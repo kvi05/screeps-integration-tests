@@ -40,7 +40,7 @@ const world = await createWorld({
       structures: [spec.spawn(25, 25)],
     },
   ],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
   ticks: 100,
 });
 ```
@@ -59,7 +59,7 @@ const world = await createWorld({
       },
     },
   ],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
   memory: 'rcl3-stable',
   ticks: 200,
 });
@@ -73,7 +73,7 @@ const world = await createWorld({
 | Option            | Type                             | Purpose                                                                                   |
 | ----------------- | -------------------------------- | ----------------------------------------------------------------------------------------- |
 | `rooms`           | `RoomSpecInput[]`                | Required, at least 1 room                                                                 |
-| `bots`            | `BotInput[]`                     | Bots: `[{ username, room, x?, y?, modules?, logLevel?, profiling? }]`                     |
+| `bots`            | `BotInput[]`                     | Bots: `[{ username, rooms, x?, y?, modules?, logLevel?, profiling? }]`                    |
 | `memory`          | `MemoryInput \| MemoryByBot`     | Initial Memory: string (fixture) or per-bot map                                           |
 | `memoryOverrides` | `Object \| MemoryByBot`          | Deep-merge patches on top of `memory`; without base become initial memory                 |
 | `ticks`           | `number=100`                     | Soft limit: only affects `world.run()`                                                    |
@@ -106,15 +106,15 @@ const world = await createWorld({
 ```javascript
 // single-bot
 const world = await createWorld({
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
   memory: 'rcl3-stable',
 });
 
 // multi-bot
 const world = await createWorld({
   bots: [
-    { username: 'mainBot', room: 'W0N1' },
-    { username: 'reserveBot', room: 'W0N2' },
+    { username: 'mainBot', rooms: 'W0N1' },
+    { username: 'reserveBot', rooms: 'W0N2' },
   ],
   memory: {
     mainBot: 'rcl3-stable',
@@ -779,7 +779,7 @@ Below is a summary of key types. Full JSDoc definitions — in `src/lib/types.js
 ```typescript
 {
     username: 'bot',
-    room: 'W0N1',
+    rooms: 'W0N1',        // string | string[] — one or more rooms
     x?: 25, y?: 25,
     modules?: object,     // custom modules (default = from dist/)
     logLevel?: 'all'|'error'|'warn',

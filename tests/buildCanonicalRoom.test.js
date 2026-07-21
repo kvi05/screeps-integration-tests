@@ -256,4 +256,81 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.controller.userId).toBe('defaultBot');
         });
     });
+
+    describe('per-room userId override (roomToBotUserId)', () => {
+        it('uses roomToBotUserId for structures in a claimed room', async () => {
+            const canonical = await buildCanonicalRoom(
+                {
+                    name: 'W0N1',
+                    structures: [spec.spawn(25, 25), spec.tower(26, 24)],
+                },
+                'W0N1',
+                'fallbackBot', // defaultBotUserId
+                { W0N1: 'roomOwnerBot' }, // roomToBotUserId
+            );
+
+            expect(canonical.structures[0].userId).toBe('roomOwnerBot');
+            expect(canonical.structures[1].userId).toBe('roomOwnerBot');
+        });
+
+        it('per-room userId takes precedence over defaultBotUserId', async () => {
+            const canonical = await buildCanonicalRoom(
+                {
+                    name: 'W0N1',
+                    controller: spec.controller({ level: 3 }),
+                    structures: [spec.spawn(25, 25)],
+                },
+                'W0N1',
+                'fallbackBot',
+                { W0N1: 'roomOwnerBot' },
+            );
+
+            expect(canonical.controller.userId).toBe('roomOwnerBot');
+        });
+
+        it('explicit userId on a spec overrides roomToBotUserId', async () => {
+            const canonical = await buildCanonicalRoom(
+                {
+                    name: 'W0N1',
+                    structures: [spec.spawn(25, 25, { userId: 'explicitOwner' }), spec.tower(26, 24)],
+                },
+                'W0N1',
+                'fallbackBot',
+                { W0N1: 'roomOwnerBot' },
+            );
+
+            expect(canonical.structures[0].userId).toBe('explicitOwner');
+            expect(canonical.structures[1].userId).toBe('roomOwnerBot');
+        });
+
+        it('falls back to defaultBotUserId when room is not in roomToBotUserId', async () => {
+            const canonical = await buildCanonicalRoom(
+                {
+                    name: 'W0N1',
+                    structures: [spec.spawn(25, 25)],
+                },
+                'W0N1',
+                'fallbackBot',
+                { W0N2: 'otherBot' }, // W0N1 not in the map
+            );
+
+            expect(canonical.structures[0].userId).toBe('fallbackBot');
+        });
+
+        it('hostiles still get userId="2" regardless of roomToBotUserId', async () => {
+            const canonical = await buildCanonicalRoom(
+                {
+                    name: 'W0N1',
+                    structures: [spec.spawn(25, 25)],
+                    hostiles: [spec.invader(40, 40)],
+                },
+                'W0N1',
+                'fallbackBot',
+                { W0N1: 'roomOwnerBot' },
+            );
+
+            expect(canonical.hostiles[0].userId).toBe('2');
+            expect(canonical.structures[0].userId).toBe('roomOwnerBot');
+        });
+    });
 });

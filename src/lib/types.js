@@ -217,9 +217,17 @@
 /**
  * Bot description for createWorld.
  *
+ * A bot can claim one or more rooms. The bot will own all structures,
+ * controller, sources and creeps in those rooms that don't have an
+ * explicit `userId` set on them. If multiple bots claim the same room,
+ * the first bot in `opts.bots` order wins.
+ *
+ * Rooms not claimed by any bot fall back to the first bot's userId
+ * (backward compatible with single-bot scenarios).
+ *
  * @typedef {Object} BotSpec
  * @property {string} username              — unique bot name (key in `world.bots`)
- * @property {string} room                  — room name where the bot will appear
+ * @property {string|string[]} rooms        — room(s) where the bot appears and owns objects
  * @property {number} [x=25]
  * @property {number} [y=25]
  * @property {Object} [modules]             — custom modules (default = from dist/)
@@ -232,7 +240,7 @@
  *
  * @typedef {Object} ResolvedBotSpec
  * @property {string} username
- * @property {string} room
+ * @property {string|string[]} rooms
  * @property {number} [x]
  * @property {number} [y]
  * @property {Object} [modules]

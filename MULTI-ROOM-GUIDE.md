@@ -29,8 +29,8 @@ const world = await createWorld({
     },
   ],
   bots: [
-    { username: 'Player1', room: 'W0N1', x: 25, y: 25 },
-    { username: 'Player2', room: 'W0N2', x: 25, y: 25 },
+    { username: 'Player1', rooms: 'W0N1', x: 25, y: 25 },
+    { username: 'Player2', rooms: 'W0N2', x: 25, y: 25 },
   ],
 });
 ```
@@ -44,16 +44,20 @@ See also [`API-REFERENCE.md`](API-REFERENCE.md#createworld).
 
 ## Binding structures to a specific bot
 
-`buildCanonicalRoom` automatically assigns `defaultBotUserId` (the first bot from `opts.bots`) to all structures without an explicit `userId`. In single-bot this is convenient, in multi-bot it is dangerous: the second bot will be left without a spawn.
-
-Specify `userId` explicitly:
+When each bot declares its `rooms`, structures in those rooms automatically inherit that bot's `userId`. No explicit `userId` is needed:
 
 ```javascript
 {
   name: 'W0N2',
   controller: spec.controller({ level: 3 }),
-  structures: [spec.spawn(25, 25, { userId: 'Player2' })],
+  structures: [spec.spawn(25, 25)],       // auto-gets Player2's userId because Player2.rooms includes 'W0N2'
 }
+```
+
+For rooms **not** claimed by any bot, the first bot from `opts.bots` is used (backward compatible with single-bot scenarios). If you still need explicit control, set `userId` on the spec — it takes highest precedence:
+
+```javascript
+spec.spawn(25, 25, { userId: 'someOtherUser' });
 ```
 
 > `world.spawn()` only creates creeps (see [API-REFERENCE.md](API-REFERENCE.md#2-worldinstance)).

@@ -26,7 +26,7 @@ async function run(opts = {}) {
                 structures: [spec.spawn(25, 25)],
             },
         ],
-        bots: [{ username: 'bot', room: 'W0N1' }],
+        bots: [{ username: 'bot', rooms: 'W0N1' }],
         ticks,
         profiling: opts.profiling,
     });

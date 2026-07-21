@@ -135,7 +135,7 @@ async function run(opts = {}) {
         structures: [spec.spawn(25, 25)],
       },
     ],
-    bots: [{ username: 'bot', room: ROOM_NAME }],
+    bots: [{ username: 'bot', rooms: ROOM_NAME }],
     ticks: 1000,
   });
 

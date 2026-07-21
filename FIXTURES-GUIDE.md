@@ -101,7 +101,7 @@ registerRoomFixture('quick-room', {
 
 const world = await createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'quick-room' }],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
   ticks: 100,
 });
 ```
@@ -111,7 +111,7 @@ const world = await createWorld({
 ```javascript
 const world = await createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
   ticks: 100,
 });
 ```
@@ -148,7 +148,7 @@ const world = await createWorld({
       roomOverrides: { exclude: ['tower'] },
     },
   ],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
 });
 ```
 
@@ -170,7 +170,7 @@ const world = await createWorld({
       },
     },
   ],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
 });
 ```
 
@@ -189,7 +189,7 @@ const world = await createWorld({
       },
     },
   ],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
 });
 ```
 
@@ -232,7 +232,7 @@ See [API-REFERENCE.md](./API-REFERENCE.md#6-memory-fixtures-api) for details.
 ```javascript
 const world = await createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
   memory: 'my-memory',
 });
 ```
@@ -285,7 +285,7 @@ createWorld({
       structures: [spec.spawn(25, 25)],
     },
   ],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
 });
 ```
 
@@ -296,7 +296,7 @@ Suitable for quick tests without reuse.
 ```javascript
 createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
 });
 ```
 
@@ -313,7 +313,7 @@ createWorld({
       roomOverrides: { exclude: ['tower'] },
     },
   ],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
 });
 ```
 
@@ -324,7 +324,7 @@ Suitable for local variations of one room.
 ```javascript
 createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', room: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: 'W0N1' }],
   memory: 'my-memory',
 });
 ```

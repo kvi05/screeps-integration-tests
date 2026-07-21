@@ -36,7 +36,7 @@ async function run(opts = {}) {
                 sources: [spec.source(20, 20)],
             },
         ],
-        bots: [{ username: BOT_USERNAME, room: ROOM_1 }],
+        bots: [{ username: BOT_USERNAME, rooms: ROOM_1 }],
         ticks,
         profiling: opts.profiling,
         logLevel: 'error',
