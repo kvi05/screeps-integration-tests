@@ -54,11 +54,11 @@ function resolveCacheBase(opts) {
  * @typedef {import('./types').DisposeFn} DisposeFn
  */
 
-// ─── Вспомогательные функции ─────────────────────────────────────────────────
+// ─── Helper functions ────────────────────────────────────────────────────────
 
 /**
- * Определяет RCL комнаты по контроллеру в `rooms.objects`.
- * Если контроллера нет в комнате — возвращает 0.
+ * Determines the RCL of a room from its controller in `rooms.objects`.
+ * Returns 0 if the room has no controller.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -70,36 +70,36 @@ async function getRcl(adapter, roomName) {
     return controller ? controller.level : 0;
 }
 
-// ─── Основной API ────────────────────────────────────────────────────────────
+// ─── Main API ────────────────────────────────────────────────────────────
 
 /**
- * Главный API: создаёт multi-room мир с произвольным числом ботов.
+ * Main API: creates a multi-room world with any number of bots.
  *
  * Pipeline:
- * 1. prepareServer: ScreepsServer + N комнат + terrain, без объектов
- * 2. addBots: создание пользователей, кода, memory, console subscription
- * 3. materializeRoom для каждой комнаты (включая controller, spawn и т.д.)
+ * 1. prepareServer: ScreepsServer + N rooms + terrain, no objects
+ * 2. addBots: create users, code, memory, console subscription
+ * 3. materializeRoom for each room (including controller, spawn, etc.)
  * 4. setBotMemory per bot (resolved `memory` + `memoryOverrides`)
- * 5. server.start() и tick loop
+ * 5. server.start() and tick loop
  *
  * @param {WorldOpts} opts
  * @returns {Promise<WorldInstance>}
  */
 async function createWorld(opts) {
     if (!opts.rooms || opts.rooms.length === 0) {
-        throw new Error('createWorld: opts.rooms обязателен и должен быть непустым массивом');
+        throw new Error('createWorld: opts.rooms is required and must be a non-empty array');
     }
 
     const metricsConfig = MetricsReport.resolveConfig(opts);
 
     // Pipeline:
-    // 1. prepareServer — сервер + комнаты + terrain.
-    // 2. addBots — пользователи, код, memory, console. Бот создаётся до
-    //    materialize, чтобы объекты комнат могли привязаться к `bot.id`
-    //    через defaultBotUserId.
+    // 1. prepareServer — server + rooms + terrain.
+    // 2. addBots — users, code, memory, console. Bot is created before
+    //    materialize so room objects can be linked to `bot.id`
+    //    via defaultBotUserId.
     // 3. materializeRoom — controller, spawn, sources, structures, creeps
-    //    описываются явно в spec. Никаких других placeholder-ов.
-    // 4. server.start — игровой движок.
+    //    are described explicitly in spec. No other placeholders.
+    // 4. server.start — game engine.
     const distDir = resolveDistDir(opts);
     const cacheBase = resolveCacheBase(opts);
 
@@ -158,12 +158,12 @@ async function createWorld(opts) {
     const globalLogLevel = opts.logLevel || 'all';
     const maxConsoleLines = opts.maxConsoleLines || 10000;
 
-    // ─── 4. Per-bot initialization (единый цикл) ───────────────────────
-    // Memory + Console handler — всё за один проход по ботам.
-    // Код уже загружен в createRuntime → addBot.
+    // ─── 4. Per-bot initialization (single pass) ───────────────────────
+    // Memory + Console handler — everything in a single pass over bots.
+    // Code already loaded in createRuntime → addBot.
     const initialMemoryByBot = resolveInitialMemoryByBot(Object.keys(bots), opts.memory, opts.memoryOverrides);
     for (const [username, bot] of Object.entries(bots)) {
-        // Per-bot settings: приоритет local > global
+        // Per-bot settings: local takes priority over global
         const botSpec = resolvedBots[username];
         const effectiveLogLevel = botSpec?.logLevel ?? globalLogLevel;
 
@@ -173,7 +173,7 @@ async function createWorld(opts) {
             await setBotMemory(adapter, bot.id, initialMemory);
         }
 
-        // Console handler с per-bot logLevel
+        // Console handler with per-bot logLevel
         const { handler } = createConsoleCapture({ report, logLevel: effectiveLogLevel, maxConsoleLines });
         bot.on('console', handler);
     }
@@ -207,16 +207,16 @@ async function createWorld(opts) {
     // eslint-disable-next-line prefer-const
     let world;
 
-    // ─── 8. Основной цикл ────────────────────────────────────────────────
+    // ─── 8. Main loop ────────────────────────────────────────────────
 
     /**
-     * Один тик: сбор event log / owners / metrics для каждой комнаты,
-     * выполнение декларативных events, onTick callback, predicate check.
+     * One tick: collect event log / owners / metrics for each room,
+     * execute declarative events, onTick callback, predicate check.
      *
-     * @param {number} tickNum  — номер тика (0-based); обычно передаётся
-     *   как `report.ticksRun` до инкремента, чтобы события/метрики
-     *   ссылались на актуальный номер тика.
-     * @returns {Promise<boolean>} true если тест нужно остановить
+     * @param {number} tickNum  — tick number (0-based); usually passed
+     *   as `report.ticksRun` before increment so events/metrics
+     *   reference the actual tick number.
+     * @returns {Promise<boolean>} true if the test should stop
      */
     async function doTick(tickNum) {
         await server.tick();
@@ -242,7 +242,7 @@ async function createWorld(opts) {
                 report.frameworkWarnings.push(`ownersSnapshot room ${name}: ${e.message ?? String(e)}`);
             }
 
-            // Metrics сэмплинг
+            // Metrics sampling
             if (metricsConfig.rooms && metricsConfig.every > 0 && tickNum % metricsConfig.every === 0) {
                 try {
                     const metrics = await collectMetrics(adapter, name);
@@ -252,7 +252,7 @@ async function createWorld(opts) {
                 }
             }
 
-            // RCL tracking (обновляем каждый тик для доступности после tick())
+            // RCL tracking (updated each tick for availability after tick())
             try {
                 report.finalRcl[name] = await getRcl(adapter, name);
             } catch (e) {
@@ -262,7 +262,7 @@ async function createWorld(opts) {
             roomStatus[name].ticks++;
         }
 
-        // Events (декларативные)
+        // Events (declarative)
         if (opts.events) {
             for (const event of opts.events) {
                 if (event.atTick === tickNum && eventsRegistry[event.action]) {
@@ -292,17 +292,17 @@ async function createWorld(opts) {
     }
 
     /**
-     * Экспортирует итоги профайлинга для ботов с флагом effectiveProfiling.
+     * Exports profiling results for bots with effectiveProfiling flag.
      *
-     * Выставляет флаг `__profileFinalize` в Memory каждого профилируемого бота
-     * и прогоняет один технический тик сервера (НАПРЯМУЮ через server.tick(), а не
-     * через doTick — чтобы не инкрементировать ticksRun и не плодить
-     * metrics/events/predicate-шум). Обёртка в main.js видит флаг, вызывает
-     * profiler.output()/callgrind() и складывает результаты в
-     * Memory.__profileText / __profileCallgrind, которые затем читает finalize().
+     * Sets the `__profileFinalize` flag in each profiled bot's Memory
+     * and runs one technical server tick (DIRECTLY via server.tick(), not
+     * via doTick — to avoid incrementing ticksRun and generating
+     * metrics/events/predicate noise). The wrapper in main.js sees the flag, calls
+     * profiler.output()/callgrind() and stores results in
+     * Memory.__profileText / __profileCallgrind, which finalize() then reads.
      *
-     * Вызывается всегда — в том числе при преждевременном завершении сценария
-     * (predicate / maxTicks / исключение в doTick).
+     * Always called — including on premature scenario termination
+     * (predicate / maxTicks / exception in doTick).
      *
      * @returns {Promise<void>}
      */
@@ -319,22 +319,22 @@ async function createWorld(opts) {
         try {
             await server.tick();
         } catch (e) {
-            // Сервер мог умереть — профиль уже не достать. Не подавляем оригинальную
-            // ошибку прогона (она будет пере-брошена в run() после finalize).
+            // Server may have died — profile can no longer be retrieved. Don't suppress the original
+            // run error (it will be re-thrown in run() after finalize).
             report.errors.push(`profile export tick failed: ${e.message || String(e)}`);
         }
     }
 
     /**
-     * Основной прогон: выполняет тики до завершения сценария.
+     * Main run: executes ticks until the scenario ends.
      *
-     * Учитывает общий лимит `maxTicks` и уже сделанные тики (через `report.ticksRun`).
-     * Если сценарий уже остановлен (`report.stopReason` или `report.ticksRun >= maxTicks`),
-     * не делает лишних тиков — только финализирует отчёт.
+     * Respects the global `maxTicks` limit and ticks already done (via `report.ticksRun`).
+     * If the scenario is already stopped (`report.stopReason` or `report.ticksRun >= maxTicks`),
+     * no extra ticks are made — only finalizes the report.
      *
-     * Гарантирует экспорт профиля даже при исключении в середине сценария:
-     * перехватывает ошибку, прогоняет финализационный тик профайлера и
-     * finalize(), затем пере-бросает исходное исключение.
+     * Guarantees profile export even after an exception mid-scenario:
+     * catches the error, runs the profiler finalization tick and
+     * finalize(), then re-throws the original exception.
      *
      *  @type {RunFn}
      */
@@ -343,7 +343,7 @@ async function createWorld(opts) {
         try {
             const maxTicks = (opts.until && opts.until.maxTicks) || opts.ticks || 100;
 
-            // Не тикаем, если сценарий уже остановлен
+            // Don't tick if the scenario is already stopped
             if (!report.stopReason) {
                 while (report.ticksRun < maxTicks) {
                     if (await doTick(report.ticksRun)) {
@@ -365,17 +365,17 @@ async function createWorld(opts) {
     }
 
     /**
-     * Выполняет N серверных тиков.
+     * Executes N server ticks.
      *
-     * Уважает `until.maxTicks` на входе — если лимит уже достигнут,
-     * ни одного тика не делается. После тика проверяет `until`
-     * (predicate/signal/maxTicks) и останавливается досрочно.
-     * Не проверяет глобальное состояние остановки (`report.stopReason`).
+     * Respects `until.maxTicks` on entry — if the limit is already reached,
+     * no ticks are performed. After each tick checks `until`
+     * (predicate/signal/maxTicks) and stops early.
+     * Does not check the global stop state (`report.stopReason`).
      *
      * @type {TickFn}
      */
     async function tick(n = 1) {
-        // until.maxTicks уже достигнут — ни одного лишнего тика
+        // until.maxTicks already reached — no extra ticks
         if (opts.until && opts.until.maxTicks !== undefined && report.ticksRun >= opts.until.maxTicks) {
             return;
         }
@@ -388,9 +388,9 @@ async function createWorld(opts) {
     }
 
     /**
-     * Выполняет JS-код в контексте бота через console.
+     * Executes JS code in the bot's context via console.
      * @param {string} code
-     * @param {string} [botUsername] — если не указан, берётся единственный бот (single-bot сценарий)
+     * @param {string} [botUsername] — if omitted, uses the only bot (single-bot scenario)
      * @type {ExecFn}
      */
     async function exec(code, botUsername = defaultBot(bots)) {
@@ -398,38 +398,38 @@ async function createWorld(opts) {
     }
 
     /**
-     * Создаёт нового крипа в комнате.
+     * Creates a new creep in the room.
      *
-     * Для удобства используйте `spec.creep()`, `spec.invader()` или
-     * `spec.dummyTarget()` — они заполняют body и hits.
+     * For convenience use `spec.creep()`, `spec.invader()` or
+     * `spec.dummyTarget()` — they fill in body and hits.
      *
      * @param {SpawnSpecInput} spawnSpec
      * @type {SpawnFn}
      */
     async function spawn(spawnSpec) {
         if (!spawnSpec.roomName) {
-            throw new Error('world.spawn: roomName обязателен (multi-room mode)');
+            throw new Error('world.spawn: roomName is required (multi-room mode)');
         }
         const userId = spawnSpec.userId || defaultBotUserId;
         if (!userId) {
-            throw new Error('world.spawn: spawnSpec.userId обязателен (username бота или "2" для Invader)');
+            throw new Error('world.spawn: spawnSpec.userId is required (bot username or "2" for Invader)');
         }
         return materializeCreep(adapter, spawnSpec.roomName, { ...spawnSpec, userId });
     }
 
     /**
-     * Читает event log для комнаты.
+     * Reads event log for a room.
      * @type {EventLogFn}
      */
     async function getEventLog(room) {
         if (!room) {
-            throw new Error('world.eventLog: room обязателен');
+            throw new Error('world.eventLog: room is required');
         }
         return readEventLog(adapter, room);
     }
 
     /**
-     * Читает память бота.
+     * Reads bot memory.
      * @type {ReadMemoryFn}
      */
     async function readMemory(botUsername) {
@@ -438,11 +438,11 @@ async function createWorld(opts) {
     }
 
     /**
-     * Обновляет Memory бота через канонический deep merge.
+     * Updates bot Memory via canonical deep merge.
      *
-     * patch мерджится поверх текущей памяти: plain objects рекурсивно
-     * сливаются, массивы/примитивы заменяются, `undefined` ничего не
-     * затирает. Это симметрично initial load через explicit memory pipeline.
+     * patch is merged over current memory: plain objects are recursively
+     * merged, arrays/primitives are replaced, `undefined` does not
+     * overwrite anything. This is symmetric to initial load via explicit memory pipeline.
      *
      * @type {WriteMemoryFn}
      */
@@ -454,9 +454,9 @@ async function createWorld(opts) {
     }
 
     /**
-     * Финализирует `report`:
+     * Finalizes `report`:
      * - wallClockMs
-     * - finalMemory per bot (через Memory из storage)
+     * - finalMemory per bot (via Memory from storage)
      * - finalRcl per room
      * - profileText/profileCallgrind per bot
      *
@@ -499,7 +499,7 @@ async function createWorld(opts) {
     }
 
     /**
-     * Останавливает сервер и освобождает ресурсы.
+     * Stops the server and releases resources.
      * @type {DisposeFn}
      */
     async function dispose() {
@@ -509,12 +509,12 @@ async function createWorld(opts) {
     // ─── botId ────────────────────────────────────────────────────────────
 
     /**
-     * Возвращает _id бота по username, индексу или первого бота.
+     * Returns bot _id by username, index, or the first bot.
      *
-     * @param {string|number} [bot] — username бота (string) или индекс (number, 0-based)
-     *   Если не указан — возвращает _id единственного бота (single-bot сценарий).
-     * @returns {string} _id бота
-     * @throws {Error} если бот не найден или (при пустом аргументе) ботов ≠ 1
+     * @param {string|number} [bot] — bot username (string) or index (number, 0-based)
+     *   If omitted — returns _id of the only bot (single-bot scenario).
+     * @returns {string} bot _id
+     * @throws {Error} if bot not found or (with empty argument) bots ≠ 1
      * @type {BotIdFn}
      */
     function botId(bot) {
@@ -525,24 +525,24 @@ async function createWorld(opts) {
             const entries = Object.values(bots);
             if (bot < 0 || bot >= entries.length) {
                 throw new Error(
-                    `botId: индекс ${bot} вне диапазона (0..${entries.length - 1}). Доступные боты: ${Object.keys(bots).join(', ')}`,
+                    `botId: index ${bot} is out of range (0..${entries.length - 1}). Available bots: ${Object.keys(bots).join(', ')}`,
                 );
             }
             return entries[bot].id;
         }
         if (typeof bot === 'string') {
             if (!bots[bot]) {
-                throw new Error(`botId: бот "${bot}" не найден. Доступные боты: ${Object.keys(bots).join(', ')}`);
+                throw new Error(`botId: bot "${bot}" not found. Available bots: ${Object.keys(bots).join(', ')}`);
             }
             return bots[bot].id;
         }
-        throw new Error('botId: аргумент должен быть username (string), индексом (number) или undefined');
+        throw new Error('botId: argument must be username (string), index (number), or undefined');
     }
 
-    // ─── Хелперы ─────────────────────────────────────────────────────────
+    // ─── Helpers ─────────────────────────────────────────────────────────
     const helpers = createWorldHelpers(adapter, defaultBotUserId);
 
-    // ─── Возврат API ──────────────────────────────────────────────────────
+    // ─── Return API ──────────────────────────────────────────────────────
     /** @type {WorldInstance} */
     world = {
         run,
@@ -566,7 +566,7 @@ async function createWorld(opts) {
 }
 
 /**
- * Возвращает username единственного бота (для single-bot-сценариев).
+ * Returns the username of the only bot (for single-bot scenarios).
  *
  * @param {Object<string,Bot>} bots
  * @returns {string}
@@ -574,30 +574,32 @@ async function createWorld(opts) {
 function defaultBot(bots) {
     const names = Object.keys(bots);
     if (names.length === 0) {
-        throw new Error('defaultBot: в opts.bots ни одного бота');
+        throw new Error('defaultBot: no bots in opts.bots');
     }
     if (names.length > 1) {
-        throw new Error(`defaultBot: ботов > 1 (${names.join(', ')}) — укажи явно через world.readMemory(username)`);
+        throw new Error(
+            `defaultBot: more than 1 bot (${names.join(', ')}) — specify explicitly via world.readMemory(username)`,
+        );
     }
     return names[0];
 }
 
 /**
- * Строит каноническую спецификацию комнаты.
+ * Builds a canonical room specification.
  *
- * Алгоритм:
- * - если `roomFixture` — строка, грузим по имени из registry;
- * - если `roomFixture` — объект, используем как inline fixture;
- * - если `roomFixture` нет — собираем inline-поля (controller, sources, structures, creeps, hostiles);
- * - применяем `roomOverrides` поверх базы;
- * - проставляем `roomName` в каждый объект, чтобы materialize знал,
- *   куда класть его в БД;
- * - если `defaultBotUserId` задан, привязываем структуры без userId к боту
- *   (нужно для работы турелей, спавна и т.д.).
+ * Algorithm:
+ * - if `roomFixture` is a string, load by name from registry;
+ * - if `roomFixture` is an object, use as inline fixture;
+ * - if `roomFixture` is absent — assemble inline fields (controller, sources, structures, creeps, hostiles);
+ * - apply `roomOverrides` on top of the base;
+ * - set `roomName` on each object so materialize knows
+ *   where to put it in the DB;
+ * - if `defaultBotUserId` is set, attach structures without userId to the bot
+ *   (needed for towers, spawns, etc.).
  *
  * @param {RoomSpecInput} roomInput
  * @param {string} name - roomName
- * @param {string} [defaultBotUserId] — _id бота для привязки структур
+ * @param {string} [defaultBotUserId] — _id of the bot for structure attachment
  * @returns {RoomSpecCanonical}
  */
 async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
@@ -607,14 +609,14 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
     if (typeof roomInput.roomFixture === 'string') {
         const loaded = loadRoomFixture(roomInput.roomFixture);
         if (!loaded) {
-            throw new Error(`buildCanonicalRoom: roomFixture '${roomInput.roomFixture}' не найден`);
+            throw new Error(`buildCanonicalRoom: roomFixture '${roomInput.roomFixture}' not found`);
         }
         base = loaded.fixture;
     } else if (roomInput.roomFixture && typeof roomInput.roomFixture === 'object') {
         // inline fixture
         base = roomInput.roomFixture;
     } else {
-        // no fixture — собираем из inline-полей
+        // no fixture — assemble from inline fields
         base = {
             controller: roomInput.controller,
             sources: roomInput.sources || [],
@@ -624,13 +626,13 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
         };
     }
 
-    // применяем overrides
+    // apply overrides
     if (roomInput.roomOverrides) {
         base = applyRoomOverrides(base, roomInput.roomOverrides);
     }
 
-    // финальный canonicalRoom с фиксированным roomName и userId на каждом объекте
-    // Для hostiles - user - '2'
+    // final canonicalRoom with fixed roomName and userId on each object
+    // For hostiles - user - '2'
     /** @param {Object} s @param {boolean} [userInvader] */
     const applyDefaults = (s, userInvader) => {
         return {
@@ -654,7 +656,7 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
 module.exports = {
     createWorld,
     buildCanonicalRoom,
-    // Для unit тестов
+    // For unit tests
     defaultBot,
     resolveDistDir,
     resolveCacheBase,

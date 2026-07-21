@@ -1,21 +1,21 @@
 'use strict';
 
 /**
- * @file Императивные хелперы для WorldInstance: мутация объектов БД и поиск.
+ * @file Imperative helpers for WorldInstance: mutating DB objects and searching.
  *
  * Responsibility:
- *   Набор функций, которые работают напрямую с adapter.db
- *   и `builders/materialize` (только для createStructure). Каждый хелпер
- *   выполняет одну атомарную операцию: установить/уронить HP, удалить
- *   структуру, заспавнить, найти объекты.
+ *   A set of functions that work directly with adapter.db
+ *   and `builders/materialize` (only for createStructure). Each helper
+ *   performs one atomic operation: set/damage HP, delete
+ *   a structure, spawn, find objects.
  *
  * **Available functions:**
- * - `setTicksToDowngrade` — установить время до даунгрейда контроллера
- * - `setHitsStructure` — перезаписать hits структуры (clamp по hitsMax)
- * - `damageHitsStructure` — вычесть урон из hits (не ниже 0)
- * - `deleteStructure` — удалить структуру из `rooms.objects`
- * - `createStructure` — создать структуру через materialize (spec-объект)
- * - `find` / `findOne` / `findIds` / `findId` — поиск в `rooms.objects`
+ * - `setTicksToDowngrade` — set controller downgrade time
+ * - `setHitsStructure` — overwrite structure hits (clamped to hitsMax)
+ * - `damageHitsStructure` — subtract damage from hits (not below 0)
+ * - `deleteStructure` — delete a structure from `rooms.objects`
+ * - `createStructure` — create a structure via materialize (spec object)
+ * - `find` / `findOne` / `findIds` / `findId` — search in `rooms.objects`
  *
  * @module helpers/world
  */
@@ -26,10 +26,10 @@ const { materializeStructure } = require('./builders/materialize');
  * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
  */
 
-// ─── Вспомогательные функции ─────────────────────────────────────────────────
+// ─── Helper functions ─────────────────────────────────────────────────
 
 /**
- * Возвращает текущий `gameTime` из env сервера.
+ * Returns the current `gameTime` from server env.
  *
  * @param {StorageAdapter} adapter
  * @returns {Promise<number>}
@@ -41,7 +41,7 @@ async function getGameTime(adapter) {
 }
 
 /**
- * Извлекает `_id` из аргумента: строки (сам _id) или объекта с полем `_id` / `id`.
+ * Extracts `_id` from an argument: a string (the _id itself) or an object with `_id` / `id` field.
  *
  * @param {string|Object} idOrObject
  * @returns {string}
@@ -51,11 +51,11 @@ function resolveId(idOrObject) {
     if (idOrObject && typeof idOrObject === 'object') {
         return idOrObject._id || idOrObject.id;
     }
-    throw new Error('resolveId: ожидается строка (_id) или объект с полем _id/id');
+    throw new Error('resolveId: expected a string (_id) or an object with _id/id field');
 }
 
 /**
- * Нормализует query для `rooms.objects`: `userId` → `user`, `id` → `_id`.
+ * Normalizes query for `rooms.objects`: `userId` → `user`, `id` → `_id`.
  *
  * @param {Object} query
  * @returns {Object}
@@ -74,7 +74,7 @@ function normalizeQuery(query) {
 }
 
 /**
- * Добавляет поле `id` (alias _id) к документу.
+ * Adds an `id` field (alias for _id) to the document.
  *
  * @param {Object} doc
  * @returns {Object}
@@ -86,10 +86,10 @@ function addIdAlias(doc) {
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
 /**
- * Создаёт набор хелперов, привязанных к адаптеру и первому боту.
+ * Creates a set of helpers bound to the adapter and the first bot.
  *
  * @param {StorageAdapter} adapter
- * @param {string} [defaultBotUserId] — _id первого бота
+ * @param {string} [defaultBotUserId] — _id of the first bot
  * @returns {Object}
  */
 function createWorldHelpers(adapter, defaultBotUserId) {
@@ -104,31 +104,31 @@ function createWorldHelpers(adapter, defaultBotUserId) {
             type: 'controller',
         });
         if (!controller) {
-            throw new Error(`setTicksToDowngrade: контроллер в комнате "${roomName}" не найден`);
+            throw new Error(`setTicksToDowngrade: controller in room "${roomName}" not found`);
         }
         if (ticks === null) {
             await db['rooms.objects'].update({ _id: controller._id }, { $set: { downgradeTime: null } });
             return;
         }
         if (typeof ticks !== 'number' || ticks < 0 || !Number.isFinite(ticks)) {
-            throw new Error(`setTicksToDowngrade: ticks должен быть >= 0 или null, получено ${ticks}`);
+            throw new Error(`setTicksToDowngrade: ticks must be >= 0 or null, got ${ticks}`);
         }
         const gameTime = await getGameTime(adapter);
         const downgradeTime = gameTime + ticks;
         await db['rooms.objects'].update({ _id: controller._id }, { $set: { downgradeTime } });
     }
 
-    // ─── Структуры ─────────────────────────────────────────────────────────
+    // ─── Structures ─────────────────────────────────────────────────────────
 
     /** @type {import('./types').SetHitsStructureFn} */
     async function setHitsStructure(idOrObject, hits) {
         const _id = resolveId(idOrObject);
         if (typeof hits !== 'number' || !Number.isFinite(hits) || hits < 0) {
-            throw new Error(`setHitsStructure: hits должен быть >= 0, получено ${hits}`);
+            throw new Error(`setHitsStructure: hits must be >= 0, got ${hits}`);
         }
         const obj = await db['rooms.objects'].findOne({ _id });
         if (!obj) {
-            throw new Error(`setHitsStructure: объект с _id "${_id}" не найден`);
+            throw new Error(`setHitsStructure: object with _id "${_id}" not found`);
         }
         const clamped = Math.min(hits, obj.hitsMax || hits);
         await db['rooms.objects'].update({ _id }, { $set: { hits: clamped } });
@@ -138,11 +138,11 @@ function createWorldHelpers(adapter, defaultBotUserId) {
     async function damageHitsStructure(idOrObject, amount) {
         const _id = resolveId(idOrObject);
         if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
-            throw new Error(`damageHitsStructure: amount должен быть >= 0, получено ${amount}`);
+            throw new Error(`damageHitsStructure: amount must be >= 0, got ${amount}`);
         }
         const obj = await db['rooms.objects'].findOne({ _id });
         if (!obj) {
-            throw new Error(`damageHitsStructure: объект с _id "${_id}" не найден`);
+            throw new Error(`damageHitsStructure: object with _id "${_id}" not found`);
         }
         const newHits = Math.max(0, obj.hits - amount);
         await db['rooms.objects'].update({ _id }, { $set: { hits: newHits } });
@@ -153,7 +153,7 @@ function createWorldHelpers(adapter, defaultBotUserId) {
         const _id = resolveId(idOrObject);
         const obj = await db['rooms.objects'].findOne({ _id });
         if (!obj) {
-            throw new Error(`deleteStructure: объект с _id "${_id}" не найден`);
+            throw new Error(`deleteStructure: object with _id "${_id}" not found`);
         }
         await db['rooms.objects'].removeWhere({ _id });
     }
@@ -161,7 +161,7 @@ function createWorldHelpers(adapter, defaultBotUserId) {
     /** @type {import('./types').SpawnStructureFn} */
     async function createStructure(spec) {
         if (!spec.roomName) {
-            throw new Error('createStructure: spec.roomName обязателен в spec-объекте');
+            throw new Error('createStructure: spec.roomName is required in spec object');
         }
         const merged = { ...spec };
         if (merged.userId === undefined && defaultBotUserId) {
@@ -170,7 +170,7 @@ function createWorldHelpers(adapter, defaultBotUserId) {
         return materializeStructure(adapter, spec.roomName, merged);
     }
 
-    // ─── Поиск ─────────────────────────────────────────────────────────────
+    // ─── Find ─────────────────────────────────────────────────────────────
 
     /** @type {import('./types').WorldFindFn} */
     async function find(query, _opts = {}) {

@@ -1,24 +1,24 @@
 'use strict';
 
 /**
- * Общий парсер CLI-аргументов для integration tools.
+ * Generic CLI argument parser for integration tools.
  *
- * Поддержка:
- *   --flag          (bool, true если присутствует)
+ * Supports:
+ *   --flag          (bool, true if present)
  *   --key value     (string, int, float, enum, json)
- *   --key=value     (то же самое)
- *   позиционные     (по порядку)
- *   --help          (автогенерация из schema)
+ *   --key=value     (same)
+ *   positional      (in order)
+ *   --help          (auto-generated from schema)
  *
- * Валидация типов, диапазонов (min/max), неизвестных опций — fail-fast.
+ * Type validation, range checks (min/max), unknown options — fail-fast.
  *
- * Пример:
+ * Example:
  *   const { parseArgs } = require('./cli');
  *   const schema = {
- *       positional: [{ name: 'name', required: true, description: 'имя fixture' }],
+ *       positional: [{ name: 'name', required: true, description: 'fixture name' }],
  *       options: {
- *           rcl:   { type: 'int', default: 3, min: 1, max: 8, description: 'целевой RCL' },
- *           force: { type: 'bool', default: false, description: 'перезаписать' },
+ *           rcl:   { type: 'int', default: 3, min: 1, max: 8, description: 'target RCL' },
+ *           force: { type: 'bool', default: false, description: 'overwrite' },
  *       },
  *       title: 'capture-fixture',
  *       usage: 'node capture-fixture.js <name> [options]',
@@ -35,7 +35,7 @@ class HelpRequested extends Error {
 }
 
 /**
- * Форматирует значение для вывода в help.
+ * Formats a value for help output.
  * @param {*} value
  * @returns {string}
  */
@@ -53,7 +53,7 @@ function formatDefault(value) {
 }
 
 /**
- * Генерирует текст help из schema.
+ * Generates help text from a schema.
  * @param {Object} schema
  * @returns {string}
  */
@@ -65,15 +65,15 @@ function generateHelp(schema) {
         lines.push('');
     }
     if (schema.usage) {
-        lines.push(`Использование: ${schema.usage}`);
+        lines.push(`Usage: ${schema.usage}`);
         lines.push('');
     }
 
     // Positional
     if (schema.positional && schema.positional.length > 0) {
-        lines.push('Позиционные аргументы:');
+        lines.push('Positional arguments:');
         for (const p of schema.positional) {
-            const req = p.required ? '(обязательный)' : '(необязательный)';
+            const req = p.required ? '(required)' : '(optional)';
             lines.push(`  ${p.name.padEnd(20)} ${req}  ${p.description || ''}`);
         }
         lines.push('');
@@ -82,7 +82,7 @@ function generateHelp(schema) {
     // Options
     const optEntries = Object.entries(schema.options || {});
     if (optEntries.length > 0) {
-        lines.push('Опции:');
+        lines.push('Options:');
         for (const [key, opt] of optEntries) {
             const cliName = opt.cli || `--${key}`;
             const typeTag = opt.type === 'enum' ? `enum(${opt.values.join('|')})` : opt.type;
@@ -92,7 +92,7 @@ function generateHelp(schema) {
                         ? ` [${opt.min ?? '—'}..${opt.max ?? '—'}]`
                         : ''
                     : '';
-            const def = opt.default !== undefined ? ` [по умолчанию: ${formatDefault(opt.default)}]` : '';
+            const def = opt.default !== undefined ? ` [default: ${formatDefault(opt.default)}]` : '';
             lines.push(`  ${cliName.padEnd(22)} ${typeTag}${range}${def}`);
             if (opt.description) {
                 lines.push(`${''.padEnd(26)} ${opt.description}`);
@@ -105,39 +105,39 @@ function generateHelp(schema) {
 }
 
 /**
- * Парсит строку JSON или кидает ошибку.
+ * Parses a JSON string or throws an error.
  * @param {string} raw
- * @param {string} key — имя аргумента (для сообщения об ошибке)
+ * @param {string} key — argument name (for error messages)
  * @returns {*}
  */
 function parseJson(raw, key) {
     try {
         return JSON.parse(raw);
     } catch {
-        throw new Error(`Опция --${key}: невалидный JSON: ${raw}`);
+        throw new Error(`Option --${key}: invalid JSON: ${raw}`);
     }
 }
 
 /**
- * Валидирует числовое значение.
+ * Validates a numeric value.
  * @param {string} key
  * @param {number} value
- * @param {Object} opt — schema опции
+ * @param {Object} opt — schema option definition
  */
 function validateNumber(key, value, opt) {
     if (Number.isNaN(value)) {
-        throw new Error(`Опция --${key}: ожидалось число, получено "${value}"`);
+        throw new Error(`Option --${key}: expected a number, got "${value}"`);
     }
     if (opt.min !== undefined && value < opt.min) {
-        throw new Error(`Опция --${key}: ${value} < минимального ${opt.min}`);
+        throw new Error(`Option --${key}: ${value} < min ${opt.min}`);
     }
     if (opt.max !== undefined && value > opt.max) {
-        throw new Error(`Опция --${key}: ${value} > максимального ${opt.max}`);
+        throw new Error(`Option --${key}: ${value} > max ${opt.max}`);
     }
 }
 
 /**
- * Парсит CLI аргументы по схеме.
+ * Parses CLI arguments according to a schema.
  *
  * @param {Object} schema
  * @param {Array<{name:string, required?:boolean, description?:string}>} [schema.positional]
@@ -197,7 +197,7 @@ function parseArgs(schema, argv) {
 
             const key = cliToKey[cliName];
             if (!key) {
-                throw new Error(`Неизвестная опция: ${cliName}\nВведите --help для справки.`);
+                throw new Error(`Unknown option: ${cliName}\nUse --help for usage.`);
             }
 
             const opt = optionDefs[key];
@@ -209,7 +209,7 @@ function parseArgs(schema, argv) {
                 // Need next token
                 if (rawValue === undefined) {
                     if (i + 1 >= argv.length) {
-                        throw new Error(`Опция ${cliName} требует значение.\nВведите --help для справки.`);
+                        throw new Error(`Option ${cliName} requires a value.\nUse --help for usage.`);
                     }
                     rawValue = argv[i + 1];
                     i += 2;
@@ -236,7 +236,7 @@ function parseArgs(schema, argv) {
                     case 'enum':
                         if (!opt.values || !opt.values.includes(rawValue)) {
                             throw new Error(
-                                `Опция ${cliName}: "${rawValue}" не входит в допустимые значения: ${opt.values.join(', ')}`,
+                                `Option ${cliName}: "${rawValue}" is not a valid value. Allowed: ${opt.values.join(', ')}`,
                             );
                         }
                         options[key] = rawValue;
@@ -245,7 +245,7 @@ function parseArgs(schema, argv) {
                         options[key] = parseJson(rawValue, key);
                         break;
                     default:
-                        throw new Error(`Опция ${cliName}: неизвестный тип "${opt.type}"`);
+                        throw new Error(`Option ${cliName}: unknown type "${opt.type}"`);
                 }
             }
         } else {
@@ -262,7 +262,7 @@ function parseArgs(schema, argv) {
     for (let j = 0; j < positionalDefs.length; j++) {
         const def = positionalDefs[j];
         if (def.required && positional[def.name] === undefined) {
-            throw new Error(`Позиционный аргумент "${def.name}" обязателен.\nВведите --help для справки.`);
+            throw new Error(`Positional argument "${def.name}" is required.\nUse --help for usage.`);
         }
     }
 

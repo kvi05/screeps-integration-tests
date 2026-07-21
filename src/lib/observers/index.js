@@ -1,11 +1,11 @@
 'use strict';
 
 /**
- * Общий экспорт observers-слоя.
+ * Common export of the observers layer.
  *
- * Observers читают состояние мира и предоставляют простые helpers
- * (event log, метрики, predicate, владельцы объектов) для assertions
- * и сценариев.
+ * Observers read the world state and provide simple helpers
+ * (event log, metrics, predicate, object owners) for assertions
+ * and scenarios.
  *
  * @module observers
  */

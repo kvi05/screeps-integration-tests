@@ -1,56 +1,56 @@
 # Screeps Integration Tests
 
-Интеграционный фреймворк для тестирования Screeps-ботов на реальном
+An integration framework for testing Screeps bots on a real
 [screeps-server-mockup](https://github.com/screepers/screeps-server-mockup).
 
-Запускает скомпилированного бота в полноценном игровом мире: с контроллером,
-источниками, спавном, крипами, событиями и метриками — и даёт проверить, что
-бот действительно растёт, защищается и не падает.
+It runs a compiled bot in a full game world: with a controller,
+sources, spawn, creeps, events, and metrics — and lets you verify that
+the bot actually grows, defends itself, and doesn't crash.
 
-## Документация
+## Documentation
 
-| Файл                                           | Назначение                                             |
-| ---------------------------------------------- | ------------------------------------------------------ |
-| [GETTING-STARTED.md](./GETTING-STARTED.md)     | Установка, первый запуск, написание сценария           |
-| [CONFIG.md](./CONFIG.md)                       | `screeps-integration.config.js` и CLI-флаги            |
-| [API-REFERENCE.md](./API-REFERENCE.md)         | Полный справочник API: `createWorld`, builders, events |
-| [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)       | Room fixtures, memory fixtures, overrides              |
-| [EXAMPLES.md](./EXAMPLES.md)                   | Эталонные сценарии и типовые приёмы                    |
-| [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md) | Архитектура и внутренние механизмы                     |
-| [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)   | Несколько комнат и ботов                               |
+| File                                           | Purpose                                             |
+| ---------------------------------------------- | --------------------------------------------------- |
+| [GETTING-STARTED.md](./GETTING-STARTED.md)     | Installation, first run, writing a scenario         |
+| [CONFIG.md](./CONFIG.md)                       | `screeps-integration.config.js` and CLI flags       |
+| [API-REFERENCE.md](./API-REFERENCE.md)         | Full API reference: `createWorld`, builders, events |
+| [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)       | Room fixtures, memory fixtures, overrides           |
+| [EXAMPLES.md](./EXAMPLES.md)                   | Reference scenarios and typical patterns            |
+| [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md) | Architecture and internal mechanisms                |
+| [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)   | Multiple rooms and bots                             |
 
-## Что умеет фреймворк
+## What the framework can do
 
-- **Запускает вашего бота как есть** — берёт `dist/` (или другую папку с
-  модулями) и загружает в mockup-сервер.
-- **Создаёт мир декларативно** — комнаты, источники, контроллер, спавны,
-  турели, крипы, стены, ramparts — через `spec.*`.
-- **Переиспользует состояние** — room fixtures и memory fixtures с
-  overrides, чтобы не копировать одну и ту же колонию в каждый тест.
-- **Проверяет результаты** — assertions на RCL, ошибки, уничтоженные
-  объекты, бой, полученный урон.
-- **Собирает метрики** — time-series по комнатам (RCL, energyAvailable,
-  creepsByRole, towerEnergy и др.), query helpers, CSV export, regression
+- **Runs your bot as-is** — takes `dist/` (or another folder with
+  modules) and loads it into the mockup server.
+- **Creates the world declaratively** — rooms, sources, controller, spawns,
+  towers, creeps, walls, ramparts — via `spec.*`.
+- **Reuses state** — room fixtures and memory fixtures with
+  overrides, so you don't copy the same colony into every test.
+- **Checks results** — assertions on RCL, errors, destroyed
+  objects, combat, damage taken.
+- **Collects metrics** — time-series per room (RCL, energyAvailable,
+  creepsByRole, towerEnergy, etc.), query helpers, CSV export, regression
   API.
-- **Управляет ходом теста** — фиксированное число тиков, досрочная
-  остановка по `predicate` или `signal`, пошаговый `world.tick(n)`,
-  runtime-спавн крипов, `onTick` callback, декларативные события.
-- **High-level хелперы** — поиск объектов (`world.find`, `world.findOne`),
-  создание/удаление/дамаг структур (`world.createStructure`,
-  `world.setHitsStructure`, `world.damageHitsStructure`) и др.
-  установка downgrade timer (`world.setTicksToDowngrade`).
-- **Профилирует** — встроенная поддержка [screeps-profiler](https://github.com/screepers/screeps-profiler) с выгрузкой
-  callgrind-файлов.
-- **Изолирует сценарии** — каждый сценарий работает в отдельном
-  `child_process.fork` со своим сервером и портом.
+- **Controls test flow** — fixed number of ticks, early
+  stop via `predicate` or `signal`, step-by-step `world.tick(n)`,
+  runtime creep spawning, `onTick` callback, declarative events.
+- **High-level helpers** — object search (`world.find`, `world.findOne`),
+  structure creation/deletion/damage (`world.createStructure`,
+  `world.setHitsStructure`, `world.damageHitsStructure`), etc.
+  downgrade timer setting (`world.setTicksToDowngrade`).
+- **Profiling** — built-in support for [screeps-profiler](https://github.com/screepers/screeps-profiler) with
+  callgrind file export.
+- **Isolates scenarios** — each scenario runs in a separate
+  `child_process.fork` with its own server and port.
 
-## Быстрый старт
+## Quick start
 
 ```bash
 npm install --save-dev screeps-integration-tests
 ```
 
-Создайте сценарий `scenarios/smoke.scenario.js`:
+Create a scenario `scenarios/smoke.scenario.js`:
 
 ```js
 'use strict';
@@ -86,17 +86,17 @@ async function run() {
 module.exports = { run };
 ```
 
-Запустите:
+Run it:
 
 ```bash
 npx screeps-integration-tests --only smoke
 ```
 
-Больше готовых рецептов — в [EXAMPLES.md](./EXAMPLES.md).
+More ready-made recipes — in [EXAMPLES.md](./EXAMPLES.md).
 
-## Запуск внутри репозитория (self-test)
+## Running inside the repository (self-test)
 
-_Для теста самого фреймворка_
+_For testing the framework itself_
 
 ```bash
 npm install
@@ -110,35 +110,35 @@ npm run test:integration          # все примерные сценарии
 npx screeps-integration-tests [options]
 ```
 
-Основные флаги: `--only`, `--config`, `--scenariosDir`, `--distDir`,
-`--profiling`, `--timeout`, `--jobs`, `--bail`. Полный список — в
+Main flags: `--only`, `--config`, `--scenariosDir`, `--distDir`,
+`--profiling`, `--timeout`, `--jobs`, `--bail`. Full list — in
 [CONFIG.md](./CONFIG.md).
 
-## С чего начать
+## Where to start
 
-1. **Установить и запустить первый тест** → [GETTING-STARTED.md](./GETTING-STARTED.md)
-2. **Посмотреть примеры** → [EXAMPLES.md](./EXAMPLES.md)
-3. **Разобраться в API** → [API-REFERENCE.md](./API-REFERENCE.md)
-4. **Настроить конфиг** → [CONFIG.md](./CONFIG.md)
-5. **Понять архитектуру** → [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md)
+1. **Install and run the first test** → [GETTING-STARTED.md](./GETTING-STARTED.md)
+2. **Look at examples** → [EXAMPLES.md](./EXAMPLES.md)
+3. **Understand the API** → [API-REFERENCE.md](./API-REFERENCE.md)
+4. **Configure the framework** → [CONFIG.md](./CONFIG.md)
+5. **Understand the architecture** → [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md)
 
-## Известные проблемы
+## Known issues
 
-- **Memory leak:** `server.stop()` не полностью освобождает storage. Решается
-  через `child_process.fork` + `tree-kill` + `process.exit(0)`.
-- **console.log:** сервер выводит только один `console.log` за тик.
-- **Задержка profiler:** запись начинается со 2-го тика (0 — init,
-  1 — запуск, 2 — первый замер).
-- **Storage-singleton race:** `@screeps/common/lib/storage.js` держит один
-  TCP-сокет на процесс. При нескольких `createWorld` подряд в одном
-  сценарии (например, `world-spawn` с 15 мирами) между `dispose()` и
-  следующим `server.start()` есть узкое окно, где старый сокет ещё не
-  закрыт, а новый storage-процесс ещё не слушает порт. На практике не
-  проявляется: 1-секундный reconnect в `storage.js` (Screeps) + длительность
-  пайплайна `createWorld` перекрывают гонку. Признак — `Storage
-connection lost` в stderr (фильтруется в `pipeChildStreams`).
-- **Задержка исполнения пользовательских команд:** Как и в игре, команды игрока исполняются в следующем тике. Но `world.exec()` в фреймворке выглядит так:
+- **Memory leak:** `server.stop()` does not fully release storage. Solved
+  via `child_process.fork` + `tree-kill` + `process.exit(0)`.
+- **console.log:** the server outputs only one `console.log` per tick.
+- **Profiler delay:** recording starts from tick 2 (0 — init,
+  1 — startup, 2 — first measurement).
+- **Storage-singleton race:** `@screeps/common/lib/storage.js` holds one
+  TCP socket per process. When multiple `createWorld` calls happen in a row
+  in one scenario (e.g., `world-spawn` with 15 worlds), there is a narrow
+  window between `dispose()` and the next `server.start()` where the old
+  socket is not yet closed and the new storage process is not yet listening.
+  In practice it doesn't manifest: the 1-second reconnect in `storage.js` (Screeps) + the
+  duration of the `createWorld` pipeline cover the race. Symptom — `Storage
+connection lost` in stderr (filtered in `pipeChildStreams`).
+- **User command execution delay:** As in the game, player commands execute on the next tick. But `world.exec()` in the framework looks like this:
   ```javaScript
   await world.exec();
-  await world.tick(2); // Только на 2-ром тике исполнится команда
+  await world.tick(2); // The command will only execute on the 2nd tick
   ```

@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * Паттерны ошибок JavaScript, которые engine может логировать БЕЗ префикса [ERROR].
- * Используются для обнаружения ошибок в lines из report.logs.
+ * JavaScript error patterns that the engine may log WITHOUT an [ERROR] prefix.
+ * Used to detect errors in lines from report.logs.
  */
 const ERROR_PATTERNS = [
     /ReferenceError:\s/,
@@ -23,15 +23,15 @@ const ERROR_PATTERNS = [
 ];
 
 /**
- * Паттерны ваших предупреждений, которые engine может логировать БЕЗ префикса [WARN].
- * Используются для обнаружения предупреждений в lines из report.logs.
+ * Warning patterns that the engine may log WITHOUT a [WARN] prefix.
+ * Used to detect warnings in lines from report.logs.
  */
 const WARN_PATTERNS = [];
 
 const VALID_LOG_LEVELS = ['all', 'error', 'warn'];
 
 /**
- * Проверяет содержит ли строка признаки ошибки.
+ * Checks if a line looks like an error.
  * @param {string} line
  * @returns {boolean}
  */
@@ -40,7 +40,7 @@ function looksLikeError(line) {
 }
 
 /**
- * Проверяет содержит ли строка признаки предупреждения.
+ * Checks if a line looks like a warning.
  * @param {string} line
  * @returns {boolean}
  */
@@ -49,17 +49,17 @@ function looksLikeWarn(line) {
 }
 
 /**
- * Создаёт обработчик console-событий mockup-бота.
+ * Creates a console event handler for a mockup bot.
  *
- * Логика классификации:
- *   1. '[ERROR]' + ERROR_PATTERNS → report.errors (всегда)
- *   2. '[WARN]' + WARN_PATTERNS → report.warnings (всегда)
- *   3. report.logs - аккамулирует все логи. Порог - opts.logLevel
+ * Classification logic:
+ *   1. '[ERROR]' + ERROR_PATTERNS → report.errors (always)
+ *   2. '[WARN]' + WARN_PATTERNS → report.warnings (always)
+ *   3. report.logs — accumulates all logs. Threshold is opts.logLevel
  *
  * @param {Object} [opts]
- * @param {Object} [opts.report] — внешний report объект (если не передан — создаётся свой)
- * @param {'all'|'error'|'warn'} [opts.logLevel='error'] — порог для report.logs: 'all' — все логи, 'warn' — ошибки и предупреждения, 'error' — только ошибки
- * @param {number} [opts.maxConsoleLines=10000] — максимум строк в report (защита от спама)
+ * @param {Object} [opts.report] — external report object (created internally if not provided)
+ * @param {'all'|'error'|'warn'} [opts.logLevel='error'] — threshold for report.logs: 'all' — all logs, 'warn' — errors and warnings, 'error' — errors only
+ * @param {number} [opts.maxConsoleLines=10000] — max lines in report (spam protection)
  * @returns {{ handler: Function, report: { errors: string[], warnings: string[], logs: string[] } }}
  */
 function createConsoleCapture(opts = {}) {

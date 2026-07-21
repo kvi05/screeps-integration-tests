@@ -1,27 +1,27 @@
 'use strict';
 
 /**
- * @file Адаптер над screeps-server-mockup: единая точка доступа к БД, env,
- * pubsub и world API.
+ * @file Adapter over screeps-server-mockup: single access point for DB, env,
+ * pubsub, and world API.
  *
  * Responsibility:
- *   Инкапсулирует все прямые обращения к `server.common.storage.{db,env,pubsub}`
- *   и `server.world.*`. Адаптер передаёт db, env и pubsub «как есть» (прямой
- *   проход), не меняя их API — потребители продолжают использовать
- *   `adapter.db['коллекция'].метод()`. Это осознанное упрощение: цель —
- *   централизация точки входа, а не редизайн.
+ *   Encapsulates all direct accesses to `server.common.storage.{db,env,pubsub}`
+ *   and `server.world.*`. The adapter passes db, env, and pubsub through as-is
+ *   (passthrough), without changing their API — consumers continue to use
+ *   `adapter.db['collection'].method()`. This is an intentional simplification:
+ *   the goal is centralising the entry point, not a redesign.
  *
  * **Available methods:**
- * - `db` — прямой проход к `server.common.storage.db` (LokiJS-коллекции)
- * - `env` — прямой проход к `server.common.storage.env` (key-value storage)
- * - `pubsub` — прямой проход к `server.common.storage.pubsub`
- * - `world.reset()` — сброс мира сервера
- * - `world.addRoom(name)` — создание комнаты
- * - `world.getTerrain(name)` — получение terrain комнаты
- * - `world.setTerrain(name, terrain)` — установка terrain комнаты
- * - `world.genRandomBadge()` — генерация случайного badge
- * - `getProcesses()` — список дочерних процессов сервера (для dispose)
- * - `_server` — сырой ScreepsServer (для `world.server` и lifecycle)
+ * - `db` — passthrough to `server.common.storage.db` (LokiJS collections)
+ * - `env` — passthrough to `server.common.storage.env` (key-value storage)
+ * - `pubsub` — passthrough to `server.common.storage.pubsub`
+ * - `world.reset()` — reset the server world
+ * - `world.addRoom(name)` — create a room
+ * - `world.getTerrain(name)` — get room terrain
+ * - `world.setTerrain(name, terrain)` — set room terrain
+ * - `world.genRandomBadge()` — generate a random badge
+ * - `getProcesses()` — list server child processes (for dispose)
+ * - `_server` — raw ScreepsServer (for `world.server` and lifecycle)
  *
  * @module storageAdapter
  */
@@ -30,12 +30,12 @@
  * @typedef {import('./types').ScreepsServer} ScreepsServer
  *
  * @typedef {Object} StorageAdapter
- * @property {Object} db — прямой проход к server.common.storage.db
- * @property {Object} env — прямой проход к server.common.storage.env
- * @property {Object} pubsub — прямой проход к server.common.storage.pubsub
+ * @property {Object} db — passthrough to server.common.storage.db
+ * @property {Object} env — passthrough to server.common.storage.env
+ * @property {Object} pubsub — passthrough to server.common.storage.pubsub
  * @property {WorldFacade} world
  * @property {() => import('child_process').ChildProcess[]} getProcesses
- * @property {ScreepsServer} _server — сырой ScreepsServer
+ * @property {ScreepsServer} _server — raw ScreepsServer
  */
 
 /**
@@ -71,7 +71,7 @@
  */
 
 /**
- * Создаёт адаптер хранилища вокруг экземпляра ScreepsServer.
+ * Creates a storage adapter around a ScreepsServer instance.
  *
  * @param {ScreepsServer} server
  * @returns {StorageAdapter}
@@ -79,9 +79,9 @@
 function createStorageAdapter(server) {
     const { db, env, pubsub } = server.common.storage;
 
-    // db, env, pubsub передаются «как есть» (прямой проход),
-    // чтобы не ломать сложившийся паттерн db['коллекция'].метод().
-    // Адаптер инкапсулирует server.common.storage.*, а не меняет API.
+    // db, env, pubsub are passed through as-is (passthrough),
+    // to avoid breaking the established db['collection'].method() pattern.
+    // The adapter encapsulates server.common.storage.* without changing its API.
 
     return {
         db,

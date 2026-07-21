@@ -1,31 +1,31 @@
 # Integration Tests — Architecture Guide
 
-Этот документ описывает **архитектуру и внутренние механизмы** фреймворка со
-стороны контрибьютора. Здесь нет tutorial — практические руководства находятся в
-соседних файлах:
+This document describes the **architecture and internal mechanisms** of the framework from
+a contributor's perspective. This is not a tutorial — practical guides are in
+neighboring files:
 
-- [README.md](./README.md) — навигация по документации
-- [GETTING-STARTED.md](./GETTING-STARTED.md) — установка, запуск, первый сценарий
-- [API-REFERENCE.md](./API-REFERENCE.md) — полный справочник публичного API
+- [README.md](./README.md) — documentation navigation
+- [GETTING-STARTED.md](./GETTING-STARTED.md) — installation, running, first scenario
+- [API-REFERENCE.md](./API-REFERENCE.md) — full public API reference
 - [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md) — room fixtures, memory fixtures, overrides
-- [EXAMPLES.md](./EXAMPLES.md) — эталонные сценарии и приёмы
-- [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — несколько комнат и ботов
+- [EXAMPLES.md](./EXAMPLES.md) — reference scenarios and patterns
+- [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — multiple rooms and bots
 
-## Содержание
+## Table of Contents
 
-1. [Архитектура: слои и ответственность](#1-архитектура-слои-и-ответственность)
-2. [Жизненный цикл сценария](#2-жизненный-цикл-сценария)
+1. [Architecture: layers and responsibilities](#1-architecture-layers-and-responsibilities)
+2. [Scenario lifecycle](#2-scenario-lifecycle)
 3. [Runtime: multi-room + multi-bot](#3-runtime-multi-room--multi-bot)
-4. [Условие остановки (until)](#4-условие-остановки-until)
+4. [Stop condition (until)](#4-stop-condition-until)
 5. [Observers](#5-observers)
-6. [Дочерние процессы и передача данных](#6-дочерние-процессы-и-передача-данных)
-7. [Изоляция памяти и cache management](#7-изоляция-памяти-и-cache-management)
-8. [Профилирование](#8-профилирование)
-9. [Структура файлов](#9-структура-файлов)
+6. [Child processes and data transfer](#6-child-processes-and-data-transfer)
+7. [Memory isolation and cache management](#7-memory-isolation-and-cache-management)
+8. [Profiling](#8-profiling)
+9. [File structure](#9-file-structure)
 10. [Best practices](#10-best-practices)
-11. [Расширение framework](#11-расширение-framework)
+11. [Extending the framework](#11-extending-the-framework)
 
-## 1. Архитектура: слои и ответственность
+## 1. Architecture: layers and responsibilities
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -63,59 +63,59 @@
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Четыре слоя:
+Four layers:
 
-1. **Config** (`lib/config.js`, `lib/cli.js`) — загрузка
-   `screeps-integration.config.js`, слияние defaults → файл → env → CLI →
+1. **Config** (`lib/config.js`, `lib/cli.js`) — loads
+   `screeps-integration.config.js`, merges defaults → file → env → CLI →
    overrides.
-2. **Runtime** (`lib/runtime.js`) — обёртка над `screeps-server-mockup`:
-   `prepareServer`, `addBots`, `createRuntime`. Класс `TestBot` (EventEmitter).
+2. **Runtime** (`lib/runtime.js`) — wrapper over `screeps-server-mockup`:
+   `prepareServer`, `addBots`, `createRuntime`. Class `TestBot` (EventEmitter).
 3. **World orchestration** (`lib/world.js`) — `createWorld(opts)`. Pipeline:
    prepareServer → addBots → materializeRoom → setBotMemory → server.start →
-   `WorldInstance` с методами `run/tick/exec/spawn/eventLog/readMemory/…`.
-4. **Builders & Observers** (`lib/builders/`, `lib/observers/`) — чистые
-   spec-конструкторы и stateless DB-readers.
+   `WorldInstance` with methods `run/tick/exec/spawn/eventLog/readMemory/…`.
+4. **Builders & Observers** (`lib/builders/`, `lib/observers/`) — pure
+   spec constructors and stateless DB readers.
 
-### Разделение в builders
+### Separation in builders
 
-| Слой          | Файл                      | Что знает                             | Назначение                        |
-| ------------- | ------------------------- | ------------------------------------- | --------------------------------- |
-| `spec`        | `builders/spec.js`        | Дефолты объектов, `roomName`/`userId` | Чистые конструкторы spec-объектов |
-| `materialize` | `builders/materialize.js` | Форма БД mockup-сервера               | Единственный слой, пишущий в БД   |
+| Layer         | File                      | Knowledge                            | Purpose                       |
+| ------------- | ------------------------- | ------------------------------------ | ----------------------------- |
+| `spec`        | `builders/spec.js`        | Object defaults, `roomName`/`userId` | Pure spec-object constructors |
+| `materialize` | `builders/materialize.js` | Mockup server DB schema              | Only layer that writes to DB  |
 
-> **Важно:** знание формы БД живёт **только** в `materialize`. Сценарии и
-> `createWorld()` используют его как единственный канал записи в БД.
+> **Important:** knowledge of the DB schema lives **only** in `materialize`. Scenarios and
+> `createWorld()` use it as the only channel for writing to the DB.
 
-### Разделение в observers
+### Separation in observers
 
-| Слой      | Файл                     | Назначение                         |
-| --------- | ------------------------ | ---------------------------------- |
-| eventLog  | `observers/eventLog.js`  | Чтение и фильтрация событий        |
-| metrics   | `observers/metrics.js`   | Сбор игровых данных (room metrics) |
-| predicate | `observers/predicate.js` | Проверка условий остановки         |
-| ownership | `observers/ownership.js` | Слежение за владельцами объектов   |
+| Layer     | File                     | Purpose                             |
+| --------- | ------------------------ | ----------------------------------- |
+| eventLog  | `observers/eventLog.js`  | Reading and filtering events        |
+| metrics   | `observers/metrics.js`   | Collecting game data (room metrics) |
+| predicate | `observers/predicate.js` | Checking stop conditions            |
+| ownership | `observers/ownership.js` | Tracking object owners              |
 
-Observers только читают БД и возвращают данные. Они не мутируют состояние.
+Observers only read the DB and return data. They do not mutate state.
 
-### Разделение метрик
+### Metrics separation
 
-| Слой       | Файл                      | Назначение                                   |
+| Layer      | File                      | Purpose                                      |
 | ---------- | ------------------------- | -------------------------------------------- |
-| Observer   | `observers/metrics.js`    | Чтение состояния мира, возврат `RoomMetrics` |
-| Recorder   | `lib/metrics.js`          | Запись сэмплов в `report.metrics`            |
-| Query      | `lib/metrics.js`          | Чтение series, агрегация                     |
-| Assertions | `lib/metricAssertions.js` | Assert'ы на основе time-series               |
-| Export     | `lib/metricExport.js`     | Преобразование в CSV                         |
-| Regression | `lib/metricRegression.js` | Сравнение current vs baseline                |
+| Observer   | `observers/metrics.js`    | Reading world state, returning `RoomMetrics` |
+| Recorder   | `lib/metrics.js`          | Writing samples to `report.metrics`          |
+| Query      | `lib/metrics.js`          | Reading series, aggregation                  |
+| Assertions | `lib/metricAssertions.js` | Assertions based on time-series              |
+| Export     | `lib/metricExport.js`     | Conversion to CSV                            |
+| Regression | `lib/metricRegression.js` | Comparison of current vs baseline            |
 
-### Константы
+### Constants
 
-`src/constants/screepsConstants.js` содержит игровые константы Screeps
-(`STRUCTURE_*`, body parts, `RESOURCE_ENERGY`, `FIND_*`, error codes и др.).
-Используются spec-конструкторами, assert'ами и метриками, чтобы не зависеть от
-глобального окружения mockup-сервера.
+`src/constants/screepsConstants.js` contains Screeps game constants
+(`STRUCTURE_*`, body parts, `RESOURCE_ENERGY`, `FIND_*`, error codes, etc.).
+Used by spec constructors, assertions, and metrics to avoid depending on
+the mockup server's global environment.
 
-## 2. Жизненный цикл сценария
+## 2. Scenario lifecycle
 
 ```
 1. createWorld(opts)
@@ -146,35 +146,35 @@ Observers только читают БД и возвращают данные. �
    └─ wallClockMs
 
 4. assert*()
-5. world.dispose()               ← обязателен в finally
+5. world.dispose()               ← mandatory in finally
 ```
 
-### Семантика тиков
+### Tick semantics
 
-Тики нумеруются с 0. Бот выполняется каждый тик, начиная с первого.
-Метрики, `eventLog` и `predicate` собираются на каждом тике (или с
-периодом `metrics.every` для метрик).
+Ticks are numbered from 0. The bot executes every tick, starting from the first.
+Metrics, `eventLog` and `predicate` are collected every tick (or with
+period `metrics.every` for metrics).
 
-Семантика тиков для профилировщика описана в §8.
+Tick semantics for the profiler are described in §8.
 
 ## 3. Runtime: multi-room + multi-bot
 
-Runtime разделён на три независимые фазы:
+The runtime is split into three independent phases:
 
-- `prepareServer({ rooms, cacheDir })` — поднимает `ScreepsServer`, создаёт
-  комнаты и terrain. **Не создаёт** контроллер, ботов и спавны. Все объекты
-  комнаты создаются позже через `materializeRoom`.
-- `addBots({ server, bots, distDir, profiling })` — собственная реализация
-  добавления ботов. Создаёт пользователя, пустую память, загружает код,
-  подписывается на консоль. Не трогает controller/spawn.
-- `materializeRoom(server, canonical)` — создаёт все объекты комнаты из
-  канонической спецификации.
+- `prepareServer({ rooms, cacheDir })` — starts `ScreepsServer`, creates
+  rooms and terrain. **Does not create** controllers, bots or spawns. All room
+  objects are created later via `materializeRoom`.
+- `addBots({ server, bots, distDir, profiling })` — custom implementation
+  for adding bots. Creates a user, empty memory, loads code,
+  subscribes to console. Does not touch controller/spawn.
+- `materializeRoom(server, canonical)` — creates all room objects from
+  the canonical specification.
 
-`createRuntime` — тонкий facade: prepareServer → addBots → start.
+`createRuntime` is a thin facade: prepareServer → addBots → start.
 
 ```js
-// Полный pipeline (createWorld) — внутренние функции, не экспортируются в public API.
-// В сценариях используйте createWorld().
+// Full pipeline (createWorld) — internal functions, not exported to public API.
+// In scenarios, use createWorld().
 const prepared = await prepareServer({ rooms, cacheDir });
 const { bots } = await addBots({ server: prepared.server, bots, distDir });
 const canonical = await buildCanonicalRoom(roomInput, roomName, bots['bot'].id);
@@ -182,15 +182,15 @@ const ids = await materializeRoom(server, canonical);
 await server.start();
 ```
 
-### Контракт
+### Contract
 
-- `rooms` — массив `RoomSpecInput[]` (имя + spec/fixture + overrides);
-- `bots` — массив `{ username, room, modules?, profiling? }`;
+- `rooms` — array of `RoomSpecInput[]` (name + spec/fixture + overrides);
+- `bots` — array of `{ username, room, modules?, profiling? }`;
 - per-bot profiling: `b.profiling ?? opts.profiling ?? false`.
 
-Подробнее про multi-room моделирование — [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md).
+More about multi-room modeling — [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md).
 
-## 4. Условие остановки (until)
+## 4. Stop condition (until)
 
 ```js
 until: {
@@ -202,128 +202,127 @@ until: {
 }
 ```
 
-Сценарий завершается, когда:
+The scenario completes when:
 
-- `predicate` вернул `true`, **или**
-- `ticksRun >= maxTicks`, **или**
-- `Memory[until.signal]` truthy.
+- `predicate` returned `true`, **or**
+- `ticksRun >= maxTicks`, **or**
+- `Memory[until.signal]` is truthy.
 
-> **Важно:** `until.maxTicks` — **жёсткий** лимит: он уважается и `run()`, и
-> `tick()`. `createWorld({ ticks })` — **мягкий** лимит, он влияет только на
-> `run()`. Если заданы оба — тест остановится по первому достигнутому.
+> **Important:** `until.maxTicks` is a **hard** limit: it is respected by both `run()` and
+> `tick()`. `createWorld({ ticks })` is a **soft** limit, it only affects
+> `run()`. If both are set, the test stops on whichever is reached first.
 
-Predicate может быть sync или async. Если predicate бросает ошибку — тест
-завершается с этой ошибкой.
+Predicate can be sync or async. If the predicate throws an error — the test
+completes with that error.
 
 ## 5. Observers
 
-| Слой      | Файл                     | Назначение                       |
-| --------- | ------------------------ | -------------------------------- |
-| eventLog  | `observers/eventLog.js`  | Чтение и фильтрация событий      |
-| metrics   | `observers/metrics.js`   | Сбор room metrics                |
-| predicate | `observers/predicate.js` | Условия остановки                |
-| ownership | `observers/ownership.js` | Слежение за владельцами объектов |
+| Layer     | File                     | Purpose                      |
+| --------- | ------------------------ | ---------------------------- |
+| eventLog  | `observers/eventLog.js`  | Reading and filtering events |
+| metrics   | `observers/metrics.js`   | Collecting room metrics      |
+| predicate | `observers/predicate.js` | Stop conditions              |
+| ownership | `observers/ownership.js` | Tracking object owners       |
 
-Event log перезаписывается engine'ом каждый тик, поэтому используется
-`accumulateEvents` для накопления в `report.events[]`.
+The event log is overwritten by the engine every tick, so
+`accumulateEvents` is used to accumulate entries in `report.events[]`.
 
-## 6. Дочерние процессы и передача данных
+## 6. Child processes and data transfer
 
-### Почему `console.log` в сценарии виден
+### Why `console.log` is visible in the scenario
 
-Сценарии выполняются в отдельных дочерних процессах (`child_process.fork` из
-`src/runScenario.js`). Их `stdout`/`stderr` наследуется от родителя, поэтому
-`console.log` внутри `.scenario.js` попадает в общий вывод.
+Scenarios run in separate child processes (`child_process.fork` from
+`src/runScenario.js`). Their `stdout`/`stderr` is inherited from the parent, so
+`console.log` inside `.scenario.js` goes to the common output.
 
-### Параллельный запуск
+### Parallel execution
 
-`bin/screeps-integration-tests.js` запускает сценарии с ограничением
-concurrency (`--jobs <N>`, по умолчанию `min(4, os.cpus().length)`). Каждый
-сценарий получает собственный свободный порт storage через `getFreePort()`,
-поэтому параллельные запуски не конфликтуют.
+`bin/screeps-integration-tests.js` runs scenarios with a concurrency
+limit (`--jobs <N>`, default `min(4, os.cpus().length)`). Each
+scenario gets its own free storage port via `getFreePort()`,
+so parallel runs don't conflict.
 
-### Способы передать данные
+### Ways to transfer data
 
-| Задача                  | Способ                                           |
-| ----------------------- | ------------------------------------------------ |
-| Логи ошибок бота        | `report.errors`                                  |
-| Все логи бота           | `logLevel: 'all'` → `report.logs`                |
-| Финальное состояние     | `report.finalMemory[username]`                   |
-| Данные по тикам         | `onTick` + замыкание → `report.*`                |
-| Снимок в конкретный тик | `world.readMemory(username)` в `onTick`          |
-| Состояние объектов в БД | `world.server.db` + замыкание                    |
-| Профайлер               | `report.profileText` и `report.profileCallgrind` |
-| Event log               | `report.events`                                  |
+| Task                      | Method                                             |
+| ------------------------- | -------------------------------------------------- |
+| Bot error logs            | `report.errors`                                    |
+| All bot logs              | `logLevel: 'all'` → `report.logs`                  |
+| Final state               | `report.finalMemory[username]`                     |
+| Tick-based data           | `onTick` + closure → `report.*`                    |
+| Snapshot at specific tick | `world.readMemory(username)` in `onTick`           |
+| DB object state           | `world.server.db` + closure                        |
+| Profiler                  | `report.profileText` and `report.profileCallgrind` |
+| Event log                 | `report.events`                                    |
 
-## 7. Изоляция памяти и cache management
+## 7. Memory isolation and cache management
 
-Каждый сценарий работает в изолированной cache-директории:
+Each scenario runs in an isolated cache directory:
 
 ```
 <cacheBase>/w-<timestamp>-<pid>
 ```
 
-Например: `.cache/w-1700000000000-12345/`. Это позволяет запускать сценарии
-параллельно и избегать конфликтов.
+Example: `.cache/w-1700000000000-12345/`. This allows running scenarios
+in parallel and avoids conflicts.
 
-После завершения сценария `world.dispose()` останавливает дочерние процессы
-сервера, дожидается их завершения и удаляет cache-директорию. При timeout
-`bin/screeps-integration-tests.js` убивает всё дерево процессов через
+After a scenario completes, `world.dispose()` stops the server child processes,
+waits for them to finish, and removes the cache directory. On timeout,
+`bin/screeps-integration-tests.js` kills the entire process tree via
 `tree-kill`.
 
-`pruneCache` — внутренняя функция, не экспортируется в публичный API.
-Вызывается автоматически при старте CLI. Очищает `cacheDir`, храня `cacheKeep`
-последних директорий (настраивается в `screeps-integration.config.js`, по
-умолчанию `./.cache`).
+`pruneCache` is an internal function, not exported to the public API.
+Called automatically when CLI starts. It cleans up the `cacheDir`, keeping
+the last `cacheKeep` directories (configurable in `screeps-integration.config.js`, default `./.cache`).
 
-## 8. Профилирование
+## 8. Profiling
 
-`profiling: true` включает `screeps-profiler` через `lib/loadBot.js`. Данные
-попадают в отдельные поля отчёта:
+`profiling: true` enables `screeps-profiler` via `lib/loadBot.js`. Data
+goes into separate report fields:
 
-- `report.profileText[username]` — текстовый вывод профайлера;
-- `report.profileCallgrind[username]` — callgrind-данные.
+- `report.profileText[username]` — profiler text output;
+- `report.profileCallgrind[username]` — callgrind data.
 
-Для работы профилирования **бот пользователя должен установить
-`screeps-profiler` как peer dependency** и обернуть свой `loop` через
+For profiling to work, **the user's bot must install
+`screeps-profiler` as a peer dependency** and wrap its `loop` via
 `profiler.wrap()`:
 
 ```js
 const profiler = require('screeps-profiler');
 profiler.enable();
 module.exports.loop = profiler.wrap(function () {
-  // код бота
+  // bot code
 });
 ```
 
-Фреймворк только инжектирует необходимые обёртки; без установленного пакета в
-`dist/` бота профилирование не заработает.
+The framework only injects the necessary wrappers; if the package is not installed in
+the bot's `dist/`, profiling will not work.
 
-### CLI-режим
+### CLI mode
 
 ```bash
 npm run test:integration -- --profiling
 ```
 
-При запуске с флагом `--profiling` CLI сохраняет `report.profileCallgrind`
-локально:
+When launching with the `--profiling` flag, CLI saves `report.profileCallgrind`
+locally:
 
 ```
 <profilesDir>/<scenario>-<username>-<timestamp>.callgrind
 ```
 
-Открывайте `.callgrind` через KCachegrind или аналогичный инструмент.
+Open `.callgrind` with KCachegrind or a similar tool.
 
-### Семантика тиков профайлера
+### Profiler tick semantics
 
-- **Тик 0** — init;
-- **Тик 1** — arm, бот начинает выполняться;
-- **Тик 2+** — рабочие замеры;
-- **Финальный тик** — дополнительный тик для сбора итоговых данных.
+- **Tick 0** — init;
+- **Tick 1** — arm, bot starts executing;
+- **Tick 2**+ — working measurements;
+- **Final tick** — extra tick for final data collection.
 
-См. также [screeps-profiler](https://github.com/screepers/screeps-profiler).
+See also [screeps-profiler](https://github.com/screepers/screeps-profiler).
 
-## 9. Структура файлов
+## 9. File structure
 
 ```
 screeps-integration-tests/
@@ -340,8 +339,8 @@ screeps-integration-tests/
 │   │   └── room-fixtures.js           #   screeps-integration-tests/room-fixtures
 │   ├── runScenario.js                 # Worker entry (fork target)
 │   ├── constants/
-│   │   └── screepsConstants.js        # Игровые константы для spec/assert/metrics
-│   ├── tests/                         # Unit-тесты фреймворка (Jest)
+│   │   └── screepsConstants.js        # Game constants for spec/assert/metric
+│   ├── tests/                         # Unit tests of the framework (Jest)
 │   │   ├── buildCanonicalRoom.test.js
 │   │   ├── metrics.test.js
 │   │   ├── metricAssertions.test.js
@@ -394,64 +393,63 @@ screeps-integration-tests/
 
 ## 10. Best practices
 
-1. **Идемпотентность.** Каждый сценарий должен работать независимо от порядка
-   запуска.
+1. **Idempotence.** Each scenario should work independently of the run order.
 
-2. **Fixtures.** Не прогоняйте 10000 тиков, если нужно протестировать уже
-   развитую колонию. Создайте room fixture + memory fixture и запускайте тест
-   с готового состояния.
+2. **Fixtures.** Don't run 10,000 ticks if you need to test an already
+   developed colony. Create a room fixture + memory fixture and start the test
+   from a ready state.
 
-3. **Naming convention.** `<область>-<сюжет>.scenario.js`. Примеры названий
-   (не обязательно существующих сценариев):
+3. **Naming convention.** `<area>-<subject>.scenario.js`. Example names
+   (not necessarily existing scenarios):
    - `defense-invader-rcl3`
    - `logistics-refill`
    - `regression-issue-42`
 
-4. **Negative tests.** Проверяйте не только положительные сценарии, но и
-   негативные — убедитесь, что площадка корректно ловит ошибки.
+4. **Negative tests.** Test not only positive scenarios but also
+   negative ones — make sure the framework correctly catches errors.
 
-5. **Event log > Memory.** Event log показывает, что **реально** произошло.
-   Memory — что бот **думает**.
+5. **Event log > Memory.** Event log shows what **actually** happened.
+   Memory shows what the bot **thinks** happened.
 
-6. **Predicate > жёсткие ticks.** Если цель сценария — достижение состояния,
-   добавляйте `until: { predicate }` в дополнение к `until.maxTicks`. Не путайте
-   `until.maxTicks` (жёсткий лимит для `run()` и `tick()`) с
-   `createWorld({ ticks })` (мягкий лимит только для `run()`).
+6. **Predicate > hard ticks.** If the scenario goal is to reach a state,
+   add `until: { predicate }` in addition to `until.maxTicks`. Don't confuse
+   `until.maxTicks` (hard limit for `run()` and `tick()`) with
+   `createWorld({ ticks })` (soft limit for `run()` only).
 
-7. **Используйте `createWorld()`, а не низкоуровневый runtime.** Высокоуровневый
-   API упрощает большинство действий. Подробности — в
+7. **Use `createWorld()`, not the low-level runtime.** The high-level
+   API simplifies most tasks. Details — in
    [API-REFERENCE.md](./API-REFERENCE.md).
 
-## 11. Расширение framework
+## 11. Extending the framework
 
-### Как добавить новый сценарий
+### How to add a new scenario
 
-См. [GETTING-STARTED.md](./GETTING-STARTED.md#написание-сценария).
+See [GETTING-STARTED.md](./GETTING-STARTED.md#writing-a-scenario).
 
-### Как добавить новую проверку (`assert`)
+### How to add a new assertion (`assert`)
 
 ```js
 // lib/assertions.js
 function assertMyCondition(report, opts) {
-    // ... специфичная логика
-    assert.ok(condition, 'описание если тест провалился');
+    // ... specific logic
+    assert.ok(condition, 'description if test fails');
 }
 
 module.exports = { ..., assertMyCondition };
 ```
 
-### Как добавить новую метрику
+### How to add a new metric
 
-1. Добавьте поле в `collectMetrics()` (`observers/metrics.js`).
-2. Если метрика scalar — она автоматически попадёт в CSV-экспорт.
-3. Для не-scalar полей (например, `creepsByRole`) обработайте формат в
+1. Add a field to `collectMetrics()` (`observers/metrics.js`).
+2. If the metric is scalar, it automatically appears in CSV export.
+3. For non-scalar fields (e.g., `creepsByRole`), handle the format in
    `metricExport.js`.
-4. Добавьте unit-тесты в `src/tests/`.
+4. Add unit tests to `src/tests/`.
 
-### Как добавить новый room fixture
+### How to add a new room fixture
 
-См. [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#7-как-добавить-новый-room-fixture).
+See [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#7-how-to-create-a-room-fixture).
 
-### Как обновить memory fixture
+### How to update a memory fixture
 
-См. [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#8-как-создать-или-обновить-memory-fixture).
+See [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#8-how-to-create-or-update-a-memory-fixture).

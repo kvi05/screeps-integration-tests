@@ -1,11 +1,11 @@
 ﻿'use strict';
 
 /**
- * Сравнение текущих метрик с baseline (без хранения baseline в отчёте).
+ * Compares current metrics against a baseline (without storing baseline in the report).
  *
- * Этот модуль не делает assert'ов и не знает о файловой системе. Он получает
- * два MetricsReport (current + baseline) и возвращает структурированный
- * результат сравнения.
+ * This module does not make assertions and knows nothing about the filesystem. It
+ * receives two MetricsReport instances (current + baseline) and returns a structured
+ * comparison result.
  *
  * @module metricRegression
  */
@@ -30,16 +30,16 @@
 
 /**
  * @typedef {Object} CompareOpts
- * @property {number} [tolerance=0] — абсолютный допуск
- * @property {number} [relativeTolerance=0] — относительный допуск (доля)
- * @property {RegressionDirection} [direction='both'] — направление регрессии
- * @property {'average'|'latest'|'sum'|'delta'} [aggregator='average'] — способ агрегации series
- * @property {{startTick?:number, endTick?:number}} [window] — окно тиков для сравнения
+ * @property {number} [tolerance=0] — absolute tolerance
+ * @property {number} [relativeTolerance=0] — relative tolerance (fraction)
+ * @property {RegressionDirection} [direction='both'] — regression direction
+ * @property {'average'|'latest'|'sum'|'delta'} [aggregator='average'] — series aggregation method
+ * @property {{startTick?:number, endTick?:number}} [window] — tick window for comparison
  */
 
 class MetricsRegression {
     /**
-     * @param {import('./types').MetricsReport} baselineMetricsReport — эталонный отчёт
+     * @param {import('./types').MetricsReport} baselineMetricsReport — baseline report
      */
     constructor(baselineMetricsReport) {
         /** @private */
@@ -47,9 +47,9 @@ class MetricsRegression {
     }
 
     /**
-     * Сравнивает метрику между текущим отчётом и baseline.
+     * Compares a metric between the current report and baseline.
      *
-     * @param {import('./types').MetricsReport} currentReport — текущий отчёт
+     * @param {import('./types').MetricsReport} currentReport — current report
      * @param {MetricEntityType} entityType
      * @param {string} entityId
      * @param {string} metricName
@@ -88,7 +88,7 @@ class MetricsRegression {
     }
 
     /**
-     * Выбирает подмножество сэмплов по окну тиков.
+     * Selects a subset of samples by tick window.
      *
      * @private
      * @param {MetricSeries} series
@@ -107,13 +107,13 @@ class MetricsRegression {
     }
 
     /**
-     * Агрегирует series по имени метрики.
+     * Aggregates a series by metric name.
      *
      * @private
      * @param {MetricSeries} series
      * @param {string} metricName
      * @param {CompareOpts['aggregator']} aggregator
-     * @param {import('./types').MetricsReport} metricsReport — для вызова average/sum/delta
+     * @param {import('./types').MetricsReport} metricsReport — for calling average/sum/delta
      * @returns {number|undefined}
      */
     _aggregate(series, metricName, aggregator, metricsReport) {
@@ -133,7 +133,7 @@ class MetricsRegression {
                 return typeof val === 'number' && Number.isFinite(val) ? val : undefined;
             }
             default:
-                throw new TypeError(`неизвестный aggregator: ${String(aggregator)}`);
+                throw new TypeError(`unknown aggregator: ${String(aggregator)}`);
         }
     }
 }

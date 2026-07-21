@@ -23,10 +23,10 @@ const { loadBotModules } = require('./loadBot');
  */
 
 /**
- * Возвращает свободный TCP-порт на 127.0.0.1.
+ * Returns a free TCP port on 127.0.0.1.
  *
- * Используется, чтобы каждый mockup-сервер работал на своём порту и не
- * конфликтовал с другими параллельными/последовательными запусками.
+ * Used so each mockup server runs on its own port and does not
+ * conflict with other parallel or sequential runs.
  *
  * @returns {Promise<number>}
  */
@@ -45,30 +45,30 @@ async function getFreePort() {
 }
 
 /**
- * Создаёт mockup-сервер, комнаты и terrain.
+ * Creates a mockup server, rooms, and terrain.
  *
- * Runtime не создаёт игровые объекты: controller и остальные объекты комнаты
- * материализуются через builders. Это позволяет оставить controller
- * необязательным для комнат без ботов и без controller в спецификации.
+ * Runtime does not create game objects: controller and other room objects
+ * are materialised through builders. This keeps controller optional
+ * for rooms without bots or without a controller in the spec.
  *
- * Сервер намеренно не запускается до добавления ботов и materialize-объектов.
- * `addBot` работает с подготовленным, но ещё не запущенным сервером, как и
- * в прежнем pipeline.
+ * The server is intentionally not started until bots and materialize objects
+ * are added. `addBot` works with a prepared but not yet started server,
+ * just like in the previous pipeline.
  *
  * @param {PrepareServerOpts} opts
  * @returns {Promise<PreparedServer>}
  */
 async function prepareServer(opts) {
     if (!opts.rooms || opts.rooms.length === 0) {
-        throw new Error('prepareServer: opts.rooms обязателен и должен быть непустым массивом');
+        throw new Error('prepareServer: opts.rooms is required and must be a non-empty array');
     }
 
     const cacheDir = opts.cacheDir || path.join(__dirname, '..', '.cache', String(process.pid));
     const port = opts.port ?? (await getFreePort());
 
-    // screeps-server-mockup пишет логи в ./server/logs относительно cwd.
-    // Создаём папку автоматически, чтобы пользователю не приходилось держать
-    // её вручную в своём репозитории.
+    // screeps-server-mockup writes logs to ./server/logs relative to cwd.
+    // Create the directory automatically so users don't have to maintain
+    // it manually in their repository.
     fs.mkdirSync(path.join(process.cwd(), 'server', 'logs'), { recursive: true });
 
     const server = new ScreepsServer({ path: cacheDir, port });
@@ -85,11 +85,11 @@ async function prepareServer(opts) {
 }
 
 /**
- * Добавляет ботов в подготовленный сервер.
+ * Adds bots to a prepared server.
  *
- * Runtime-уровневая функция: вставляет пользователя, memory, код, console и
- * привязывает бота к ACTIVE_ROOMS. **Не трогает** controller и **не вставляет**
- * spawn автоматически — эти объекты полностью принадлежат materialize-слою.
+ * Runtime-level function: inserts user, memory, code, console, and
+ * attaches the bot to ACTIVE_ROOMS. **Does not touch** controller and **does not
+ * auto-insert** spawn — those objects belong entirely to the materialize layer.
  *
  * @param {AddBotsOpts} opts
  * @returns {Promise<AddedBots>}
@@ -103,7 +103,7 @@ async function addBots(opts) {
     const resolvedBots = {};
 
     for (const b of botsList) {
-        // Резолюция per-bot: приоритет local > global > default false.
+        // Per-bot resolution: local > global > default false.
         const effectiveProfiling = b.profiling ?? opts.profiling ?? false;
         const modules =
             b.modules ||
@@ -130,11 +130,11 @@ async function addBots(opts) {
 }
 
 /**
- * Собственная реализация addBot без побочных эффектов mockup-метода.
+ * Custom addBot implementation without the mockup method's side effects.
  *
- * Создаёт пользователя, memory, users.code, ACTIVE_ROOMS и console-события.
+ * Creates user, memory, users.code, ACTIVE_ROOMS, and console events.
  *
- * Controller и spawn намеренно не трогает: они принадлежат materialize-слою.
+ * Controller and spawn are intentionally untouched: they belong to the materialize layer.
  *
  * @param {StorageAdapter} adapter
  * @param {string} username
@@ -172,9 +172,9 @@ async function addBot(adapter, username, opts = {}) {
 }
 
 /**
- * Минимальный объект бота, совместимый с API, который использует framework.
- * Подписка на console сделана здесь, а не через User из mockup, чтобы runtime
- * не зависел от реализации `world.addBot`.
+ * Minimal bot object compatible with the API used by the framework.
+ * Console subscription is handled here rather than through the mockup User,
+ * so runtime does not depend on `world.addBot`'s implementation.
  */
 class TestBot extends EventEmitter {
     constructor(adapter, data) {
@@ -218,11 +218,11 @@ class TestBot extends EventEmitter {
 }
 
 /**
- * facade runtime API.
+ * Facade runtime API.
  *
- * Полный world pipeline: prepareServer → addBots → buildCanonicalRoom →
- * materializeRoom → server.start. `createRuntime` упрощает этот контракт
- * для прямых потребителей.
+ * Full world pipeline: prepareServer → addBots → buildCanonicalRoom →
+ * materializeRoom → server.start. `createRuntime` simplifies this contract
+ * for direct consumers.
  *
  * @param {RuntimeOpts} opts
  * @returns {Promise<RuntimeResult>}
@@ -250,7 +250,7 @@ async function createRuntime(opts) {
 }
 
 /**
- * Создаёт комнату и terrain без controller.
+ * Creates a room and terrain without a controller.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -259,8 +259,8 @@ async function createRuntime(opts) {
 async function prepareRoom(adapter, roomName) {
     await adapter.world.addRoom(roomName);
 
-    // addRoom() не создаёт terrain — добавляем plain terrain, чтобы processor
-    // не падал на первом тике.
+    // addRoom() does not create terrain — add plain terrain so the processor
+    // does not crash on the first tick.
     try {
         await adapter.world.getTerrain(roomName);
     } catch {
@@ -270,7 +270,7 @@ async function prepareRoom(adapter, roomName) {
 }
 
 /**
- * Дожидается завершения дочернего процесса с таймаутом.
+ * Waits for a child process to exit with a timeout.
  *
  * @param {import('child_process').ChildProcess} proc
  * @param {number} timeoutMs
@@ -294,18 +294,18 @@ async function waitForProcessExit(proc, timeoutMs) {
     try {
         await once(proc, 'exit', { signal: ac.signal });
     } catch {
-        // AbortError — процесс уже убит таймером
+        // AbortError — process already killed by timer
     } finally {
         clearTimeout(timer);
     }
 }
 
 /**
- * Создаёт единый безопасный dispose для всех runtime-фаз.
+ * Creates a single safe dispose for all runtime phases.
  *
- * Останавливает дочерние процессы сервера, дожидается их завершения и
- * удаляет cache-директорию. Это предотвращает утечку storage/engine
- * процессов и конфликты портов между последовательными запусками.
+ * Stops server child processes, waits for them to exit, and
+ * removes the cache directory. This prevents storage/engine
+ * process leaks and port conflicts between sequential runs.
  *
  * @param {ScreepsServer} server
  * @param {StorageAdapter} adapter

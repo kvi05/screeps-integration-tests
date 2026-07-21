@@ -10,13 +10,13 @@ const { BOT_STRUCTURE_TYPES } = require('../constants/screepsConstants');
  * @typedef {import('./types').EventLogEntry} EventLogEntry
  *
  * @typedef {Object} ObjectFilter
- * @property {string|string[]} [types]     — тип(ы) объекта (STRUCTURE_* или TYPE_CREEPS)
- * @property {string} [id]                 — конкретный _id объекта
+ * @property {string|string[]} [types]     — type(s) of object (STRUCTURE_* or TYPE_CREEPS)
+ * @property {string} [id]                 — specific _id of an object
  */
 
 /**
- * Возвращает user-владельца объекта по его `_id` (из `report.objectOwners`,
- * накопленного снимками `rooms.objects` — см. observers/ownership.js).
+ * Returns the user-owner of an object by its `_id` (from `report.objectOwners`,
+ * accumulated via `rooms.objects` snapshots — see observers/ownership.js).
  *
  * @param {WorldReport} report
  * @param {string} objectId
@@ -26,10 +26,10 @@ function ownerOf(report, objectId) {
     return report.objectOwners && report.objectOwners[objectId];
 }
 
-// ─── Жизнеспособность бота ──────────────────────────────────────────────────
+// ─── Bot health ─────────────────────────────────────────────────────────────
 
 /**
- * Проверяет, что нет ошибок в логах бота.
+ * Asserts that there are no errors in the bot logs.
  *
  * @param {WorldReport} report
  * @returns {void}
@@ -39,11 +39,11 @@ function assertNoErrors(report) {
 }
 
 /**
- * Основная проверка, что бот реально работал: Memory не пуста после прогона.
+ * Core assertion that the bot actually ran: Memory is non-empty after the run.
  *
- * В конце вызывает `assertNoErrors`
+ * Calls `assertNoErrors` at the end.
  *
- * Проверяет что ВСЕ боты работали (Memory каждого бота непуста).
+ * Asserts that ALL bots worked (each bot's Memory is non-empty).
  *
  * @param {WorldReport} report
  * @returns {void}
@@ -67,10 +67,10 @@ function assertBotWorked(report) {
     assertNoErrors(report);
 }
 
-// ─── Прогресс колонии (RCL) ─────────────────────────────────────────────────
+// ─── Colony progress (RCL) ──────────────────────────────────────────────────
 
 /**
- * Проверяет, что RCL комнаты ≥ `minRcl`.
+ * Asserts that room RCL ≥ `minRcl`.
  *
  * @param {WorldReport} report
  * @param {string} roomName
@@ -80,7 +80,7 @@ function assertBotWorked(report) {
 function assertRclAtLeast(report, roomName, minRcl) {
     const actual = report.finalRcl[roomName];
 
-    // -- Проверки на корректность данных (для отладки) --
+    // -- Data validation checks (for debugging) --
     assert.ok(
         actual !== undefined,
         `комната ${roomName} не найдена в отчёте (finalRcl: ${JSON.stringify(report.finalRcl)})`,
@@ -95,12 +95,12 @@ function assertRclAtLeast(report, roomName, minRcl) {
 
     assert.ok(actual <= 8, `комната ${roomName}: RCL ${actual} > 8 (невозможно)`);
 
-    // -- Основная проверка --
+    // -- Main check --
     assert.ok(actual >= minRcl, `комната ${roomName}: RCL ${actual} < ожидаемого ${minRcl}`);
 }
 
 /**
- * Проверяет, что RCL комнаты < `maxRcl`.
+ * Asserts that room RCL < `maxRcl`.
  *
  * @param {WorldReport} report
  * @param {string} roomName
@@ -112,16 +112,16 @@ function assertRclBelow(report, roomName, maxRcl) {
     assert.ok(actual < maxRcl, `комната ${roomName}: RCL ${actual} >= ожидаемого ${maxRcl}`);
 }
 
-// ─── Здания / объекты (destroyed) ───────────────────────────────────────────
+// ─── Structures / objects (destroyed) ───────────────────────────────────────
 
 /**
- * Проверяет, что объект(ы) РАЗРУШЕН.
- * Без опций — проверяет, что произошло любое `EVENT_OBJECT_DESTROYED`.
+ * Asserts that object(s) are DESTROYED.
+ * Without options — checks that any `EVENT_OBJECT_DESTROYED` occurred.
  *
  * @param {WorldReport} report
  * @param {ObjectFilter} [opts]
- * @param {string} [opts.id]            - конкретный _id объекта
- * @param {Array<string>} [opts.types]  - типы объектов (STRUCTURE_* или TYPE_CREEPS)
+ * @param {string} [opts.id]            — specific _id of an object
+ * @param {Array<string>} [opts.types]  — types of objects (STRUCTURE_* or TYPE_CREEPS)
  * @returns {void}
  */
 function assertObjectDestroyed(report, opts = {}) {
@@ -133,12 +133,12 @@ function assertObjectDestroyed(report, opts = {}) {
 }
 
 /**
- * Проверяет, что объект(ы) НЕ разрушены (симметрична `assertObjectDestroyed`).
+ * Asserts that object(s) were NOT destroyed (symmetric to `assertObjectDestroyed`).
  *
  * @param {WorldReport} report
  * @param {ObjectFilter} [opts]
- * @param {string} [opts.id]            - конкретный _id объекта
- * @param {Array<string>} [opts.types]  - типы объектов (STRUCTURE_* или TYPE_CREEPS)
+ * @param {string} [opts.id]            — specific _id of an object
+ * @param {Array<string>} [opts.types]  — types of objects (STRUCTURE_* or TYPE_CREEPS)
  * @returns {void}
  */
 function assertObjectNoDestroyed(report, opts = {}) {
@@ -153,8 +153,8 @@ function assertObjectNoDestroyed(report, opts = {}) {
 }
 
 /**
- * Проверяет, что здания бота НЕ разрушены. Специализированная обёртка над
- * `assertObjectNoDestroyed` с дефолтным набором типов "здания бота"
+ * Asserts that bot structures are NOT destroyed. Specialised wrapper around
+ * `assertObjectNoDestroyed` with a default set of "bot structure" types
  * (spawn, tower, extension, constructedWall, container, storage).
  *
  * @param {WorldReport} report
@@ -165,13 +165,13 @@ function assertNoBotObjectDestroyed(report, opts = {}) {
     assertObjectNoDestroyed(report, { types: opts.types || BOT_STRUCTURE_TYPES, id: opts.id });
 }
 
-// ─── Бой (атака / урон) ─────────────────────────────────────────────────────
+// ─── Combat (attack / damage) ────────────────────────────────────────────────
 
 /**
- * Проверяет, что объект с указанным `_id` инициировал `EVENT_ATTACK`.
+ * Asserts that the object with the given `_id` initiated `EVENT_ATTACK`.
  *
  * @param {WorldReport} report
- * @param {string} objectId              — _id атакующего объекта
+ * @param {string} objectId              — _id of the attacking object
  * @returns {void}
  */
 function assertObjectAttacking(report, objectId) {
@@ -182,10 +182,10 @@ function assertObjectAttacking(report, objectId) {
 }
 
 /**
- * Проверяет, что объект с указанным `_id` НЕ инициировал `EVENT_ATTACK`.
+ * Asserts that the object with the given `_id` did NOT initiate `EVENT_ATTACK`.
  *
  * @param {WorldReport} report
- * @param {string} objectId              — _id объекта
+ * @param {string} objectId              — _id of the object
  * @returns {void}
  */
 function assertObjectNotAttacking(report, objectId) {
@@ -196,10 +196,10 @@ function assertObjectNotAttacking(report, objectId) {
 }
 
 /**
- * Проверяет, что объект с указанным `_id` получил урон (`EVENT_ATTACK`).
+ * Asserts that the object with the given `_id` received damage (`EVENT_ATTACK`).
  *
  * @param {WorldReport} report
- * @param {string} targetId              — _id объекта-цели
+ * @param {string} targetId              — _id of the target object
  * @returns {void}
  */
 function assertObjectDamaged(report, targetId) {
@@ -210,10 +210,10 @@ function assertObjectDamaged(report, targetId) {
 }
 
 /**
- * Проверяет, что объект с указанным `_id` НЕ ПОЛУЧИЛ урон.
+ * Asserts that the object with the given `_id` did NOT receive damage.
  *
  * @param {WorldReport} report
- * @param {string} targetId              — _id объекта-цели
+ * @param {string} targetId              — _id of the target object
  * @returns {void}
  */
 function assertObjectNotDamaged(report, targetId) {
@@ -223,15 +223,15 @@ function assertObjectNotDamaged(report, targetId) {
     assert.ok(!damaged, `объект с id ${targetId} получил урон (не ожидалось)`);
 }
 
-// По id user ────────────────────────────
+// By user id ───────────────────────────
 
 /**
- * Проверяет, что объект (любой), принадлежащий боту, ПОЛУЧИЛ урон.
- * Удобно, когда известен не конкретный `_id`, а достаточно факта
- * "какой-то объект бота атакован".
+ * Asserts that any of the bot's objects received damage.
+ * Useful when the specific `_id` is unknown and just the fact
+ * "some bot object was attacked" suffices.
  *
  * @param {WorldReport} report
- * @param {string} botUserName  - Имя бота
+ * @param {string} botUserName  — Bot username
  * @returns {void}
  */
 function assertBotUserDamaged(report, botUserName) {
@@ -242,10 +242,10 @@ function assertBotUserDamaged(report, botUserName) {
 }
 
 /**
- * Проверяет, что НИ ОДИН объект бота не ПОЛУЧИЛ урон.
+ * Asserts that NONE of the bot's objects received damage.
  *
  * @param {WorldReport} report
- * @param {string} botUserName  - Имя бота
+ * @param {string} botUserName  — Bot username
  * @returns {void}
  */
 function assertBotUserNotDamaged(report, botUserName) {
@@ -262,10 +262,10 @@ function assertBotUserNotDamaged(report, botUserName) {
 }
 
 /**
- * Проверяет, что объект (любой), принадлежащий боту, НАНЕС урон.
+ * Asserts that any of the bot's objects dealt damage.
  *
  * @param {WorldReport} report
- * @param {string} botUserName  - Имя бота
+ * @param {string} botUserName  — Bot username
  * @returns {void}
  */
 function assertBotUserAttacking(report, botUserName) {
@@ -276,10 +276,10 @@ function assertBotUserAttacking(report, botUserName) {
 }
 
 /**
- * Проверяет, что объект (любой), принадлежащий боту, НЕ НАНЕС урон.
+ * Asserts that none of the bot's objects dealt damage.
  *
  * @param {WorldReport} report
- * @param {string} botUserName  - Имя бота
+ * @param {string} botUserName  — Bot username
  * @returns {void}
  */
 function assertBotUserNotAttacking(report, botUserName) {
@@ -294,23 +294,23 @@ function assertBotUserNotAttacking(report, botUserName) {
 }
 
 module.exports = {
-    // Жизнеспособность бота
+    // Bot health
     assertNoErrors,
     assertBotWorked,
-    // Прогресс колонии
+    // Colony progress
     assertRclAtLeast,
     assertRclBelow,
-    // Здания / объекты
+    // Structures / objects
     assertObjectDestroyed,
     assertObjectNoDestroyed,
     assertNoBotObjectDestroyed,
-    // -- Бой --
-    // По id объекта
+    // -- Combat --
+    // By object id
     assertObjectAttacking,
     assertObjectNotAttacking,
     assertObjectDamaged,
     assertObjectNotDamaged,
-    // По id user
+    // By user id
     assertBotUserDamaged,
     assertBotUserNotDamaged,
     assertBotUserAttacking,

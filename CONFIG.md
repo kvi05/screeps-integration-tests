@@ -1,59 +1,59 @@
-# Конфигурация
+# Configuration
 
-Фреймворк ищет файл `screeps-integration.config` с расширениями `.js`, `.json`, `.cjs`, `.mjs` в текущей директории. Путь можно задать явно: `--config <path>`.
+The framework looks for a `screeps-integration.config` file with extensions `.js`, `.json`, `.cjs`, `.mjs` in the current directory. The path can be set explicitly: `--config <path>`.
 
-## Приоритет настроек
+## Setting priority
 
-От низшего к высшему:
+From lowest to highest:
 
-1. Встроенные defaults
-2. Файл конфига
-3. Переменная окружения `BOT_DIST_DIR` → `distDir`
-4. CLI-аргументы
-5. Явные overrides из кода
+1. Built-in defaults
+2. Config file
+3. Environment variable `BOT_DIST_DIR` → `distDir`
+4. CLI arguments
+5. Explicit overrides from code
 
-Относительные пути резолвятся от директории файла конфига; если конфига нет — от `cwd`.
+Relative paths are resolved from the config file's directory; if there is no config — from `cwd`.
 
-## Схема
+## Schema
 
 ```js
 module.exports = {
-  distDir: './dist', // билд бота; fallback: BOT_DIST_DIR, затем ./dist
+  distDir: './dist', // bot build; fallback: BOT_DIST_DIR, then ./dist
   scenariosDir: './scenarios', // *.scenario.js
   fixturesDir: './fixtures', // *.memory.json
-  roomFixturesDir: null, // *.room.js; null = авто-загрузка выключена
-  profilesDir: './profiles', // callgrind-профили
-  cacheDir: './.cache', // кэш mockup-сервера
-  cacheKeep: 5, // сколько последних кэшей хранить
-  timeout: 30 * 60 * 1000, // таймаут на один сценарий, мс
-  jobs: Math.min(4, require('os').cpus().length), // параллельные сценарии
-  buildCommand: null, // запускается только при --build
-  require: [], // модули для require перед сценариями
-  env: {}, // env для worker-процессов
+  roomFixturesDir: null, // *.room.js; null = auto-load disabled
+  profilesDir: './profiles', // callgrind profiles
+  cacheDir: './.cache', // mockup server cache
+  cacheKeep: 5, // how many recent caches to keep
+  timeout: 30 * 60 * 1000, // timeout per scenario, ms
+  jobs: Math.min(4, require('os').cpus().length), // parallel scenarios
+  buildCommand: null, // only runs with --build
+  require: [], // modules to require before scenarios
+  env: {}, // env for worker processes
 };
 ```
 
-## CLI-флаги
+## CLI flags
 
-| Флаг                      | Описание                                                         |
-| ------------------------- | ---------------------------------------------------------------- |
-| `--config <path>`         | Путь к конфигу                                                   |
-| `--scenariosDir <dir>`    | Папка со сценариями                                              |
-| `--distDir <dir>`         | Папка с билдом бота                                              |
-| `--fixturesDir <dir>`     | Папка с memory fixtures                                          |
-| `--roomFixturesDir <dir>` | Папка с room fixtures                                            |
-| `--profilesDir <dir>`     | Папка для профилей                                               |
-| `--cacheDir <dir>`        | Папка для кэша сервера                                           |
-| `--only <name>`           | Запустить только один сценарий по имени файла без `.scenario.js` |
-| `--profiling`             | Включить callgrind-профилирование                                |
-| `--bail`                  | Остановиться при первой ошибке                                   |
-| `--timeout <int>`         | Таймаут на один сценарий, мс                                     |
-| `--jobs <int>`            | Число параллельных worker'ов                                     |
-| `--build`                 | Выполнить `buildCommand` перед запуском                          |
+| Flag                      | Description                                               |
+| ------------------------- | --------------------------------------------------------- |
+| `--config <path>`         | Path to config                                            |
+| `--scenariosDir <dir>`    | Directory with scenarios                                  |
+| `--distDir <dir>`         | Directory with bot build                                  |
+| `--fixturesDir <dir>`     | Directory with memory fixtures                            |
+| `--roomFixturesDir <dir>` | Directory with room fixtures                              |
+| `--profilesDir <dir>`     | Directory for profiles                                    |
+| `--cacheDir <dir>`        | Directory for server cache                                |
+| `--only <name>`           | Run only one scenario by file name without `.scenario.js` |
+| `--profiling`             | Enable callgrind profiling                                |
+| `--bail`                  | Stop on first error                                       |
+| `--timeout <int>`         | Timeout per scenario, ms                                  |
+| `--jobs <int>`            | Number of parallel workers                                |
+| `--build`                 | Execute `buildCommand` before running                     |
 
-Таймаут применяется к каждому сценарию в отдельности; общего таймаута нет.
+The timeout applies to each scenario individually; there is no global timeout.
 
-## Пример для реального бота
+## Example for a real bot
 
 ```js
 'use strict';
@@ -69,7 +69,7 @@ module.exports = {
 };
 ```
 
-## Пример self-test фреймворка
+## Example for framework self-test
 
 ```js
 'use strict';
@@ -83,4 +83,4 @@ module.exports = {
 };
 ```
 
-См. также [GETTING-STARTED.md](GETTING-STARTED.md) и [API-REFERENCE.md](API-REFERENCE.md).
+See also [GETTING-STARTED.md](GETTING-STARTED.md) and [API-REFERENCE.md](API-REFERENCE.md).

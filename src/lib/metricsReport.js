@@ -1,26 +1,26 @@
 'use strict';
 
 /**
- * Time-series метрики integration-теста: запись, чтение, агрегация, CSV-экспорт.
+ * Time-series metrics for an integration test: recording, reading, aggregation, CSV export.
  *
- * Не знает о ScreepsServer и не делает assert'ов. Принимает сырые данные
- * от `observers/metrics.js`.
+ * Knows nothing about ScreepsServer and does not make assertions. Takes raw data
+ * from `observers/metrics.js`.
  *
- * ## Entity-типы
+ * ## Entity types
  *
- * Метрики организованы по типам сущностей. Каждый тип хранит time-series
- * (`MetricSeries[]`) по идентификатору (имя комнаты, имя колонии, имя бота).
- * Исключение — `world` (единая плоская series, без разбивки по id).
+ * Metrics are organised by entity type. Each type stores time-series
+ * (`MetricSeries[]`) keyed by an identifier (room name, colony name, bot name).
+ * The exception is `world` (a single flat series, not split by id).
  *
- * | Entity-тип | Хранилище | Идентификатор |
+ * | Entity type | Storage | Identifier |
  * |---|---|---|
  * | `rooms` | `{[roomName]: MetricSeries}` | `roomName` (`'W0N1'`) |
  * | `colonies` | `{[colonyName]: MetricSeries}` | `colonyName` |
  * | `bots` | `{[botName]: MetricSeries}` | `botName` |
  * | `world` | `MetricSeries[]` | — |
  *
- * Набор полей в сэмплах различается в зависимости от entity-типа. Методы
- * работы одни и те же (series, latest, average, …).
+ * The set of fields in samples differs by entity type. The API methods
+ * are the same for all (series, latest, average, …).
  *
  * @module metricsReport
  */
@@ -51,9 +51,9 @@ class MetricsReport {
     // ── Static ───────────────────────────────────────────────────
 
     /**
-     * Разрешает настройки сбора метрик из `WorldOpts`.
+     * Resolves metrics collection settings from `WorldOpts`.
      *
-     * Флаги `colonies`, `bots`, `world` пока не поддерживаются.
+     * The `colonies`, `bots`, `world` flags are not yet supported.
      *
      * @param {WorldOpts} opts
      * @returns {{every:number, rooms:boolean, colonies:boolean, bots:boolean, world:boolean}}
@@ -74,13 +74,13 @@ class MetricsReport {
             unsupported.push('world');
         }
         if (unsupported.length > 0) {
-            throw new Error(`metrics.${unsupported.join(', ')} пока не поддерживаются в integration framework`);
+            throw new Error(`metrics.${unsupported.join(', ')} not yet supported in the integration framework`);
         }
 
         return { every, rooms, colonies: false, bots: false, world: false };
     }
 
-    // ── Геттеры (для доступа из world.report.metrics.rooms и toJSON) ──
+    // ── Getters (for access via world.report.metrics.rooms and toJSON) ──
 
     /** @returns {Object<string, MetricSeries>} */
     get rooms() {
@@ -102,19 +102,19 @@ class MetricsReport {
         return this._world;
     }
 
-    // ── Запись ──────────────────────────────────────────────────────
+    // ── Recording ────────────────────────────────────────────────────
 
     /**
-     * Добавляет сэмпл в time-series указанной сущности.
+     * Appends a sample to the time-series of the specified entity.
      *
-     * Не мутирует входной `values`: создаёт новый plain-объект `{ tick, ...values }`.
+     * Does not mutate the input `values`: creates a new plain object `{ tick, ...values }`.
      *
      * @param {MetricEntityType} entityType — `'rooms'` | `'colonies'` | `'bots'` | `'world'`
-     * @param {string} entityId — идентификатор сущности (для `'world'` игнорируется)
-     * @param {number} tick — номер тика (≥ 0, целое)
-     * @param {Object<string,*>} values — произвольные JSON-совместимые поля метрики
+     * @param {string} entityId — entity identifier (ignored for `'world'`)
+     * @param {number} tick — tick number (≥ 0, integer)
+     * @param {Object<string,*>} values — arbitrary JSON-compatible metric fields
      * @returns {MetricsSample}
-     * @throws {TypeError} при недопустимых параметрах
+     * @throws {TypeError} on invalid parameters
      */
     append(entityType, entityId, tick, values) {
         this._validateTick(tick);
@@ -127,7 +127,7 @@ class MetricsReport {
         } else {
             if (typeof entityId !== 'string' || entityId.length === 0) {
                 throw new TypeError(
-                    `entityId для '${entityType}' должен быть непустой строкой (получено ${String(entityId)})`,
+                    `entityId for '${entityType}' must be a non-empty string (got ${String(entityId)})`,
                 );
             }
             if (!this[`_${entityType}`][entityId]) {
@@ -139,14 +139,14 @@ class MetricsReport {
         return sample;
     }
 
-    // ── Чтение ──────────────────────────────────────────────────────
+    // ── Reading ─────────────────────────────────────────────────────
 
     /**
-     * Возвращает time-series сущности.
+     * Returns the time-series for an entity.
      *
      * @param {MetricEntityType} entityType
      * @param {string} entityId
-     * @returns {MetricSeries} — пустой массив, если сущность не найдена
+     * @returns {MetricSeries} — empty array if entity not found
      */
     series(entityType, entityId) {
         this._validateEntityType(entityType);
@@ -157,7 +157,7 @@ class MetricsReport {
     }
 
     /**
-     * Возвращает time-series комнаты.
+     * Returns the time-series for a room.
      * @param {string} roomName
      * @returns {MetricSeries}
      */
@@ -166,7 +166,7 @@ class MetricsReport {
     }
 
     /**
-     * Возвращает time-series колонии.
+     * Returns the time-series for a colony.
      * @param {string} colonyName
      * @returns {MetricSeries}
      */
@@ -175,7 +175,7 @@ class MetricsReport {
     }
 
     /**
-     * Возвращает time-series бота.
+     * Returns the time-series for a bot.
      * @param {string} botName
      * @returns {MetricSeries}
      */
@@ -184,7 +184,7 @@ class MetricsReport {
     }
 
     /**
-     * Возвращает последний сэмпл для сущности.
+     * Returns the latest sample for an entity.
      * @param {MetricEntityType} entityType
      * @param {string} entityId
      * @returns {MetricsSample|undefined}
@@ -210,8 +210,8 @@ class MetricsReport {
     }
 
     /**
-     * Возвращает сэмпл ровно на указанном тике.
-     * Не интерполирует и не выбирает ближайший.
+     * Returns the sample at the exact specified tick.
+     * Does not interpolate or pick the nearest.
      *
      * @param {MetricEntityType} entityType
      * @param {string} entityId
@@ -224,16 +224,16 @@ class MetricsReport {
     }
 
     /**
-     * Собирает снимок всех сущностей указанного типа на тике.
+     * Collects a snapshot of all entities of the given type at a tick.
      *
-     * @param {MetricEntityType} entityType — только map-тип (`rooms`/`colonies`/`bots`)
+     * @param {MetricEntityType} entityType — only map-type (`rooms`/`colonies`/`bots`)
      * @param {number} tick
      * @returns {Object<string, MetricsSample>}
      */
     snapshotAtTick(entityType, tick) {
         this._validateTick(tick);
         if (!MAP_ENTITY_TYPES.includes(entityType)) {
-            throw new TypeError(`snapshotAtTick: entityType должен быть map-типом (${MAP_ENTITY_TYPES.join(', ')})`);
+            throw new TypeError(`snapshotAtTick: entityType must be a map-type (${MAP_ENTITY_TYPES.join(', ')})`);
         }
 
         /** @type {Object<string, MetricsSample>} */
@@ -245,11 +245,11 @@ class MetricsReport {
         return snapshot;
     }
 
-    // ── Агрегация ───────────────────────────────────────────────────
+    // ── Aggregation ─────────────────────────────────────────────────
 
     /**
-     * Извлекает числовые `{ tick, value }` для указанного поля series.
-     * Пропускает отсутствующие, `null` и нечисловые значения.
+     * Extracts numeric `{ tick, value }` pairs for a given field from a series.
+     * Skips missing, `null`, and non-numeric values.
      *
      * @param {MetricSeries} series
      * @param {string} metricName
@@ -267,7 +267,7 @@ class MetricsReport {
     }
 
     /**
-     * Среднее значение метрики по series.
+     * Average value of a metric across a series.
      * @param {MetricSeries} series
      * @param {string} metricName
      * @returns {number|undefined}
@@ -281,7 +281,7 @@ class MetricsReport {
     }
 
     /**
-     * Сумма числовых значений метрики по series.
+     * Sum of numeric values of a metric across a series.
      * @param {MetricSeries} series
      * @param {string} metricName
      * @returns {number}
@@ -291,7 +291,7 @@ class MetricsReport {
     }
 
     /**
-     * Разница между последним и первым числовым значением метрики.
+     * Difference between the last and first numeric value of a metric.
      * @param {MetricSeries} series
      * @param {string} metricName
      * @returns {number|undefined}
@@ -303,7 +303,7 @@ class MetricsReport {
     }
 
     /**
-     * Среднее изменение метрики на один тик между первым и последним сэмплом.
+     * Average change of a metric per tick between the first and last sample.
      * @param {MetricSeries} series
      * @param {string} metricName
      * @returns {number|undefined}
@@ -316,14 +316,14 @@ class MetricsReport {
         return (vals[vals.length - 1].value - vals[0].value) / tickDelta;
     }
 
-    // ── Экспорт ─────────────────────────────────────────────────────
+    // ── Export ─────────────────────────────────────────────────────
 
     /**
-     * Превращает весь отчёт в плоские строки для CSV.
+     * Flattens the entire report into flat rows for CSV.
      *
      * @param {Object} [opts]
-     * @param {MetricEntityType[]} [opts.entityTypes] — ограничить набор entity-типов
-     * @param {string[]} [opts.metrics] — ограничить набор имён метрик
+     * @param {MetricEntityType[]} [opts.entityTypes] — restrict entity types
+     * @param {string[]} [opts.metrics] — restrict metric names
      * @returns {Array<{entityType:string, entityId:string, tick:number, metric:string, value:string|number|boolean}>}
      */
     flatten(opts = {}) {
@@ -358,9 +358,9 @@ class MetricsReport {
     }
 
     /**
-     * Возвращает массив CSV-строк (включая header).
+     * Returns an array of CSV strings (including header).
      *
-     * @param {Object} [opts] — те же опции, что у `flatten()`
+     * @param {Object} [opts] — same options as `flatten()`
      * @returns {string[]}
      */
     toCsvRows(opts = {}) {
@@ -374,20 +374,20 @@ class MetricsReport {
     }
 
     /**
-     * Возвращает CSV-строку.
+     * Returns a CSV string.
      *
-     * @param {Object} [opts] — те же опции, что у `flatten()`
+     * @param {Object} [opts] — same options as `flatten()`
      * @returns {string}
      */
     toCsv(opts = {}) {
         return this.toCsvRows(opts).join('\n');
     }
 
-    // ── Сериализация ────────────────────────────────────────────────
+    // ── Serialisation ──────────────────────────────────────────────
 
     /**
-     * Возвращает plain-объект для `JSON.stringify()`.
-     * Сохраняет только данные, без методов.
+     * Returns a plain object for `JSON.stringify()`.
+     * Preserves data only, no methods.
      *
      * @returns {{rooms: Object<string,MetricSeries>, colonies: Object<string,MetricSeries>, bots: Object<string,MetricSeries>, world: MetricSeries}}
      */
@@ -401,7 +401,7 @@ class MetricsReport {
     }
 
     /**
-     * Восстанавливает MetricsReport из plain-объекта (например, из JSON baseline).
+     * Restores a MetricsReport from a plain object (e.g., from a JSON baseline).
      *
      * @param {{rooms?: Object<string,MetricSeries>, colonies?: Object<string,MetricSeries>, bots?: Object<string,MetricSeries>, world?: MetricSeries}} json
      * @returns {MetricsReport}
@@ -415,21 +415,19 @@ class MetricsReport {
         return m;
     }
 
-    // ── Приватные ───────────────────────────────────────────────────
+    // ── Private ──────────────────────────────────────────────────
 
     /** @private */
     _validateTick(tick) {
         if (typeof tick !== 'number' || !Number.isFinite(tick) || !Number.isInteger(tick) || tick < 0) {
-            throw new TypeError(`tick должен быть целым числом ≥ 0 (получено ${String(tick)})`);
+            throw new TypeError(`tick must be an integer ≥ 0 (got ${String(tick)})`);
         }
     }
 
     /** @private */
     _validateEntityType(type) {
         if (!VALID_ENTITY_TYPES.includes(type)) {
-            throw new TypeError(
-                `entityType должен быть одним из ${VALID_ENTITY_TYPES.join(', ')} (получено '${String(type)}')`,
-            );
+            throw new TypeError(`entityType must be one of ${VALID_ENTITY_TYPES.join(', ')} (got '${String(type)}')`);
         }
     }
 
@@ -442,7 +440,7 @@ class MetricsReport {
             if (key === 'tick') continue;
             if (metricFilter && !metricFilter.includes(key)) continue;
 
-            // creepsByRole разворачиваем в отдельные метрики
+            // creepsByRole is expanded into separate metrics
             if (key === 'creepsByRole' && rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
                 for (const [role, count] of Object.entries(rawValue)) {
                     if (typeof count === 'number') {

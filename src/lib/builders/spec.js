@@ -1,15 +1,15 @@
 'use strict';
 
 /**
- * Чистые конструкторы spec-объектов.
- * Не зависят от БД и сервера — только создают plain objects с дефолтами.
+ * Pure spec-object constructors.
+ * Don't depend on DB or server — only create plain objects with defaults.
  *
- * Каждый объект может явно указать `roomName` — это используется materialize-слоем
- * для записи в БД. Если roomName не задан — materialize упадёт с ошибкой (никаких
- * скрытых дефолтов).
+ * Each object can explicitly specify `roomName` — used by the materialize layer
+ * for writing to the DB. If roomName is not set — materialize will throw an error
+ * (no hidden defaults).
  *
- * Игровые константы (типы структур, body parts, ресурсы) берутся из
- * `lib/constants/screepsConstants.js` — единого источника констант фреймворка.
+ * Game constants (structure types, body parts, resources) are taken from
+ * `lib/constants/screepsConstants.js` — the single source of framework constants.
  *
  * @module builders/spec
  */
@@ -67,7 +67,7 @@ const {
  * @property {string} [id]
  */
 
-// ─── Defaults по типам структур ─────────────────────────────────────────────
+// ─── Defaults by structure type ─────────────────────────────────────────────
 
 /** @type {Object<string, {store: Object, storeCapacityResource: Object, hits: number, hitsMax: number, notifyWhenAttacked?: boolean}>} */
 const STRUCTURE_DEFAULTS = {
@@ -141,11 +141,11 @@ const DEFAULT_INVADER_BODY = [
     { type: MOVE, hits: 150 },
 ];
 
-// ─── Spec-конструкторы ──────────────────────────────────────────────────────
+// ─── Spec constructors ──────────────────────────────────────────────────────
 
 /**
- * Создаёт каноническую спецификацию структуры.
- * Минимум: type + x + y. Остальное подставляется по типу.
+ * Creates a canonical structure spec.
+ * Minimum: type + x + y. The rest is filled by type.
  *
  * @param {StructureType} type
  * @param {number} x
@@ -157,17 +157,17 @@ function structure(type, x, y, overrides = {}) {
     const defaults = STRUCTURE_DEFAULTS[type] || {};
     const spec = { type, x, y };
 
-    // явная привязка к комнате
+    // explicit room binding
     if (overrides.roomName) {
         spec.roomName = overrides.roomName;
     }
 
-    // явное владение
+    // explicit ownership
     if (overrides.userId) {
         spec.userId = overrides.userId;
     }
 
-    // store/storeCapacityResource — мерж с дефолтами
+    // store/storeCapacityResource — merge with defaults
     if (overrides.store || defaults.store) {
         spec.store = { ...(defaults.store || {}), ...(overrides.store || {}) };
     }
@@ -188,7 +188,7 @@ function structure(type, x, y, overrides = {}) {
             overrides.notifyWhenAttacked !== undefined ? overrides.notifyWhenAttacked : defaults.notifyWhenAttacked;
     }
 
-    // опциональные поля
+    // optional fields
     if (overrides.id) {
         spec.id = overrides.id;
     }
@@ -203,7 +203,7 @@ function structure(type, x, y, overrides = {}) {
 }
 
 /**
- * Создаёт спецификацию spawn.
+ * Creates a spawn spec.
  *
  * @param {number} x
  * @param {number} y
@@ -231,7 +231,7 @@ function spawn(x, y, opts = {}) {
 }
 
 /**
- * Создаёт спецификацию tower.
+ * Creates a tower spec.
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, id?, userId?, energy?, energyCapacity?, hits? }
@@ -252,7 +252,7 @@ function tower(x, y, opts = {}) {
 }
 
 /**
- * Создаёт спецификацию extension.
+ * Creates an extension spec.
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, id?, userId?, energy?, energyCapacity? }
@@ -269,7 +269,7 @@ function extension(x, y, opts = {}) {
 }
 
 /**
- * Создаёт спецификацию container.
+ * Creates a container spec.
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
@@ -290,7 +290,7 @@ function container(x, y, opts = {}) {
 }
 
 /**
- * Создаёт спецификацию storage.
+ * Creates a storage spec.
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity? }
@@ -307,7 +307,7 @@ function storage(x, y, opts = {}) {
 }
 
 /**
- * Создаёт спецификацию road.
+ * Creates a road spec.
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, id?, userId? }
@@ -317,7 +317,7 @@ function road(x, y, opts = {}) {
 }
 
 /**
- * Создаёт спецификацию wall (constructedWall).
+ * Creates a wall spec (constructedWall).
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, id?, hits? }
@@ -331,7 +331,7 @@ function wall(x, y, opts = {}) {
 }
 
 /**
- * Создаёт спецификацию rampart.
+ * Creates a rampart spec.
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, id?, userId?, hits? }
@@ -346,7 +346,7 @@ function rampart(x, y, opts = {}) {
 }
 
 /**
- * Создаёт каноническую спецификацию source.
+ * Creates a canonical source spec.
 
  * @param {number} x
  * @param {number} y
@@ -371,9 +371,9 @@ function source(x, y, opts = {}) {
 }
 
 /**
- * Создаёт каноническую спецификацию controller.
+ * Creates a canonical controller spec.
  *
- * Если `x`/`y` не заданы — используется (35, 35).
+ * If `x`/`y` are not set — defaults to (35, 35).
  *
  * @param {Object} [opts] — { x?, y?, id?, roomName?, level?, progress?, userId?, safeMode?, safeModeAvailable?, isPowerEnabled?, downgradeTime? }
  * @returns {ControllerSpec}
@@ -402,7 +402,7 @@ function controller(opts = {}) {
 }
 
 /**
- * Создаёт каноническую спецификацию крипа.
+ * Creates a canonical creep spec.
  *
  * @param {number} x
  * @param {number} y
@@ -431,7 +431,7 @@ function creep(x, y, opts = {}) {
 }
 
 /**
- * Создаёт каноническую спецификацию invader.
+ * Creates a canonical invader spec.
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, name?, body? }
@@ -448,7 +448,7 @@ function invader(x, y, opts = {}) {
 }
 
 /**
- * Создаёт спецификацию dummy target крипа (для defense тестов).
+ * Creates a dummy target creep spec (for defense tests).
  * @param {number} x
  * @param {number} y
  * @param {Object} [opts] — { roomName?, name? }

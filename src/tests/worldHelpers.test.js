@@ -2,7 +2,7 @@
 
 const { createWorldHelpers } = require('../lib/worldHelpers');
 
-// Мокаем materializeStructure, чтобы не трогать реальную БД.
+// Mock materializeStructure to avoid touching the real DB.
 jest.mock('../lib/builders/materialize', () => ({
     materializeStructure: jest.fn(() => Promise.resolve('mocked_structure_id')),
 }));
@@ -72,7 +72,7 @@ describe('createWorldHelpers', () => {
 
     const defaultBotUserId = 'bot_123';
 
-    // Стартовые объекты БД
+    // Starting DB objects
     const controller = {
         _id: 'ctrl_1',
         room: 'W0N1',
@@ -120,111 +120,111 @@ describe('createWorldHelpers', () => {
     // ─── setTicksToDowngrade ────────────────────────────────────────────────
 
     describe('setTicksToDowngrade', () => {
-        it('устанавливает downgradeTime = gameTime + ticks', async () => {
+        it('sets downgradeTime = gameTime + ticks', async () => {
             await helpers.setTicksToDowngrade('W0N1', 4000);
             const ctrl = adapter.db['rooms.objects'].findOne({ _id: 'ctrl_1' });
             await expect(ctrl).resolves.toMatchObject({ downgradeTime: 14000 });
         });
 
-        it('при null сбрасывает downgradeTime в null', async () => {
+        it('with null resets downgradeTime to null', async () => {
             await helpers.setTicksToDowngrade('W0N1', null);
             const ctrl = adapter.db['rooms.objects'].findOne({ _id: 'ctrl_1' });
             await expect(ctrl).resolves.toMatchObject({ downgradeTime: null });
         });
 
-        it('бросает ошибку если контроллер не найден', async () => {
+        it('throws if controller is not found', async () => {
             await expect(helpers.setTicksToDowngrade('W0N2', 1000)).rejects.toThrow(
-                'контроллер в комнате "W0N2" не найден',
+                'controller in room "W0N2" not found',
             );
         });
 
-        it('бросает ошибку при отрицательном ticks', async () => {
-            await expect(helpers.setTicksToDowngrade('W0N1', -1)).rejects.toThrow('ticks должен быть >= 0 или null');
+        it('throws on negative ticks', async () => {
+            await expect(helpers.setTicksToDowngrade('W0N1', -1)).rejects.toThrow('ticks must be >= 0 or null');
         });
     });
 
     // ─── setHitsStructure ──────────────────────────────────────────────────
 
     describe('setHitsStructure', () => {
-        it('устанавливает hits (строка _id)', async () => {
+        it('sets hits (string _id)', async () => {
             await helpers.setHitsStructure('wall_1', 500000);
             const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(500000);
         });
 
-        it('clamp по hitsMax', async () => {
+        it('clamps to hitsMax', async () => {
             await helpers.setHitsStructure('tower_1', 5000);
             const obj = await adapter.db['rooms.objects'].findOne({ _id: 'tower_1' });
             expect(obj.hits).toBe(3000);
         });
 
-        it('принимает объект с полем _id', async () => {
+        it('accepts object with _id field', async () => {
             await helpers.setHitsStructure({ _id: 'wall_1' }, 777);
             const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(777);
         });
 
-        it('принимает объект с полем id', async () => {
+        it('accepts object with id field', async () => {
             await helpers.setHitsStructure({ id: 'wall_1' }, 888);
             const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(888);
         });
 
-        it('бросает ошибку если объект не найден', async () => {
+        it('throws if object is not found', async () => {
             await expect(helpers.setHitsStructure('nonexistent', 100)).rejects.toThrow(
-                'объект с _id "nonexistent" не найден',
+                'object with _id "nonexistent" not found',
             );
         });
 
-        it('бросает ошибку если hits отрицательный', async () => {
-            await expect(helpers.setHitsStructure('wall_1', -10)).rejects.toThrow('hits должен быть >= 0');
+        it('throws if hits is negative', async () => {
+            await expect(helpers.setHitsStructure('wall_1', -10)).rejects.toThrow('hits must be >= 0');
         });
     });
 
     // ─── damageHitsStructure ────────────────────────────────────────────────
 
     describe('damageHitsStructure', () => {
-        it('вычитает amount из hits', async () => {
+        it('subtracts amount from hits', async () => {
             await helpers.damageHitsStructure('wall_1', 500);
             const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(99500);
         });
 
-        it('не опускается ниже 0', async () => {
+        it('does not go below 0', async () => {
             await helpers.damageHitsStructure('wall_1', 999999);
             const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj.hits).toBe(0);
         });
 
-        it('бросает ошибку если объект не найден', async () => {
-            await expect(helpers.damageHitsStructure('nonexistent', 10)).rejects.toThrow('не найден');
+        it('throws if object is not found', async () => {
+            await expect(helpers.damageHitsStructure('nonexistent', 10)).rejects.toThrow('not found');
         });
     });
 
     // ─── deleteStructure ────────────────────────────────────────────────────
 
     describe('deleteStructure', () => {
-        it('удаляет объект из БД', async () => {
+        it('removes object from DB', async () => {
             await helpers.deleteStructure('wall_1');
             const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj).toBeNull();
         });
 
-        it('принимает объект с полем id', async () => {
+        it('accepts object with id field', async () => {
             await helpers.deleteStructure({ id: 'wall_1' });
             const obj = await adapter.db['rooms.objects'].findOne({ _id: 'wall_1' });
             expect(obj).toBeNull();
         });
 
-        it('бросает ошибку если объект не найден', async () => {
-            await expect(helpers.deleteStructure('nonexistent')).rejects.toThrow('не найден');
+        it('throws if object is not found', async () => {
+            await expect(helpers.deleteStructure('nonexistent')).rejects.toThrow('not found');
         });
     });
 
     // ─── createStructure ─────────────────────────────────────────────────────
 
     describe('createStructure', () => {
-        it('вызывает materializeStructure с spec и defaultBotUserId', async () => {
+        it('calls materializeStructure with spec and defaultBotUserId', async () => {
             const { materializeStructure } = require('../lib/builders/materialize');
             const spec = { type: 'tower', x: 25, y: 25, roomName: 'W0N1' };
             const id = await helpers.createStructure(spec);
@@ -236,7 +236,7 @@ describe('createWorldHelpers', () => {
             );
         });
 
-        it('не переопределяет явный userId', async () => {
+        it('does not override an explicit userId', async () => {
             const { materializeStructure } = require('../lib/builders/materialize');
             const spec = { type: 'tower', x: 30, y: 30, roomName: 'W0N1', userId: 'custom' };
             await helpers.createStructure(spec);
@@ -247,9 +247,9 @@ describe('createWorldHelpers', () => {
             );
         });
 
-        it('бросает ошибку если roomName не указан', async () => {
+        it('throws if roomName is not specified', async () => {
             await expect(helpers.createStructure({ type: 'wall', x: 5, y: 5 })).rejects.toThrow(
-                'createStructure: spec.roomName обязателен',
+                'spec.roomName is required',
             );
         });
     });
@@ -257,14 +257,14 @@ describe('createWorldHelpers', () => {
     // ─── find / findOne / findIds / findId ────────────────────────────────
 
     describe('find', () => {
-        it('возвращает массив объектов с id (alias _id)', async () => {
+        it('returns array of objects with id (alias _id)', async () => {
             const docs = await helpers.find({ room: 'W0N1' });
             expect(docs.length).toBeGreaterThanOrEqual(4);
             expect(docs[0]).toHaveProperty('id');
             expect(docs[0].id).toBe(docs[0]._id);
         });
 
-        it('мапит userId → user', async () => {
+        it('maps userId → user', async () => {
             const docs = await helpers.find({ userId: defaultBotUserId });
             expect(docs.length).toBe(1);
             expect(docs[0]._id).toBe('tower_1');
@@ -272,58 +272,58 @@ describe('createWorldHelpers', () => {
     });
 
     describe('findOne', () => {
-        it('возвращает первый подходящий объект', async () => {
+        it('returns the first matching object', async () => {
             const doc = await helpers.findOne({ room: 'W0N1', type: 'tower' });
             expect(doc).not.toBeNull();
             expect(doc._id).toBe('tower_1');
             expect(doc.id).toBe('tower_1');
         });
 
-        it('с опцией index возвращает N-й объект', async () => {
+        it('with index option returns the N-th object', async () => {
             const doc = await helpers.findOne({ room: 'W0N1', type: 'source' }, { index: 0 });
             expect(doc._id).toBe('src_1');
         });
 
-        it('index вне границ возвращает null', async () => {
+        it('index out of bounds returns null', async () => {
             const doc = await helpers.findOne({ room: 'W0N1', type: 'source' }, { index: 10 });
             expect(doc).toBeNull();
         });
 
-        it('возвращает null если ничего не найдено', async () => {
+        it('returns null if nothing is found', async () => {
             const doc = await helpers.findOne({ room: 'W0N1', type: 'invalid' });
             expect(doc).toBeNull();
         });
     });
 
     describe('findIds', () => {
-        it('возвращает массив _id', async () => {
+        it('returns array of _id', async () => {
             const ids = await helpers.findIds({ room: 'W0N1', type: 'source' });
             expect(ids).toEqual(['src_1']);
         });
 
-        it('мапит id → _id', async () => {
+        it('maps id → _id', async () => {
             const ids = await helpers.findIds({ id: 'tower_1' });
             expect(ids).toEqual(['tower_1']);
         });
     });
 
     describe('findId', () => {
-        it('возвращает _id первого подходящего объекта', async () => {
+        it('returns _id of the first matching object', async () => {
             const id = await helpers.findId({ room: 'W0N1', type: 'tower' });
             expect(id).toBe('tower_1');
         });
 
-        it('с опцией index возвращает N-й _id', async () => {
+        it('with index option returns the N-th _id', async () => {
             const id = await helpers.findId({ room: 'W0N1', type: 'source' }, { index: 0 });
             expect(id).toBe('src_1');
         });
 
-        it('index вне границ возвращает null', async () => {
+        it('index out of bounds returns null', async () => {
             const id = await helpers.findId({ room: 'W0N1' }, { index: 100 });
             expect(id).toBeNull();
         });
 
-        it('возвращает null если ничего не найдено', async () => {
+        it('returns null if nothing is found', async () => {
             const id = await helpers.findId({ room: 'W0N1', type: 'invalid' });
             expect(id).toBeNull();
         });

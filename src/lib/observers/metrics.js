@@ -17,7 +17,7 @@ const {
  */
 
 /**
- * Собирает метрики состояния комнаты.
+ * Collects room state metrics.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -63,7 +63,7 @@ async function collectMetrics(adapter, roomName) {
 }
 
 /**
- * Группирует крипов по роли из имени (`role_X` → `X`).
+ * Groups creeps by role from name (`role_X` → `X`).
  *
  * @param {Array<{name?: string}>} creeps
  * @returns {Object<string, number>}
@@ -81,7 +81,7 @@ function groupCreepsByRole(creeps) {
 }
 
 /**
- * Добавляет сэмпл метрик комнаты в MetricsReport.
+ * Adds a room metrics sample to MetricsReport.
  *
  * @param {import('../types').MetricsReport} metricsReport
  * @param {string} roomName

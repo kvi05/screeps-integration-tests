@@ -1,34 +1,34 @@
 # Getting Started
 
-От установки пакета до собственного сценария.
+From package installation to your own scenario.
 
-## Содержание
+## Table of Contents
 
-- [Установка и первый запуск](#установка-и-первый-запуск)
-- [Запуск готовых сценариев](#запуск-готовых-сценариев)
-- [Написание сценария](#написание-сценария)
-- [Что дальше](#что-дальше)
+- [Installation and first run](#installation-and-first-run)
+- [Running existing scenarios](#running-existing-scenarios)
+- [Writing a scenario](#writing-a-scenario)
+- [What's next](#whats-next)
 
-## Установка и первый запуск
+## Installation and first run
 
-### 1. Требования
+### 1. Requirements
 
 - Node.js >= 22.12.0
 - npm >= 10.8.2
-- Скомпилированный бот: папка с модулями Screeps (обычно `dist/`)
+- Compiled bot: a folder with Screeps modules (usually `dist/`)
 
-### 2. Установка пакета
+### 2. Install the package
 
-В репозитории бота:
+In the bot's repository:
 
 ```bash
 npm install --save-dev screeps-integration-tests
 ```
 
-### 3. (Опционально) Создайте конфиг
+### 3. (Optional) Create a config
 
-Если пути по умолчанию не подходят, создайте
-`screeps-integration.config.js` в корне:
+If the default paths don't work for you, create
+`screeps-integration.config.js` in the root:
 
 ```js
 'use strict';
@@ -40,24 +40,24 @@ module.exports = {
 };
 ```
 
-Без конфига используются те же значения. Полная схема — в
+Without a config, the same defaults are used. Full schema — in
 [CONFIG.md](./CONFIG.md).
 
-### 4. Соберите бота
+### 4. Build the bot
 
 ```bash
 npm run build
 ```
 
-Или запустите с флагом `--build` (если задан `buildCommand` в конфиге):
+Or run with the `--build` flag (if `buildCommand` is set in the config):
 
 ```bash
 npx screeps-integration-tests --build
 ```
 
-### 5. Проверка работоспособности
+### 5. Sanity check
 
-Скопируйте smoke-сценарий из примеров пакета:
+Copy the smoke scenario from the package examples:
 
 ```bash
 mkdir -p scenarios
@@ -65,57 +65,57 @@ cp node_modules/screeps-integration-tests/examples/scenarios/smoke-empty.scenari
    scenarios/smoke-empty.scenario.js
 ```
 
-Запустите:
+Run it:
 
 ```bash
 npx screeps-integration-tests --only smoke-empty
 ```
 
-Если видите `PASS: smoke-empty` — фреймворк готов.
+If you see `PASS: smoke-empty` — the framework is ready.
 
-## Запуск готовых сценариев
+## Running existing scenarios
 
-Запуск всех сценариев:
+Run all scenarios:
 
 ```bash
 npx screeps-integration-tests
 ```
 
-Запуск одного:
+Run a single one:
 
 ```bash
 npx screeps-integration-tests --only smoke-empty
 ```
 
-Имя — это имя файла без `.scenario.js`.
+The name is the file name without `.scenario.js`.
 
-Основные флаги: `--only`, `--profiling`, `--bail`, `--timeout`, `--jobs`,
-`--build`. Полный список и значения по умолчанию — в
+Main flags: `--only`, `--profiling`, `--bail`, `--timeout`, `--jobs`,
+`--build`. Full list and defaults — in
 [CONFIG.md](./CONFIG.md).
 
-> **Профилирование:** флаг `--profiling` требует, чтобы в проекте бота был
-> установлен `screeps-profiler` и `loop` обёрнут через
-> `profiler.wrap(module.exports.loop)`. Иначе данные не соберутся. см. [Profiler](https://github.com/screepers/screeps-profiler)
+> **Profiling:** the `--profiling` flag requires that the bot project has
+> `screeps-profiler` installed and `loop` is wrapped via
+> `profiler.wrap(module.exports.loop)`. Otherwise data won't be collected. See [Profiler](https://github.com/screepers/screeps-profiler)
 
-## Написание сценария
+## Writing a scenario
 
-### Шаг 1. Скопируйте шаблон
+### Step 1. Copy the template
 
 ```bash
 cp node_modules/screeps-integration-tests/examples/scenarios/_template.js \
    scenarios/my-test.scenario.js
 ```
 
-Шаблон уже содержит `createWorld → run → assertBotWorked` и
+The template already contains `createWorld → run → assertBotWorked` and
 `try/finally world.dispose()`.
 
-### Шаг 2. Заполните сценарий
+### Step 2. Fill in the scenario
 
-Минимальный сценарий состоит из трёх частей:
+A minimal scenario consists of three parts:
 
-1. **Создание мира** через `createWorld()`
-2. **Действия** — `world.run()`, `world.tick(n)`, `world.spawn(...)`
-3. **Assertions** — `assertBotWorked`, `assertRclAtLeast` и др.
+1. **Creating the world** via `createWorld()`
+2. **Actions** — `world.run()`, `world.tick(n)`, `world.spawn(...)`
+3. **Assertions** — `assertBotWorked`, `assertRclAtLeast`, etc.
 
 ```javascript
 'use strict';
@@ -155,19 +155,19 @@ async function run(opts = {}) {
 module.exports = { run };
 ```
 
-> `opts` пробрасывается из CLI, обычно содержит `profiling`.
+> `opts` is passed from the CLI, usually contains `profiling`.
 
-### Шаг 3. Запустите
+### Step 3. Run it
 
 ```bash
 npx screeps-integration-tests --only my-test
 ```
 
-## Что дальше
+## What's next
 
-- **Настроить конфиг** → [CONFIG.md](./CONFIG.md)
-- **Переиспользовать комнату** → [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)
-- **Несколько комнат / ботов** → [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)
-- **Полный API** → [API-REFERENCE.md](./API-REFERENCE.md)
-- **Готовые рецепты** → [EXAMPLES.md](./EXAMPLES.md)
-- **Архитектура фреймворка** → [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md)
+- **Configure the framework** → [CONFIG.md](./CONFIG.md)
+- **Reuse a room** → [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)
+- **Multiple rooms / bots** → [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)
+- **Full API** → [API-REFERENCE.md](./API-REFERENCE.md)
+- **Ready-made recipes** → [EXAMPLES.md](./EXAMPLES.md)
+- **Framework architecture** → [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md)

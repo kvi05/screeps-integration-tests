@@ -18,113 +18,113 @@ describe('cli parseArgs', () => {
     };
 
     describe('--help', () => {
-        it('бросает HelpRequested при --help', () => {
+        it('throws HelpRequested on --help', () => {
             expect(() => parseArgs(schema, ['--help'])).toThrow(HelpRequested);
         });
 
-        it('бросает HelpRequested при -h', () => {
+        it('throws HelpRequested on -h', () => {
             expect(() => parseArgs(schema, ['-h'])).toThrow(HelpRequested);
         });
     });
 
     describe('bool', () => {
-        it('--force устанавливает true', () => {
+        it('--force sets true', () => {
             const { options } = parseArgs(schema, ['testname', '--force']);
             expect(options.force).toBe(true);
         });
 
-        it('без --force остаётся default', () => {
+        it('without --force stays default', () => {
             const { options } = parseArgs(schema, ['testname']);
             expect(options.force).toBe(false);
         });
     });
 
     describe('int', () => {
-        it('парсит --rcl 5', () => {
+        it('parses --rcl 5', () => {
             const { options } = parseArgs(schema, ['testname', '--rcl', '5']);
             expect(options.rcl).toBe(5);
         });
 
-        it('использует default если не указан', () => {
+        it('uses default if not specified', () => {
             const { options } = parseArgs(schema, ['testname']);
             expect(options.rcl).toBe(3);
         });
 
-        it('бросает при значении < min', () => {
-            expect(() => parseArgs(schema, ['testname', '--rcl', '0'])).toThrow(/< минимального/);
+        it('throws when value < min', () => {
+            expect(() => parseArgs(schema, ['testname', '--rcl', '0'])).toThrow(/< min/);
         });
 
-        it('бросает при значении > max', () => {
-            expect(() => parseArgs(schema, ['testname', '--rcl', '9'])).toThrow(/> максимального/);
+        it('throws when value > max', () => {
+            expect(() => parseArgs(schema, ['testname', '--rcl', '9'])).toThrow(/> max/);
         });
 
-        it('бросает при невалидном int', () => {
-            expect(() => parseArgs(schema, ['testname', '--rcl', 'abc'])).toThrow(/ожидалось число/);
+        it('throws on invalid int', () => {
+            expect(() => parseArgs(schema, ['testname', '--rcl', 'abc'])).toThrow(/expected a number/);
         });
     });
 
     describe('float', () => {
-        it('парсит --ratio 1.5', () => {
+        it('parses --ratio 1.5', () => {
             const { options } = parseArgs(schema, ['testname', '--ratio', '1.5']);
             expect(options.ratio).toBe(1.5);
         });
     });
 
     describe('string', () => {
-        it('парсит --label hello', () => {
+        it('parses --label hello', () => {
             const { options } = parseArgs(schema, ['testname', '--label', 'hello']);
             expect(options.label).toBe('hello');
         });
     });
 
     describe('enum', () => {
-        it('парсит --mode slow', () => {
+        it('parses --mode slow', () => {
             const { options } = parseArgs(schema, ['testname', '--mode', 'slow']);
             expect(options.mode).toBe('slow');
         });
 
-        it('бросает при недопустимом значении', () => {
-            expect(() => parseArgs(schema, ['testname', '--mode', 'medium'])).toThrow(/не входит/);
+        it('throws on invalid value', () => {
+            expect(() => parseArgs(schema, ['testname', '--mode', 'medium'])).toThrow(/not a valid value/);
         });
     });
 
     describe('json', () => {
-        it('парсит --data \'{"key":"value"}\'', () => {
+        it('parses --data \'{"key":"value"}\'', () => {
             const { options } = parseArgs(schema, ['testname', '--data', '{"key":"value"}']);
             expect(options.data).toEqual({ key: 'value' });
         });
 
-        it('бросает при невалидном JSON', () => {
-            expect(() => parseArgs(schema, ['testname', '--data', '{bad}'])).toThrow(/невалидный JSON/);
+        it('throws on invalid JSON', () => {
+            expect(() => parseArgs(schema, ['testname', '--data', '{bad}'])).toThrow(/invalid JSON/);
         });
     });
 
     describe('--key=value', () => {
-        it('парсит --rcl=7', () => {
+        it('parses --rcl=7', () => {
             const { options } = parseArgs(schema, ['testname', '--rcl=7']);
             expect(options.rcl).toBe(7);
         });
 
-        it('bool с =', () => {
+        it('bool with =', () => {
             const { options } = parseArgs(schema, ['testname', '--force=true']);
-            // bool тип игнорирует = и устанавливает true
+            // bool type ignores = and sets true
             expect(options.force).toBe(true);
         });
     });
 
     describe('positional', () => {
-        it('парсит позиционный аргумент', () => {
+        it('parses positional argument', () => {
             const { positional } = parseArgs(schema, ['myname']);
             expect(positional.name).toBe('myname');
         });
 
-        it('бросает при отсутствии обязательного positional', () => {
-            expect(() => parseArgs(schema, [])).toThrow(/обязателен/);
+        it('throws when required positional is missing', () => {
+            expect(() => parseArgs(schema, [])).toThrow(/is required/);
         });
     });
 
     describe('-- separator', () => {
-        it('всё после -- считается positional', () => {
+        it('everything after -- is treated as positional', () => {
             const schema2 = {
                 positional: [
                     { name: 'a', required: true },
@@ -140,19 +140,19 @@ describe('cli parseArgs', () => {
     });
 
     describe('unknown option', () => {
-        it('бросает при неизвестной опции', () => {
-            expect(() => parseArgs(schema, ['testname', '--unknown'])).toThrow(/Неизвестная опция/);
+        it('throws on unknown option', () => {
+            expect(() => parseArgs(schema, ['testname', '--unknown'])).toThrow(/Unknown option/);
         });
     });
 
     describe('missing value', () => {
-        it('бросает если значение не указано', () => {
-            expect(() => parseArgs(schema, ['testname', '--rcl'])).toThrow(/требует значение/);
+        it('throws if value is missing', () => {
+            expect(() => parseArgs(schema, ['testname', '--rcl'])).toThrow(/requires a value/);
         });
     });
 
     describe('custom cli name', () => {
-        it('использует opt.cli для маппинга', () => {
+        it('uses opt.cli for mapping', () => {
             const schema2 = {
                 options: {
                     myOpt: { type: 'string', cli: '--my-opt' },
@@ -165,7 +165,7 @@ describe('cli parseArgs', () => {
 });
 
 describe('generateHelp', () => {
-    it('генерирует текст помощи с title', () => {
+    it('generates help text with title', () => {
         const help = generateHelp({
             title: 'My Tool',
             usage: 'my-tool <name>',
@@ -178,7 +178,7 @@ describe('generateHelp', () => {
         expect(help).toContain('be verbose');
     });
 
-    it('не добавляет секции если их нет', () => {
+    it('does not add sections if they are absent', () => {
         const help = generateHelp({});
         expect(help).toBe('');
     });

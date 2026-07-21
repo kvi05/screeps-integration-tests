@@ -218,8 +218,8 @@ async function run(opts = {}) {
                     body: [{ type: 'move', hits: 100 }],
                     userId: botId,
                 }),
-                /roomName обязателен/,
-                'G: spawn без roomName бросает ошибку',
+                /roomName is required/,
+                'G: spawn without roomName throws an error',
             );
 
             // Test I: spawn без body → ошибка
@@ -231,8 +231,8 @@ async function run(opts = {}) {
                     name: 'NoBody_Creep',
                     userId: botId,
                 }),
-                /body обязателен/,
-                'I: spawn без body бросает ошибку',
+                /body is required/,
+                'I: spawn without body throws an error',
             );
 
             await world.run();
@@ -415,7 +415,7 @@ async function run(opts = {}) {
             assert.strictEqual(world.botId(1), world.botId(1), 'T: botId(1) = _id второго бота');
 
             // Test U: botId('unknown') → throws
-            assert.throws(() => world.botId('unknown_username'), /не найден/, 'U: botId("unknown") бросает ошибку');
+            assert.throws(() => world.botId('unknown_username'), /not found/, 'U: botId("unknown") throws an error');
 
             await world.run();
             assertNoErrors(world.report);
@@ -450,12 +450,12 @@ async function run(opts = {}) {
                     name: 'NoBot_Creep_H',
                     body: [{ type: 'move', hits: 100 }],
                 }),
-                /userId обязателен/,
-                'H: spawn без userId и без ботов бросает ошибку',
+                /userId is required/,
+                'H: spawn without userId and no bots throws an error',
             );
 
             // Test V: botId() без ботов → throws
-            assert.throws(() => world.botId(), /defaultBot/, 'V: botId() без ботов бросает ошибку');
+            assert.throws(() => world.botId(), /defaultBot/, 'V: botId() without bots throws an error');
 
             await world.run();
             assertNoErrors(world.report);

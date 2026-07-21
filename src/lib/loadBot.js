@@ -8,9 +8,9 @@ const path = require('path');
  */
 
 /**
- * Собирает dist/*.js в map модулей для addBot({ modules }).
- * Ключ — имя файла без .js, значение — содержимое файла.
- * @param {string} distDir — путь к dist/ (результат build.js)
+ * Collects dist/*.js files into a module map for addBot({ modules }).
+ * Key is the filename without .js, value is the file contents.
+ * @param {string} distDir — path to dist/ (result of build.js)
  * @param {LoadBotOpts} [opts]
  * @returns {Object<string,string>}
  */
@@ -22,24 +22,25 @@ function loadBotModules(distDir, opts = {}) {
             const name = entry.name.replace(/\.js$/, '');
             let code = fs.readFileSync(path.join(distDir, entry.name), 'utf8');
 
-            // Инжект профайлера в main.js (обёртка loop).
-            // Профайлер работает в бесконечном режиме (background): disableTick=false,
-            // поэтому завершение по таймеру недостижимо. Итоговый экспорт output()/callgrind()
-            // управляется харнесом через флаг Memory.__profileFinalize (см. world.exportProfiles).
+            // Profiler injection into main.js (loop wrapper).
+            // Profiler runs in infinite (background) mode: disableTick=false,
+            // so timer-based termination is not reachable. The final output()/callgrind()
+            // export is controlled by the harness via the Memory.__profileFinalize flag
+            // (see world.exportProfiles).
             //
-            // Порядок внутри tick ВАЖЕН: __origLoop (оригинальный loop бота) вызывает
-            // profiler.wrap() → setupProfiler(), который СОЗДАЁТ Game.profiler. Поэтому
-            // Game.profiler.background() вызывается ПОСЛЕ __origLoop, иначе Game.profiler
-            // ещё не существует в этом тике.
+            // Tick ordering MATTERS: __origLoop (the bot's original loop) calls
+            // profiler.wrap() → setupProfiler(), which CREATES Game.profiler. Therefore
+            // Game.profiler.background() must be called AFTER __origLoop, otherwise
+            // Game.profiler doesn't exist yet on that tick.
             //
-            // Поток:
-            //   tick 0 — __origLoop → profiler.wrap → setupProfiler → Game.profiler создан;
-            //   tick 1 — __origLoop (сбор данных), затем Game.profiler.background() →
-            //     создаётся Memory.profiler с enabledTick = Game.time + 1;
-            //   tick 2+ — __origLoop (профайлер собирает данные через Profiler.endTick);
-            //   финализационный тик — обёртка видит __profileFinalize, экспортирует
-            //     output()/callgrind() в Memory и НЕ вызывает __origLoop, чтобы не
-            //     искажать статистику лишним тиком работы бота.
+            // Flow:
+            //   tick 0 — __origLoop → profiler.wrap → setupProfiler → Game.profiler created;
+            //   tick 1 — __origLoop (data collection), then Game.profiler.background() →
+            //     creates Memory.profiler with enabledTick = Game.time + 1;
+            //   tick 2+ — __origLoop (profiler collects data via Profiler.endTick);
+            //   finalisation tick — wrapper sees __profileFinalize, exports
+            //     output()/callgrind() to Memory and does NOT call __origLoop so as not
+            //     to skew statistics with an extra bot tick.
             if (opts.profiling && name === 'main') {
                 code += `
 const __origLoop = module.exports.loop;

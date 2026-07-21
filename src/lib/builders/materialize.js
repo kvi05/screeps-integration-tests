@@ -1,29 +1,28 @@
 'use strict';
 
 /**
- * Materialize: превращает канонические spec-объекты в реальные документы БД.
+ * Materialize: converts canonical spec objects into actual DB documents.
  *
- * Слой, который знает о DB shape (`rooms.objects`, `users.code`).
- * Ни сценарии, ни normalize не должны обращаться к БД напрямую.
+ * The layer that knows about DB shape (`rooms.objects`, `users.code`).
+ * Neither scenarios nor normalize should access the DB directly.
  *
  * ## ID policy
  *
- * `s.id` если задан — используется как есть. Никакого автоматического
- * скоупинга по `roomName`. Причина: главный потребитель `_id` — это
- * memory fixture, которая может прийти как из нашего capture-flow,
- * так и копией с реального сервера. Если мы будем переписывать id,
- * memory fixture сломается.
+ * `s.id` if set — used as-is. No automatic scoping by `roomName`.
+ * Reason: the main consumer of `_id` is memory fixture, which may come
+ * from our capture-flow or a copy from a real server.
+ * If we rewrite ids, memory fixture will break.
  *
- * Multi-room сценарии должны избегать конфликтов самостоятельно
- * (например, использовать разные fixture для разных комнат, либо
- * генерировать `_id` через `crypto.randomUUID()` внутри spec).
+ * Multi-room scenarios must avoid conflicts on their own
+ * (e.g., use different fixtures for different rooms, or
+ * generate `_id` via `crypto.randomUUID()` inside spec).
  *
  *
  * ## Mapping spec → DB
  *
- * Во всех spec-типах поле владельца называется `userId`.
- * В БД mockup (`rooms.objects`, `users.code`) оно
- * называется `user`. Маппинг выполняется только здесь.
+ * In all spec types, the owner field is called `userId`.
+ * In the mockup DB (`rooms.objects`, `users.code`) it's
+ * called `user`. Mapping is done only here.
  *
  * @module builders/materialize
  */
@@ -38,8 +37,8 @@
  *
  * @typedef {Object} MaterializeBotCodeOpts
  * @property {'default'|'custom'} [code='default']
- * @property {Object} [modules]          — кастомные модули (для code='custom')
- * @property {string} [distDir]          — путь к dist/ (для code='default')
+ * @property {Object} [modules]          — custom modules (for code='custom')
+ * @property {string} [distDir]          — path to dist/ (for code='default')
  */
 
 const { STRUCTURE_SPAWN } = require('../../constants/screepsConstants');
@@ -47,12 +46,12 @@ const { STRUCTURE_SPAWN } = require('../../constants/screepsConstants');
 // ─── Materialize structures ─────────────────────────────────────────────────
 
 /**
- * Создаёт один structure-объект в `rooms.objects`.
+ * Creates a single structure object in `rooms.objects`.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {StructureSpec} s
- * @returns {Promise<string>} _id созданного объекта
+ * @returns {Promise<string>} _id of created object
  */
 async function materializeStructure(adapter, roomName, s) {
     const { db } = adapter;
@@ -98,12 +97,12 @@ async function materializeStructure(adapter, roomName, s) {
         doc.spawning = null;
     }
 
-    // custom _id — берётся как есть (см. ID policy в шапке файла)
+    // custom _id — taken as-is (see ID policy at top of file)
     if (s.id) {
         doc._id = s.id;
     }
 
-    // произвольные overrides
+    // arbitrary overrides
     if (s.overrides) {
         Object.assign(doc, s.overrides);
     }
@@ -113,12 +112,12 @@ async function materializeStructure(adapter, roomName, s) {
 }
 
 /**
- * Создаёт несколько structure-объектов в `rooms.objects`.
+ * Creates multiple structure objects in `rooms.objects`.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {StructureSpec[]} structures
- * @returns {Promise<string[]>} _id созданных объектов
+ * @returns {Promise<string[]>} _id of created objects
  */
 async function materializeStructures(adapter, roomName, structures) {
     const ids = [];
@@ -132,7 +131,7 @@ async function materializeStructures(adapter, roomName, structures) {
 // ─── Materialize sources ────────────────────────────────────────────────────
 
 /**
- * Создаёт source в `rooms.objects`.
+ * Creates a source in `rooms.objects`.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -158,7 +157,7 @@ async function materializeSource(adapter, roomName, src) {
 }
 
 /**
- * Создаёт несколько sources.
+ * Creates multiple sources.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -177,16 +176,16 @@ async function materializeSources(adapter, roomName, sources) {
 // ─── Materialize controller ─────────────────────────────────────────────────
 
 /**
- * Материализует controller в `rooms.objects`.
+ * Materializes controller in `rooms.objects`.
  *
- * Если controller уже существует (например, создан раннее), обновляет его
- * поля; иначе вставляет новый документ. Это безопасно для тиковой среды —
- * повторный вызов не дублирует контроллер.
+ * If controller already exists (e.g., created earlier), updates its
+ * fields; otherwise inserts a new document. This is safe for tick-based environment —
+ * calling again doesn't duplicate the controller.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
  * @param {ControllerSpec} ctrl
- * @returns {Promise<string>} _id существующего или созданного controller
+ * @returns {Promise<string>} _id of existing or created controller
  */
 async function materializeController(adapter, roomName, ctrl) {
     const { db } = adapter;
@@ -255,7 +254,7 @@ async function materializeController(adapter, roomName, ctrl) {
 // ─── Materialize creeps ─────────────────────────────────────────────────────
 
 /**
- * Создаёт creep в `rooms.objects`.
+ * Creates a creep in `rooms.objects`.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -268,8 +267,8 @@ async function materializeCreep(adapter, roomName, c) {
 
     if (!c.body || !Array.isArray(c.body) || c.body.length === 0) {
         throw new Error(
-            `materializeCreep: spec.body обязателен — массив BodyPart (получено: ${JSON.stringify(c.body)}). ` +
-                'Используйте spec.creep() / spec.invader() или передайте body явно.',
+            `materializeCreep: spec.body is required — array of BodyPart (got: ${JSON.stringify(c.body)}). ` +
+                'Use spec.creep() / spec.invader() or pass body explicitly.',
         );
     }
 
@@ -299,7 +298,7 @@ async function materializeCreep(adapter, roomName, c) {
 }
 
 /**
- * Создаёт нескольких creeps.
+ * Creates multiple creeps.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -318,10 +317,10 @@ async function materializeCreeps(adapter, roomName, creeps) {
 // ─── Materialize bot code ───────────────────────────────────────────────────
 
 /**
- * Загружает код бота в `users.code`.
+ * Loads bot code into `users.code`.
  *
  * @param {import('../storageAdapter').StorageAdapter} adapter
- * @param {string} userId                            — _id бота
+ * @param {string} userId                            — bot _id
  * @param {MaterializeBotCodeOpts} [opts]
  * @returns {Promise<void>}
  */
@@ -347,16 +346,16 @@ async function materializeBotCode(adapter, userId, opts = {}) {
     });
 }
 
-// ─── Materialize room (полный pipeline) ─────────────────────────────────────
+// ─── Materialize room (full pipeline) ─────────────────────────────────────
 
 /**
- * Materialize всю комнату из канонической спецификации.
+ * Materialize the entire room from the canonical spec.
  *
- * Порядок:
- * 1. controller (если есть)
+ * Order:
+ * 1. controller (if present)
  * 2. sources
  * 3. structures
- * 4. creeps (обычные)
+ * 4. creeps (friendly)
  * 5. hostiles
  *
  * @param {import('../storageAdapter').StorageAdapter} adapter
@@ -381,7 +380,7 @@ async function materializeRoom(adapter, roomSpec) {
         results.structureIds = await materializeStructures(adapter, roomSpec.name, roomSpec.structures);
     }
 
-    // 4. Creeps (обычные)
+    // 4. Creeps (friendly)
     if (roomSpec.creeps && roomSpec.creeps.length > 0) {
         results.creepIds = await materializeCreeps(adapter, roomSpec.name, roomSpec.creeps);
     }

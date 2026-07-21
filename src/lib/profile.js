@@ -4,11 +4,11 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Сохраняет callgrind-дамп в локально файл.
- * @param {string} callgrindData — строка callgrind-формата (работаем просто как со строкой)
- * @param {string} scenarioName — имя сценария (пойдет в имя файла)
- * @param {string} profilesDir — путь к папке для callgrind-файлов
- * @returns {string} путь к созданному файлу
+ * Saves a callgrind dump to a local file.
+ * @param {string} callgrindData — callgrind-formatted string (treated as a plain string)
+ * @param {string} scenarioName — scenario name (used in the filename)
+ * @param {string} profilesDir — path to the callgrind output directory
+ * @returns {string} path to the created file
  */
 function saveCallgrind(callgrindData, scenarioName, profilesDir) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

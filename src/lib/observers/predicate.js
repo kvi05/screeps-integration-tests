@@ -20,21 +20,21 @@
  */
 
 /**
- * Оценивает `UntilOpts` (предикат завершения) и возвращает решение —
- * остановить ли прогон сейчас.
+ * Evaluates `UntilOpts` (completion predicate) and returns a decision —
+ * whether to stop the run now.
  *
- * Алгоритм (порядок проверок):
- * 1. `maxTicks` — если `ticksRun >= maxTicks` → остановить.
- * 2. `predicate` — если задан, выполняется. Sync и async через `Promise.resolve`.
- *    Если бросил ошибку — тест останавливается с ошибкой.
- * 3. `signal` — если `Memory[signal]` truthy → остановить.
- *    Если `signalBot` задан — проверяется только Memory этого бота.
- *    Если `signalBot` не задан — проверяются все боты (остановка если
- *    хотя бы у одного `signal` truthy).
+ * Algorithm (check order):
+ * 1. `maxTicks` — if `ticksRun >= maxTicks` → stop.
+ * 2. `predicate` — if set, executes it. Sync and async via `Promise.resolve`.
+ *    If it throws — the test stops with an error.
+ * 3. `signal` — if `Memory[signal]` is truthy → stop.
+ *    If `signalBot` is set — only that bot's Memory is checked.
+ *    If `signalBot` is not set — all bots are checked (stop if
+ *    any bot has truthy `signal`).
  *
- * Перед вызовами 2 и 3 обновляется `ctx.report.finalMemory` per-bot через
- * `ctx.readMemory(username)`, чтобы predicate и signal видели актуальное
- * состояние, а не устаревший snapshot.
+ * Before calls 2 and 3, `ctx.report.finalMemory` is updated per-bot via
+ * `ctx.readMemory(username)`, so that predicate and signal see the current
+ * state, not a stale snapshot.
  *
  * @param {PredicateCtx} ctx
  * @param {UntilOpts} until
@@ -45,46 +45,46 @@ async function evaluatePredicate(ctx, until) {
         return { shouldStop: false, reason: '' };
     }
 
-    // 1. Проверка maxTicks (без чтения Memory)
+    // 1. Check maxTicks (no Memory read)
     if (until.maxTicks && ctx.report.ticksRun >= until.maxTicks) {
         return {
             shouldStop: true,
-            reason: `Достигнут лимит тиков: ${ctx.report.ticksRun}/${until.maxTicks}`,
+            reason: `Tick limit reached: ${ctx.report.ticksRun}/${until.maxTicks}`,
         };
     }
 
-    // 2. Обновить finalMemory per-bot перед predicate/signal (актуальность)
+    // 2. Update finalMemory per-bot before predicate/signal (freshness)
     if ((until.predicate || until.signal) && ctx.readMemory) {
         for (const username of Object.keys(ctx.bots)) {
             try {
                 ctx.report.finalMemory[username] = await ctx.readMemory(username);
             } catch {
-                // readMemory может упасть на первых тиках — не критично
+                // readMemory may fail on early ticks — not critical
             }
         }
     }
 
-    // 3. Проверка predicate (sync и async через Promise.resolve)
+    // 3. Check predicate (sync and async via Promise.resolve)
     if (until.predicate && typeof until.predicate === 'function') {
         try {
             const result = await Promise.resolve(until.predicate(ctx));
             if (result) {
                 return {
                     shouldStop: true,
-                    reason: `Predicate выполнился на тике ${ctx.report.ticksRun}`,
+                    reason: `Predicate resolved on tick ${ctx.report.ticksRun}`,
                 };
             }
         } catch (e) {
             return {
                 shouldStop: true,
-                reason: `Predicate бросил ошибку: ${e.message}`,
+                reason: `Predicate threw an error: ${e.message}`,
             };
         }
     }
 
-    // 4. Проверка Memory-сигнала
+    // 4. Check Memory signal
     if (until.signal) {
-        // Определяем какие боты проверять
+        // Determine which bots to check
         const botsToCheck = until.signalBot ? { [until.signalBot]: ctx.bots[until.signalBot] } : ctx.bots;
 
         for (const [username, bot] of Object.entries(botsToCheck)) {
@@ -101,7 +101,7 @@ async function evaluatePredicate(ctx, until) {
                     };
                 }
             } catch {
-                // memory ещё не прочитана — не критично
+                // memory not read yet — not critical
             }
         }
     }
