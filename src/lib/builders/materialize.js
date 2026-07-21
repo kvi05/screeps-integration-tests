@@ -361,7 +361,7 @@ async function materializeBotCode(adapter, userId, opts = {}) {
         modules = opts.modules;
     } else {
         const path = require('path');
-        const { loadBotModules } = require('../loadBot');
+        const { loadBotModules } = require('../runtime/loadBot');
         const distDir = opts.distDir || process.env.BOT_DIST_DIR || path.join(__dirname, '..', '..', '..', 'dist');
         modules = loadBotModules(distDir);
     }

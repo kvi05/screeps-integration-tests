@@ -13,7 +13,7 @@
  * @file Unit tests for buildCanonicalRoom.
  */
 
-const { buildCanonicalRoom } = require('../src/lib/world');
+const { buildCanonicalRoom } = require('../src/lib/orchestration/world');
 const { applyRoomOverrides, registerRoomFixture } = require('../src/lib/fixtures/roomFixture');
 const spec = require('../src/lib/builders/spec');
 

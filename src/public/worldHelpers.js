@@ -36,6 +36,6 @@
  * @module screeps-integration-tests/world-helpers
  */
 
-const { createWorldHelpers } = require('../lib/worldHelpers');
+const { createWorldHelpers } = require('../lib/orchestration/worldHelpers');
 
 module.exports = { createWorldHelpers };

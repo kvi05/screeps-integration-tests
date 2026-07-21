@@ -27,7 +27,7 @@ describe('config resolveConfig', () => {
 
     describe('resolveConfig priority', () => {
         it('uses built-in defaults with empty arguments', () => {
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, {});
             // These are relative to cwd-based resolution since no config file
             expect(config.distDir).toBe(path.resolve(tmpDir, 'dist'));
@@ -36,7 +36,7 @@ describe('config resolveConfig', () => {
         });
 
         it('overrides override defaults', () => {
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, { distDir: '/custom/dist' });
             expect(config.distDir).toBe(path.resolve('/custom/dist'));
         });
@@ -44,7 +44,7 @@ describe('config resolveConfig', () => {
         it('BOT_DIST_DIR env variable has priority over config file', () => {
             createConfigFile('module.exports = { distDir: "./from-config" };');
             process.env.BOT_DIST_DIR = path.join(tmpDir, 'from-env');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, {});
             expect(config.distDir).toBe(path.resolve(process.env.BOT_DIST_DIR));
         });
@@ -52,13 +52,13 @@ describe('config resolveConfig', () => {
         it('CLI arguments have priority over env', () => {
             createConfigFile('module.exports = {};');
             process.env.BOT_DIST_DIR = '/from-env';
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig(['--distDir', '/from-cli'], tmpDir, {});
             expect(config.distDir).toBe(path.resolve('/from-cli'));
         });
 
         it('explicit overrides have highest priority', () => {
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig(['--distDir', '/from-cli'], tmpDir, { distDir: '/from-override' });
             expect(config.distDir).toBe(path.resolve('/from-override'));
         });
@@ -67,35 +67,35 @@ describe('config resolveConfig', () => {
     describe('config file loading', () => {
         it('loads JS config', () => {
             createConfigFile('module.exports = { distDir: "./custom" };');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, {});
             expect(config.distDir).toBe(path.join(tmpDir, 'custom'));
         });
 
         it('loads JSON config', () => {
             createConfigFile('{ "distDir": "./json-dist" }', '.json');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, {});
             expect(config.distDir).toBe(path.join(tmpDir, 'json-dist'));
         });
 
         it('supports function returning an object', () => {
             createConfigFile('module.exports = function() { return { distDir: "./fn-dist" }; };');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, {});
             expect(config.distDir).toBe(path.join(tmpDir, 'fn-dist'));
         });
 
         it('throws on invalid export', () => {
             createConfigFile('module.exports = 42;');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             expect(() => resolveConfig([], tmpDir, {})).toThrow(/must export an object/);
         });
 
         it('config from --config has priority over auto-discovery', () => {
             createConfigFile('module.exports = { distDir: "./auto" };');
             const explicitPath = createConfigFile('module.exports = { distDir: "./explicit" };', '.js');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config, configPath } = resolveConfig(['--config', explicitPath], tmpDir, {});
             expect(configPath).toBe(explicitPath);
             expect(config.distDir).toBe(path.join(tmpDir, 'explicit'));
@@ -105,7 +105,7 @@ describe('config resolveConfig', () => {
     describe('resolvePaths', () => {
         it('converts relative paths to absolute relative to configDir', () => {
             createConfigFile('module.exports = { cacheDir: "./.cache" };');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, {});
             expect(config.cacheDir).toBe(path.join(tmpDir, '.cache'));
         });
@@ -113,7 +113,7 @@ describe('config resolveConfig', () => {
         it('does not resolve absolute paths relative to configDir', () => {
             const absPath = path.resolve('/absolute-cache');
             createConfigFile(`module.exports = { cacheDir: "${absPath.replace(/\\/g, '\\\\')}" };`);
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, {});
             expect(config.cacheDir).toBe(absPath);
             expect(config.cacheDir.indexOf(tmpDir)).toBe(-1);
@@ -121,7 +121,7 @@ describe('config resolveConfig', () => {
 
         it('does not change null', () => {
             createConfigFile('module.exports = { roomFixturesDir: null };');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { config } = resolveConfig([], tmpDir, {});
             expect(config.roomFixturesDir).toBeNull();
         });
@@ -130,7 +130,7 @@ describe('config resolveConfig', () => {
     describe('findConfigFile', () => {
         it('finds .js config', () => {
             createConfigFile('module.exports = {};', '.js');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { configPath } = resolveConfig([], tmpDir, {});
             expect(configPath).toBeTruthy();
             expect(configPath.endsWith('.js')).toBe(true);
@@ -138,14 +138,14 @@ describe('config resolveConfig', () => {
 
         it('finds .json config', () => {
             createConfigFile('{}', '.json');
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { configPath } = resolveConfig([], tmpDir, {});
             expect(configPath).toBeTruthy();
             expect(configPath.endsWith('.json')).toBe(true);
         });
 
         it('returns null if no config exists', () => {
-            const { resolveConfig } = require('../src/lib/config');
+            const { resolveConfig } = require('../src/lib/config/config');
             const { configPath } = resolveConfig([], tmpDir, {});
             expect(configPath).toBeNull();
         });
@@ -154,7 +154,7 @@ describe('config resolveConfig', () => {
 
 describe('config DEFAULTS', () => {
     it('contains expected fields with correct types', () => {
-        const { DEFAULTS } = require('../src/lib/config');
+        const { DEFAULTS } = require('../src/lib/config/config');
         expect(DEFAULTS).toMatchObject({
             distDir: './dist',
             scenariosDir: './scenarios',
@@ -169,7 +169,7 @@ describe('config DEFAULTS', () => {
 
 describe('config CLI_SCHEMA', () => {
     it('contains all expected options', () => {
-        const { CLI_SCHEMA } = require('../src/lib/config');
+        const { CLI_SCHEMA } = require('../src/lib/config/config');
         const optKeys = Object.keys(CLI_SCHEMA.options);
         expect(optKeys).toContain('config');
         expect(optKeys).toContain('scenariosDir');

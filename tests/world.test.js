@@ -13,7 +13,7 @@
  * @file Unit tests for world.js
  */
 
-const { buildCanonicalRoom, defaultBot, resolveDistDir, resolveCacheBase } = require('../src/lib/world');
+const { buildCanonicalRoom, defaultBot, resolveDistDir, resolveCacheBase } = require('../src/lib/orchestration/world');
 
 describe('buildCanonicalRoom', () => {
     describe('neutral structures (W3 regression)', () => {

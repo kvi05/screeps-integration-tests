@@ -33,7 +33,7 @@
  * @module screeps-integration-tests
  */
 
-const { createWorld, buildCanonicalRoom } = require('./lib/world');
+const { createWorld, buildCanonicalRoom } = require('./lib/orchestration/world');
 const { spec } = require('./lib/builders');
 
 module.exports = {

@@ -1,9 +1,9 @@
 'use strict';
 
 const assert = require('node:assert');
-const { EVENT_ATTACK, filterByType, filterDestroyed } = require('./observers/eventLog');
+const { EVENT_ATTACK, filterByType, filterDestroyed } = require('../observers/eventLog');
 
-const { BOT_STRUCTURE_TYPES } = require('../constants/screepsConstants');
+const { BOT_STRUCTURE_TYPES } = require('../../constants/screepsConstants');
 
 /**
  * @typedef {import('./types').WorldReport} WorldReport

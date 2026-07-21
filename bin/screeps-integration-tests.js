@@ -24,9 +24,9 @@ const { fork, spawn } = require('child_process');
 const treeKill = require('tree-kill');
 const { once } = require('events');
 
-const { resolveConfig, printHelpAndExit } = require('../src/lib/config');
-const { saveCallgrind } = require('../src/lib/profile');
-const { pruneCache } = require('../src/lib/cleanup');
+const { resolveConfig, printHelpAndExit } = require('../src/lib/config/config');
+const { saveCallgrind } = require('../src/lib/runtime/profile');
+const { pruneCache } = require('../src/lib/runtime/cleanup');
 
 /**
  * @typedef {import('../src/lib/types').WorkerMessage} WorkerMessage

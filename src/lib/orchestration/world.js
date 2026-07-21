@@ -1,21 +1,21 @@
 'use strict';
 
 const path = require('path');
-const { prepareServer, addBots } = require('./runtime');
-const { materializeRoom, materializeCreep } = require('./builders');
-const { setBotMemory, getBotMemory, deepMergeMemory, resolveInitialMemoryByBot } = require('./builders/memory');
-const { loadRoomFixture, applyRoomOverrides } = require('./fixtures/roomFixture');
-const { readEventLog, accumulateEvents } = require('./observers/eventLog');
-const { collectMetrics, sampleMetrics } = require('./observers/metrics');
-const { MetricsReport } = require('./metricsReport');
-const { checkStopCondition } = require('./observers/predicate');
-const { snapshotOwners, mergeOwners } = require('./observers/ownership');
-const { createConsoleCapture } = require('./console');
+const { prepareServer, addBots } = require('../runtime/runtime');
+const { materializeRoom, materializeCreep } = require('../builders');
+const { setBotMemory, getBotMemory, deepMergeMemory, resolveInitialMemoryByBot } = require('../builders/memory');
+const { loadRoomFixture, applyRoomOverrides } = require('../fixtures/roomFixture');
+const { readEventLog, accumulateEvents } = require('../observers/eventLog');
+const { collectMetrics, sampleMetrics } = require('../observers/metrics');
+const { MetricsReport } = require('../assertions/metricsReport');
+const { checkStopCondition } = require('../observers/predicate');
+const { snapshotOwners, mergeOwners } = require('../observers/ownership');
+const { createConsoleCapture } = require('../runtime/console');
 const { createEventRegistry, registerDefaultEvents } = require('./events');
 const { createWorldHelpers } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
-const { exportProfiles } = require('./profile');
-const { INVADER_USER_ID } = require('../constants/screepsConstants');
+const { exportProfiles } = require('../runtime/profile');
+const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
 

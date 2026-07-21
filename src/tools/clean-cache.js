@@ -10,8 +10,8 @@
  * Defaults to keeping the last 5.
  */
 
-const { pruneCache } = require('../lib/cleanup');
-const { parseArgs, HelpRequested } = require('../lib/cli');
+const { pruneCache } = require('../lib/runtime/cleanup');
+const { parseArgs, HelpRequested } = require('../lib/config/cli');
 
 const schema = {
     title: 'clean-cache',

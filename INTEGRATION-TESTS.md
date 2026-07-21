@@ -60,15 +60,15 @@ neighboring files:
 
 Seven layers:
 
-| Layer | Files | Responsibility |
-|-------|-------|----------------|
-| **Config** | `lib/config.js`, `lib/cli.js` | Config loading, CLI parsing |
-| **Runtime** | `lib/runtime.js`, `lib/port.js`, `lib/testBot.js`, `lib/cleanup.js` | Server wrapper, ports, bots, lifecycle |
-| **Orchestration** | `lib/world.js`, `lib/events.js`, `lib/finalize.js` | `createWorld`, pipeline, event registry, report finalisation |
-| **Builders** | `lib/builders/spec.js`, `lib/builders/materialize.js`, `lib/builders/memory.js` | Spec constructors and DB materialisation |
-| **Observers** | `lib/observers/eventLog.js`, `lib/observers/metrics.js`, `lib/observers/ownership.js`, `lib/observers/predicate.js` | Stateless DB readers |
-| **Assertions** | `lib/assertions.js`, `lib/metricAssertions.js`, `lib/metricRegression.js` | Bot behaviour assertions |
-| **Fixtures** | `lib/fixtures/roomFixture.js` | Room fixture registry |
+| Layer             | Files                                                                                                               | Responsibility                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Config**        | `lib/config/config.js`, `lib/config/cli.js`                                                                         | Config loading, CLI parsing                                  |
+| **Runtime**       | `lib/runtime/runtime.js`, `lib/runtime/port.js`, `lib/runtime/testBot.js`, `lib/runtime/cleanup.js`                 | Server wrapper, ports, bots, lifecycle                       |
+| **Orchestration** | `lib/orchestration/world.js`, `lib/orchestration/events.js`, `lib/orchestration/finalize.js`                        | `createWorld`, pipeline, event registry, report finalisation |
+| **Builders**      | `lib/builders/spec.js`, `lib/builders/materialize.js`, `lib/builders/memory.js`                                     | Spec constructors and DB materialisation                     |
+| **Observers**     | `lib/observers/eventLog.js`, `lib/observers/metrics.js`, `lib/observers/ownership.js`, `lib/observers/predicate.js` | Stateless DB readers                                         |
+| **Assertions**    | `lib/assertions/assertions.js`, `lib/assertions/metricAssertions.js`, `lib/assertions/metricRegression.js`          | Bot behaviour assertions                                     |
+| **Fixtures**      | `lib/fixtures/roomFixture.js`                                                                                       | Room fixture registry                                        |
 
 ### Separation in builders
 
@@ -93,14 +93,14 @@ Observers only read the DB and return data. They do not mutate state.
 
 ### Metrics separation
 
-| Layer      | File                      | Purpose                                      |
-| ---------- | ------------------------- | -------------------------------------------- |
-| Observer   | `observers/metrics.js`    | Reading world state, returning `RoomMetrics` |
-| Recorder   | `lib/metricsReport.js`    | Writing samples to `report.metrics`          |
-| Query      | `lib/metricsReport.js`    | Reading series, aggregation                  |
-| Assertions | `lib/metricAssertions.js` | Assertions based on time-series              |
-| Export     | `lib/metricsReport.js`    | Conversion to CSV (`toCsv()`)                |
-| Regression | `lib/metricRegression.js` | Comparison of current vs baseline            |
+| Layer      | File                                 | Purpose                                      |
+| ---------- | ------------------------------------ | -------------------------------------------- |
+| Observer   | `observers/metrics.js`               | Reading world state, returning `RoomMetrics` |
+| Recorder   | `lib/assertions/metricsReport.js`    | Writing samples to `report.metrics`          |
+| Query      | `lib/assertions/metricsReport.js`    | Reading series, aggregation                  |
+| Assertions | `lib/assertions/metricAssertions.js` | Assertions based on time-series              |
+| Export     | `lib/assertions/metricsReport.js`    | Conversion to CSV (`toCsv()`)                |
+| Regression | `lib/assertions/metricRegression.js` | Comparison of current vs baseline            |
 
 ### Constants
 
@@ -167,10 +167,11 @@ The runtime is split into three independent phases:
 `createRuntime` is a thin facade: prepareServer → addBots → start.
 
 **Module decomposition:**
-- `getFreePort()` → `src/lib/port.js` — network utility, reusable outside runtime.
-- `TestBot` class → `src/lib/testBot.js` — EventEmitter-based bot with console subscription.
-- `waitForProcessExit()` + `createDispose()` → `src/lib/cleanup.js` — process lifecycle.
-- `runtime.js` now contains only `prepareServer`, `addBots`, `addBot`, `prepareRoom`, `createRuntime`.
+
+- `getFreePort()` → `src/lib/runtime/port.js` — network utility, reusable outside runtime.
+- `TestBot` class → `src/lib/runtime/testBot.js` — EventEmitter-based bot with console subscription.
+- `waitForProcessExit()` + `createDispose()` → `src/lib/runtime/cleanup.js` — process lifecycle.
+- `lib/runtime/runtime.js` now contains only `prepareServer`, `addBots`, `addBot`, `prepareRoom`, `createRuntime`.
 
 ```js
 // Full pipeline (createWorld) — internal functions, not exported to public API.
@@ -277,7 +278,7 @@ the last `cacheKeep` directories (configurable in `screeps-integration.config.js
 
 ## 8. Profiling
 
-`profiling: true` enables `screeps-profiler` via `lib/loadBot.js`. Data
+`profiling: true` enables `screeps-profiler` via `lib/runtime/loadBot.js`. Data
 goes into separate report fields:
 
 - `report.profileText[username]` — profiler text output;
@@ -343,23 +344,29 @@ screeps-integration-tests/
 │   ├── constants/
 │   │   └── screepsConstants.js        # Game constants for spec/assert/metric
 │   ├── lib/
-│   │   ├── config.js                  # Config loader
-│   │   ├── cli.js                     # CLI argument parser
-│   │   ├── port.js                    # Free TCP port allocation
-│   │   ├── runtime.js                 # ScreepsServer wrapper (prepareServer, addBots)
-│   │   ├── testBot.js                 # TestBot class (EventEmitter)
-│   │   ├── world.js                   # createWorld — orchestration API
-│   │   ├── events.js                  # Event registry (createEventRegistry, dispatchEvents)
-│   │   ├── finalize.js                # Report finalisation (finalizeReport)
-│   │   ├── loadBot.js                 # Bot module loader + profiling inject
-│   │   ├── console.js                 # Console capture
-│   │   ├── assertions.js              # Bot behaviour assertions
-│   │   ├── metricAssertions.js        # Metrics assertions
-│   │   ├── metricsReport.js           # Metrics recorder + query + CSV export
-│   │   ├── metricRegression.js        # Current vs baseline comparison
-│   │   ├── profile.js                 # saveCallgrind + exportProfiles
-│   │   ├── cleanup.js                 # pruneCache + waitForProcessExit + createDispose
 │   │   ├── types.js                   # Centralised JSDoc typedefs
+│   │   ├── config/
+│   │   │   ├── config.js              # Config loader
+│   │   │   └── cli.js                 # CLI argument parser
+│   │   ├── runtime/
+│   │   │   ├── runtime.js             # ScreepsServer wrapper (prepareServer, addBots)
+│   │   │   ├── port.js                # Free TCP port allocation
+│   │   │   ├── testBot.js             # TestBot class (EventEmitter)
+│   │   │   ├── cleanup.js             # pruneCache + waitForProcessExit + createDispose
+│   │   │   ├── console.js             # Console capture
+│   │   │   ├── loadBot.js             # Bot module loader + profiling inject
+│   │   │   ├── profile.js             # saveCallgrind + exportProfiles
+│   │   │   └── storageAdapter.js      # DB facade over screeps-server-mockup
+│   │   ├── orchestration/
+│   │   │   ├── world.js               # createWorld — orchestration API
+│   │   │   ├── events.js              # Event registry (createEventRegistry, dispatchEvents)
+│   │   │   ├── finalize.js            # Report finalisation (finalizeReport)
+│   │   │   └── worldHelpers.js        # Imperative world helpers (find, structures, controller)
+│   │   ├── assertions/
+│   │   │   ├── assertions.js          # Bot behaviour assertions
+│   │   │   ├── metricAssertions.js    # Metrics assertions
+│   │   │   ├── metricsReport.js       # Metrics recorder + query + CSV export
+│   │   │   └── metricRegression.js    # Current vs baseline comparison
 │   │   ├── builders/
 │   │   │   ├── index.js               # Re-export surface
 │   │   │   ├── spec.js                # Spec constructors
@@ -443,7 +450,7 @@ See [GETTING-STARTED.md](./GETTING-STARTED.md#writing-a-scenario).
 ### How to add a new assertion (`assert`)
 
 ```js
-// lib/assertions.js
+// lib/assertions/assertions.js
 function assertMyCondition(report, opts) {
     // ... specific logic
     assert.ok(condition, 'description if test fails');

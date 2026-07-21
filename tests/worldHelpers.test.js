@@ -1,6 +1,6 @@
 'use strict';
 
-const { createWorldHelpers } = require('../src/lib/worldHelpers');
+const { createWorldHelpers } = require('../src/lib/orchestration/worldHelpers');
 
 // Mock materializeStructure to avoid touching the real DB.
 jest.mock('../src/lib/builders/materialize', () => ({

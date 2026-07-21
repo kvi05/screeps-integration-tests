@@ -20,7 +20,7 @@
  * @module helpers/world
  */
 
-const { materializeStructure } = require('./builders/materialize');
+const { materializeStructure } = require('../builders/materialize');
 
 /**
  * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter

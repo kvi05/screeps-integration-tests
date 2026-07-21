@@ -16,7 +16,7 @@ const {
     assertBotUserNotDamaged,
     assertBotUserAttacking,
     assertBotUserNotAttacking,
-} = require('../src/lib/assertions');
+} = require('../src/lib/assertions/assertions');
 
 /**
  * @returns {import('../lib/types').WorldReport}

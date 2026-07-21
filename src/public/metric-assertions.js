@@ -18,6 +18,6 @@
  * @module screeps-integration-tests/metric-assertions
  */
 
-const { MetricsAssert } = require('../lib/metricAssertions');
+const { MetricsAssert } = require('../lib/assertions/metricAssertions');
 
 module.exports = { MetricsAssert };

@@ -1,7 +1,7 @@
 'use strict';
 
-const { materializeCreep } = require('./builders');
-const { INVADER_USER_ID } = require('../constants/screepsConstants');
+const { materializeCreep } = require('../builders');
+const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 
 // ─── Defaults ──────────────────────────────────────────────────────────────────
 

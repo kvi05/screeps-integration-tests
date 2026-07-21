@@ -56,7 +56,7 @@ const {
     assertBotUserNotDamaged,
     assertBotUserAttacking,
     assertBotUserNotAttacking,
-} = require('../lib/assertions');
+} = require('../lib/assertions/assertions');
 
 module.exports = {
     assertNoErrors,

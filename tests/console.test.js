@@ -1,6 +1,6 @@
 'use strict';
 
-const { createConsoleCapture, looksLikeError, ERROR_PATTERNS } = require('../src/lib/console');
+const { createConsoleCapture, looksLikeError, ERROR_PATTERNS } = require('../src/lib/runtime/console');
 
 describe('console capture', () => {
     describe('looksLikeError', () => {
