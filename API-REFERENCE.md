@@ -15,7 +15,7 @@
 - [8. Metrics API](#8-metrics-api)
 - [9. onTick, events и registerEvent](#9-ontick-events-и-registerevent)
 - [10. Прямое чтение из БД](#10-прямое-чтение-из-бд)
-- [11. Отчёт: errors, warnings, logs, events](#11-отчёт-errors-warnings-logs-events)
+- [11. report](#11-report)
 - [12. Профилирование](#12-профилирование)
 - [13. Таймаут](#13-таймаут)
 - [14. Основные типы](#14-основные-типы)
@@ -400,7 +400,7 @@ m.delta(series, 'rclProgress');
 const ma = new MetricsAssert(m);
 ma.latestAtLeast('rooms', 'W0N1', 'rcl', 3);
 
-// CSV (встроен в MetricsReport)
+// CSV
 const csv = m.toCsv({ entityTypes: ['rooms'] });
 
 // Regression
@@ -432,14 +432,169 @@ const csv = report.metrics.toCsv({ entityTypes: ['rooms'], metrics: ['rcl', 'ene
 Метод `toCsv()` принимает те же опции, что и `flatten()`: `entityTypes` для фильтрации
 по типу сущностей и `metrics` для фильтрации по именам метрик.
 
-### Детали
+### Справочник методов
 
-Полный список методов `MetricsReport`, `MetricsAssert` и `MetricsRegression` —
-см. JSDoc в `src/lib/metricsReport.js`, `src/lib/metricAssertions.js`,
-`src/lib/metricRegression.js`.
+#### MetricsReport
 
-Список полей метрик по типам сущностей — см. `src/lib/observers/metrics.js`
-(`collectMetrics` для rooms; для остальных — по мере реализации).
+Хранилище time-series метрик. Экземпляр доступен как `report.metrics`.
+
+**Запись:**
+
+| Метод                                               | Назначение                                                                   |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `m.append(entityType, entityId, tick, values)`      | Добавить сэмпл. `values` — plain-объект с полями метрик (не мутируется).     |
+
+**Чтение series:**
+
+| Метод                          | Назначение                                                        |
+| ------------------------------ | ----------------------------------------------------------------- |
+| `m.series(entityType, entityId)` | Получить time-series сущности. Пустой `[]` если не найдена.     |
+| `m.room(roomName)`             | ≡ `series('rooms', roomName)`                                     |
+| `m.colony(colonyName)`         | ≡ `series('colonies', colonyName)`                                |
+| `m.bot(botName)`               | ≡ `series('bots', botName)`                                       |
+
+**Чтение последнего сэмпла:**
+
+| Метод                         | Назначение                                           |
+| ----------------------------- | ---------------------------------------------------- |
+| `m.latest(entityType, entityId)` | Последний сэмпл или `undefined`.                  |
+| `m.latestRoom(roomName)`      | ≡ `latest('rooms', roomName)`                        |
+| `m.latestColony(colonyName)`  | ≡ `latest('colonies', colonyName)`                   |
+| `m.latestBot(botName)`        | ≡ `latest('bots', botName)`                          |
+
+**Чтение по тику:**
+
+| Метод                                   | Назначение                                                             |
+| --------------------------------------- | ---------------------------------------------------------------------- |
+| `m.atTick(entityType, entityId, tick)`  | Сэмпл ровно на тике `tick` или `undefined`. Без интерполяции.         |
+| `m.snapshotAtTick(entityType, tick)`    | Снимок всех сущностей типа на тике: `{[entityId]: sample}`. Только для map-типов (`rooms`/`colonies`/`bots`). |
+
+**Агрегация:**
+
+| Метод                            | Назначение                                                          |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `m.values(series, metricName)`   | Массив `[{ tick, value }]` — только конечные числа.                 |
+| `m.average(series, metricName)`  | Среднее по series или `undefined`.                                  |
+| `m.sum(series, metricName)`      | Сумма по series.                                                    |
+| `m.delta(series, metricName)`    | Разность последнего и первого значений. `undefined` если <2 сэмплов. |
+| `m.rate(series, metricName)`     | Среднее изменение на тик: `delta / tickDelta`. `undefined` если <2 сэмплов или `tickDelta === 0`. |
+
+**Экспорт:**
+
+| Метод                    | Назначение                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `m.flatten(opts?)`       | Плоский массив `[{entityType, entityId, tick, metric, value}]`.               |
+| `m.toCsvRows(opts?)`     | Массив CSV-строк (с header).                                                   |
+| `m.toCsv(opts?)`         | CSV-строка. `opts.entityTypes` — фильтр по типам, `opts.metrics` — по именам. |
+
+**Сериализация:**
+
+| Метод                            | Назначение                                            |
+| -------------------------------- | ----------------------------------------------------- |
+| `m.toJSON()`                     | Plain-объект для `JSON.stringify`.                    |
+| `MetricsReport.fromJSON(json)`   | Восстановить из JSON (например, baseline из файла).   |
+
+**Геттеры (для обратной совместимости с `report.metrics.rooms` и т.д.):**
+
+| Геттер         | Тип                      |
+| -------------- | ------------------------ |
+| `m.rooms`      | `{[roomName]: series}`   |
+| `m.colonies`   | `{[colonyName]: series}` |
+| `m.bots`       | `{[botName]: series}`    |
+| `m.world`      | `MetricSeries` (плоский) |
+
+#### MetricsAssert
+
+Assertion-хелперы для метрик (см. `screeps-integration-tests/metric-assertions`).
+
+Конструктор: `new MetricsAssert(metricsReport)`.
+
+| Метод                                                         | Назначение                                                              |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `ma.hasSamples(entityType, entityId)`                         | Есть хотя бы один сэмпл для сущности.                                   |
+| `ma.latestAtLeast(entityType, entityId, metricName, expected)`| Последнее значение ≥ `expected`.                                        |
+| `ma.latestBelow(entityType, entityId, metricName, expected)`  | Последнее значение < `expected`.                                        |
+| `ma.reached(entityType, entityId, metricName, expected)`      | Метрика хотя бы раз достигла `expected` за всю series.                  |
+| `ma.monotonic(entityType, entityId, metricName)`              | Метрика монотонно не убывает (для накопительных счётчиков).             |
+
+```javascript
+const { MetricsAssert } = require('screeps-integration-tests/metric-assertions');
+const ma = new MetricsAssert(report.metrics);
+ma.hasSamples('rooms', 'W0N1');
+ma.latestAtLeast('rooms', 'W0N1', 'rcl', 3);
+ma.latestBelow('rooms', 'W0N1', 'rclProgress', 1_000_000);
+ma.reached('rooms', 'W0N1', 'energyAvailable', 2000);
+ma.monotonic('rooms', 'W0N1', 'rcl');
+```
+
+#### MetricsRegression
+
+Сравнение с baseline-отчётом.
+
+Конструктор: `new MetricsRegression(baselineMetricsReport)`.
+
+| Метод                                                                             | Назначение                             |
+| --------------------------------------------------------------------------------- | -------------------------------------- |
+| `reg.compare(currentReport, entityType, entityId, metricName, opts?)`             | Сравнить метрику с baseline.           |
+
+**CompareOpts:**
+
+| Поле                | Тип                                  | По умолчанию | Описание                                          |
+| ------------------- | ------------------------------------ | ------------ | ------------------------------------------------- |
+| `aggregator`        | `'average'\|'latest'\|'sum'\|'delta'`| `'average'`  | Как агрегировать series перед сравнением.         |
+| `tolerance`         | `number`                             | `0`          | Абсолютный допуск.                                |
+| `relativeTolerance` | `number`                             | `0`          | Относительный допуск (доля, например `0.05` = 5%).|
+| `direction`         | `'increase'\|'decrease'\|'both'`     | `'both'`     | Направление регрессии.                            |
+| `window`            | `{startTick?, endTick?}`             | —            | Окно тиков для сравнения.                         |
+
+**CompareResult:**
+
+| Поле             | Тип       | Описание                         |
+| ---------------- | --------- | -------------------------------- |
+| `passed`         | `boolean` | Тест пройден.                    |
+| `actual`         | `number`  | Текущее агрегированное значение. |
+| `expected`        | `number`  | Baseline-значение.              |
+| `delta`          | `number`  | `actual - expected`.             |
+| `relativeDelta`  | `number`  | `delta / abs(expected)`.         |
+
+```javascript
+const { MetricsReport, MetricsRegression } = require('screeps-integration-tests/metrics');
+const baseline = MetricsReport.fromJSON(/* загруженный baseline */);
+const reg = new MetricsRegression(baseline);
+const result = reg.compare(report.metrics, 'rooms', 'W0N1', 'energyAvailable', {
+  aggregator: 'average',
+  direction: 'decrease',
+  tolerance: 500,
+});
+if (!result.passed) {
+  console.error(`Регрессия: ${result.actual} vs baseline ${result.expected}`);
+}
+```
+
+### Поля метрик комнат (`rooms`)
+
+Собираются observer'ом каждый `metrics.every` тиков. Имена полей используются
+в методах агрегации, assertions и CSV-экспорте.
+
+| Поле               | Тип                      | Описание                                          |
+| ------------------ | ------------------------ | ------------------------------------------------- |
+| `rcl`              | `number`                 | Уровень контроллера (0–8).                        |
+| `rclProgress`      | `number`                 | Прогресс до следующего уровня.                    |
+| `energyAvailable`  | `number`                 | Энергия в спавнах + расширениях.                  |
+| `energyCapacity`   | `number`                 | Суммарная ёмкость спавнов и расширений.           |
+| `spawnCount`       | `number`                 | Количество спавнов в комнате.                     |
+| `spawnHits`        | `{name, hits, hitsMax}[]`| HP каждого спавна.                                |
+| `towerCount`       | `number`                 | Количество турелей.                               |
+| `towerEnergy`      | `number`                 | Суммарная энергия в турелях.                      |
+| `towerCapacity`    | `number`                 | Суммарная ёмкость турелей.                        |
+| `extensionCount`   | `number`                 | Количество расширений.                            |
+| `creepCount`       | `number`                 | Общее количество крипов в комнате.                |
+| `creepsByRole`     | `{[role]: count}`        | Крипы по ролям (из имени: `role_N` → `role`).     |
+| `storageEnergy`    | `number`                 | Энергия в storage.                                |
+| `containerEnergy`  | `number`                 | Суммарная энергия в контейнерах.                  |
+| `totalHits`        | `number`                 | Суммарный HP всех объектов комнаты.               |
+
+> `creepsByRole` в CSV разворачивается в отдельные колонки `creepsByRole.<role>`.
 
 ## 9. onTick, events и registerEvent
 
@@ -526,7 +681,7 @@ const controller = await db['rooms.objects'].findOne({ room: 'W0N1', type: 'cont
 
 Используйте когда публичного API недостаточно.
 
-## 11. Отчёт: errors, warnings, logs, events
+## 11. report
 
 `world.report` накапливает:
 
@@ -603,7 +758,7 @@ CLI сохраняет `report.profileCallgrind` в
 
 ## 14. Основные типы
 
-Полные JSDoc-типы — в `src/lib/types.js`. Ниже — выжимка.
+Ниже — выжимка ключевых типов. Полные JSDoc-определения — в `src/lib/types.js`.
 
 ### RoomSpecInput
 
@@ -674,6 +829,81 @@ CLI сохраняет `report.profileCallgrind` в
         world: [],
     },
     stopReason: 'predicate',
+}
+```
+
+### MetricsOpts
+
+```typescript
+{
+    every?: number,       // интервал сэмплирования (0 = выключено, default 0)
+    rooms?: boolean,      // собирать метрики комнат (default true)
+    colonies?: boolean,   // пока не поддерживается — бросает ошибку
+    bots?: boolean,       // пока не поддерживается — бросает ошибку
+    world?: boolean,      // пока не поддерживается — бросает ошибку
+}
+```
+
+### MetricEntityType
+
+```typescript
+type MetricEntityType = 'rooms' | 'colonies' | 'bots' | 'world';
+```
+
+### MetricsSample
+
+```typescript
+{
+    tick: number,                      // номер тика
+    // ... произвольные поля метрик (rcl, energyAvailable, ...)
+}
+```
+
+### RoomMetrics
+
+Поля сэмпла комнатных метрик (без `tick`):
+
+```typescript
+{
+    rcl: number,
+    rclProgress: number,
+    energyAvailable: number,
+    energyCapacity: number,
+    spawnCount: number,
+    spawnHits: { name: string, hits: number, hitsMax: number }[],
+    towerCount: number,
+    towerEnergy: number,
+    towerCapacity: number,
+    extensionCount: number,
+    creepCount: number,
+    creepsByRole: { [role: string]: number },
+    storageEnergy: number,
+    containerEnergy: number,
+    totalHits: number,
+}
+```
+
+### CompareOpts (MetricsRegression)
+
+```typescript
+{
+    aggregator?: 'average' | 'latest' | 'sum' | 'delta',  // default 'average'
+    tolerance?: number,                                      // default 0
+    relativeTolerance?: number,                              // default 0
+    direction?: 'increase' | 'decrease' | 'both',           // default 'both'
+    window?: { startTick?: number, endTick?: number },
+}
+```
+
+### CompareResult (MetricsRegression)
+
+```typescript
+{
+    passed: boolean,
+    actual?: number,
+    expected?: number,
+    delta?: number,
+    relativeDelta?: number,
 }
 ```
 
