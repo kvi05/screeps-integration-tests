@@ -15,7 +15,7 @@ const {
     creep,
     invader,
     dummyTarget,
-} = require('../lib/builders/spec');
+} = require('../src/lib/builders/spec');
 
 const {
     STRUCTURE_SPAWN,
@@ -26,7 +26,7 @@ const {
     STRUCTURE_ROAD,
     STRUCTURE_WALL,
     STRUCTURE_RAMPART,
-} = require('../constants/screepsConstants');
+} = require('../src/constants/screepsConstants');
 
 describe('spec constructors', () => {
     describe('structure()', () => {

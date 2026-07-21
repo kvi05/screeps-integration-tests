@@ -1,9 +1,9 @@
 'use strict';
 
-const { createWorldHelpers } = require('../lib/worldHelpers');
+const { createWorldHelpers } = require('../src/lib/worldHelpers');
 
 // Mock materializeStructure to avoid touching the real DB.
-jest.mock('../lib/builders/materialize', () => ({
+jest.mock('../src/lib/builders/materialize', () => ({
     materializeStructure: jest.fn(() => Promise.resolve('mocked_structure_id')),
 }));
 
@@ -225,7 +225,7 @@ describe('createWorldHelpers', () => {
 
     describe('createStructure', () => {
         it('calls materializeStructure with spec and defaultBotUserId', async () => {
-            const { materializeStructure } = require('../lib/builders/materialize');
+            const { materializeStructure } = require('../src/lib/builders/materialize');
             const spec = { type: 'tower', x: 25, y: 25, roomName: 'W0N1' };
             const id = await helpers.createStructure(spec);
             expect(id).toBe('mocked_structure_id');
@@ -237,7 +237,7 @@ describe('createWorldHelpers', () => {
         });
 
         it('does not override an explicit userId', async () => {
-            const { materializeStructure } = require('../lib/builders/materialize');
+            const { materializeStructure } = require('../src/lib/builders/materialize');
             const spec = { type: 'tower', x: 30, y: 30, roomName: 'W0N1', userId: 'custom' };
             await helpers.createStructure(spec);
             expect(materializeStructure).toHaveBeenCalledWith(

@@ -1,6 +1,6 @@
 'use strict';
 
-const { MetricsReport } = require('../lib/metricsReport');
+const { MetricsReport } = require('../src/lib/metricsReport');
 
 describe('MetricsReport', () => {
     describe('constructor', () => {

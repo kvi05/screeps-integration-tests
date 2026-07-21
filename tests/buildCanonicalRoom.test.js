@@ -13,9 +13,9 @@
  * @file Unit tests for buildCanonicalRoom.
  */
 
-const { buildCanonicalRoom } = require('../lib/world');
-const { applyRoomOverrides, registerRoomFixture } = require('../lib/fixtures/roomFixture');
-const spec = require('../lib/builders/spec');
+const { buildCanonicalRoom } = require('../src/lib/world');
+const { applyRoomOverrides, registerRoomFixture } = require('../src/lib/fixtures/roomFixture');
+const spec = require('../src/lib/builders/spec');
 
 // Test room fixture replacing bot-specific rcl3-stable.
 registerRoomFixture('rcl3-stable', {

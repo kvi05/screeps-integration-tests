@@ -5,7 +5,7 @@ const {
     resolveMemorySource,
     normalizePerBotMemoryOption,
     resolveInitialMemoryByBot,
-} = require('../lib/builders/memory');
+} = require('../src/lib/builders/memory');
 
 describe('memory builders', () => {
     describe('deepMergeMemory', () => {

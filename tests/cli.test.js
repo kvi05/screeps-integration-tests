@@ -1,6 +1,6 @@
 'use strict';
 
-const { parseArgs, generateHelp, HelpRequested } = require('../lib/cli');
+const { parseArgs, generateHelp, HelpRequested } = require('../src/lib/cli');
 
 describe('cli parseArgs', () => {
     const schema = {

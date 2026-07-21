@@ -1,7 +1,7 @@
 'use strict';
 
-const { MetricsReport } = require('../lib/metricsReport');
-const { MetricsAssert } = require('../lib/metricAssertions');
+const { MetricsReport } = require('../src/lib/metricsReport');
+const { MetricsAssert } = require('../src/lib/metricAssertions');
 
 describe('MetricsAssert', () => {
     /** @returns {MetricsReport} */

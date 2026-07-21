@@ -11,9 +11,9 @@ const {
     registerRoomFixture,
     loadRoomFixturesFromDir,
     ROOM_FIXTURES,
-} = require('../lib/fixtures/roomFixture');
+} = require('../src/lib/fixtures/roomFixture');
 
-const spec = require('../lib/builders/spec');
+const spec = require('../src/lib/builders/spec');
 
 describe('roomFixture', () => {
     beforeEach(() => {
@@ -191,8 +191,8 @@ describe('roomFixture', () => {
 
         it('registers fixture from file with registerRoomFixture', () => {
             const filePath = path.join(tmpDir, 'my-room.room.js');
-            const roomFixturePath = require.resolve('../lib/fixtures/roomFixture');
-            const specPath = require.resolve('../lib/builders/spec');
+            const roomFixturePath = require.resolve('../src/lib/fixtures/roomFixture');
+            const specPath = require.resolve('../src/lib/builders/spec');
             fs.writeFileSync(
                 filePath,
                 `

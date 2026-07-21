@@ -1,6 +1,6 @@
 'use strict';
 
-const { createStorageAdapter } = require('../lib/storageAdapter');
+const { createStorageAdapter } = require('../src/lib/storageAdapter');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

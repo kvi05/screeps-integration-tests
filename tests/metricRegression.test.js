@@ -1,7 +1,7 @@
 ﻿'use strict';
 
-const { MetricsReport } = require('../lib/metricsReport');
-const { MetricsRegression } = require('../lib/metricRegression');
+const { MetricsReport } = require('../src/lib/metricsReport');
+const { MetricsRegression } = require('../src/lib/metricRegression');
 
 describe('MetricsRegression', () => {
     /** @type {import('../lib/types').MetricSeries} */
