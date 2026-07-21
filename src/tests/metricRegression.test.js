@@ -11,7 +11,7 @@ describe('MetricsRegression', () => {
         { tick: 300, cpu: 14 },
     ];
 
-    /** Создаёт MetricsReport с одной сущностью из seriesData */
+    /** Creates a MetricsReport with one entity from seriesData */
     function makeBaseline(series) {
         const m = new MetricsReport();
         for (const s of series) {
@@ -21,7 +21,7 @@ describe('MetricsRegression', () => {
     }
 
     describe('compare', () => {
-        it('возвращает passed=true при совпадении', () => {
+        it('returns passed=true when matching', () => {
             const baseline = makeBaseline(seriesData);
             const current = makeBaseline(seriesData);
             const reg = new MetricsRegression(baseline);
@@ -31,7 +31,7 @@ describe('MetricsRegression', () => {
             expect(result.delta).toBe(0);
         });
 
-        it('учитывает абсолютный tolerance', () => {
+        it('respects absolute tolerance', () => {
             const baseline = makeBaseline([{ tick: 100, cpu: 10 }]);
             const current = makeBaseline([{ tick: 100, cpu: 12 }]);
             const reg = new MetricsRegression(baseline);
@@ -40,7 +40,7 @@ describe('MetricsRegression', () => {
             expect(reg.compare(current, 'bots', 'bot1', 'cpu', { tolerance: 1 }).passed).toBe(false);
         });
 
-        it('учитывает относительный tolerance', () => {
+        it('respects relative tolerance', () => {
             const baseline = makeBaseline([{ tick: 100, cpu: 100 }]);
             const current = makeBaseline([{ tick: 100, cpu: 110 }]);
             const reg = new MetricsRegression(baseline);
@@ -49,7 +49,7 @@ describe('MetricsRegression', () => {
             expect(reg.compare(current, 'bots', 'bot1', 'cpu', { relativeTolerance: 0.05 }).passed).toBe(false);
         });
 
-        it('direction=increase разрешает только рост', () => {
+        it('direction=increase only allows growth', () => {
             const baseline = makeBaseline([{ tick: 100, cpu: 10 }]);
             const reg = new MetricsRegression(baseline);
 
@@ -60,7 +60,7 @@ describe('MetricsRegression', () => {
             expect(reg.compare(down, 'bots', 'bot1', 'cpu', { direction: 'increase' }).passed).toBe(false);
         });
 
-        it('direction=decrease разрешает только падение', () => {
+        it('direction=decrease only allows decline', () => {
             const baseline = makeBaseline([{ tick: 100, cpu: 10 }]);
             const reg = new MetricsRegression(baseline);
 
@@ -71,7 +71,7 @@ describe('MetricsRegression', () => {
             expect(reg.compare(up, 'bots', 'bot1', 'cpu', { direction: 'decrease' }).passed).toBe(false);
         });
 
-        it('aggregator=latest сравнивает последние значения', () => {
+        it('aggregator=latest compares the latest values', () => {
             const baseline = makeBaseline([
                 { tick: 100, cpu: 10 },
                 { tick: 200, cpu: 20 },
@@ -88,7 +88,7 @@ describe('MetricsRegression', () => {
             expect(result.expected).toBe(20);
         });
 
-        it('возвращает passed=false, если нет валидных значений', () => {
+        it('returns passed=false if there are no valid values', () => {
             const baseline = makeBaseline([{ tick: 100 }]);
             const current = makeBaseline([{ tick: 100 }]);
             const reg = new MetricsRegression(baseline);
@@ -98,7 +98,7 @@ describe('MetricsRegression', () => {
             expect(result.actual).toBeUndefined();
         });
 
-        it('поддерживает window (selectWindow)', () => {
+        it('supports window (selectWindow)', () => {
             const baseline = makeBaseline(seriesData);
             const current = makeBaseline(seriesData);
             const reg = new MetricsRegression(baseline);
@@ -108,7 +108,7 @@ describe('MetricsRegression', () => {
                 window: { startTick: 150, endTick: 250 },
             });
             expect(result.passed).toBe(true);
-            expect(result.actual).toBe(12); // среднее от [{tick:200, cpu:12}]
+            expect(result.actual).toBe(12); // average of [{tick:200, cpu:12}]
         });
     });
 });

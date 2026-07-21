@@ -1,11 +1,11 @@
 'use strict';
 
 /**
- * Room fixtures — семантические описания готовых комнат.
+ * Room fixtures — semantic descriptions of prebuilt rooms.
  *
- * Название выбрано осознанно: в Screeps colony бота может занимать несколько
- * комнат (main + reserve). Наша fixture описывает именно КОМНАТУ (controller,
- * sources, structures, creeps) — не колонию. Имя "roomFixture" точнее.
+ * Name chosen deliberately: in Screeps, a bot's colony can span multiple
+ * rooms (main + reserve). Our fixture describes exactly a ROOM (controller,
+ * sources, structures, creeps) — not a colony. The name "roomFixture" is more precise.
  *
  * @module fixtures/roomFixture
  */
@@ -26,7 +26,7 @@ const ROOM_FIXTURES = {};
 // ─── API ────────────────────────────────────────────────────────────────────
 
 /**
- * Получить room fixture по имени.
+ * Get a room fixture by name.
  * @param {string} name
  * @returns {RoomFixtureSpec|null}
  */
@@ -35,7 +35,7 @@ function getRoomFixture(name) {
 }
 
 /**
- * Проверить существует ли room fixture.
+ * Check if a room fixture exists.
  * @param {string} name
  * @returns {boolean}
  */
@@ -44,9 +44,9 @@ function hasRoomFixture(name) {
 }
 
 /**
- * Загрузить room fixture.
+ * Load a room fixture.
  *
- * @param {string} name — имя fixture ('rcl3-stable')
+ * @param {string} name — fixture name ('rcl3-stable')
  * @returns {{ fixture: RoomFixtureSpec }|null}
  */
 function loadRoomFixture(name) {
@@ -59,8 +59,8 @@ function loadRoomFixture(name) {
 }
 
 /**
- * Применить overrides к room fixture.
- * Возвращает новый объект, не мутирует оригинал.
+ * Apply overrides to a room fixture.
+ * Returns a new object, doesn't mutate the original.
  *
  * @param {RoomFixtureSpec} fixture
  * @param {RoomOverrides} [overrides]
@@ -100,7 +100,7 @@ function applyRoomOverrides(fixture, overrides = {}) {
         });
     }
 
-    // overrides.structures — переопределение полей существующих структур
+    // overrides.structures — override fields of existing structures
     if (overrides.structures && overrides.structures.length > 0) {
         for (const override of overrides.structures) {
             const idx = result.structures.findIndex((s) => {
@@ -137,7 +137,7 @@ function applyRoomOverrides(fixture, overrides = {}) {
 }
 
 /**
- * Регистрирует пользовательский room fixture.
+ * Registers a custom room fixture.
  *
  * @param {string} name
  * @param {RoomFixtureSpec} fixture
@@ -147,9 +147,9 @@ function registerRoomFixture(name, fixture) {
 }
 
 /**
- * Автозагрузка room fixtures из SIT_ROOM_FIXTURES_DIR.
- * Каждый *.room.js файл должен через side-effect вызвать registerRoomFixture
- * либо экспортировать { name, fixture }.
+ * Auto-load room fixtures from SIT_ROOM_FIXTURES_DIR.
+ * Each *.room.js file must either call registerRoomFixture as a side-effect
+ * or export { name, fixture }.
  *
  * @param {string} dir
  */

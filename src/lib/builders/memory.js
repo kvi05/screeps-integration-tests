@@ -13,11 +13,11 @@ function resolveFixturesDir() {
  */
 
 /**
- * Записывает Memory бота напрямую в storage.
+ * Writes bot Memory directly to storage.
  *
  * @param {StorageAdapter} adapter
- * @param {string} userId              — _id пользователя из БД
- * @param {BotMemory} memory           — объект Memory
+ * @param {string} userId              — user _id from DB
+ * @param {BotMemory} memory           — Memory object
  * @returns {Promise<void>}
  */
 async function setBotMemory(adapter, userId, memory) {
@@ -26,7 +26,7 @@ async function setBotMemory(adapter, userId, memory) {
 }
 
 /**
- * Читает Memory бота из storage.
+ * Reads bot Memory from storage.
  *
  * @param {StorageAdapter} adapter
  * @param {string} userId
@@ -39,25 +39,25 @@ async function getBotMemory(adapter, userId) {
 }
 
 /**
- * Загружает memory fixture-файл по имени.
+ * Loads a memory fixture file by name.
  *
- * @param {string} fixtureName              — имя файла без `.memory.json` (например 'rcl3-stable')
+ * @param {string} fixtureName              — filename without `.memory.json` (e.g. 'rcl3-stable')
  * @returns {BotMemory}
- * @throws {Error} если файл не найден
+ * @throws {Error} if file not found
  */
 function loadFixture(fixtureName) {
     const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
     if (!fs.existsSync(fixturePath)) {
         throw new Error(
-            `Fixture "${fixtureName}" не найден: ${fixturePath}\n` +
-                'Создайте fixture по инструкции: src/fixtures/FIXTURES-GUIDE.md',
+            `Fixture "${fixtureName}" not found: ${fixturePath}\n` +
+                'Create a fixture per the guide: src/fixtures/FIXTURES-GUIDE.md',
         );
     }
     return JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 }
 
 /**
- * Проверяет существует ли memory fixture.
+ * Checks if a memory fixture exists.
  *
  * @param {string} fixtureName
  * @returns {boolean}
@@ -68,14 +68,14 @@ function hasFixture(fixtureName) {
 }
 
 /**
- * Сохраняет Memory как fixture.
+ * Saves Memory as a fixture.
  *
  * @param {string} fixtureName
  * @param {BotMemory} memory
  * @param {Object} [opts]
- * @param {boolean} [opts.force=true]     — разрешить перезапись существующего fixture
+ * @param {boolean} [opts.force=true]     — allow overwriting existing fixture
  * @returns {{ path: string, size: number, existed: boolean }}
- * @throws {Error} если файл уже существует и `opts.force === false`
+ * @throws {Error} if file already exists and `opts.force === false`
  */
 function saveFixture(fixtureName, memory, opts = {}) {
     const force = opts.force !== false;
@@ -83,9 +83,7 @@ function saveFixture(fixtureName, memory, opts = {}) {
     const existed = fs.existsSync(fixturePath);
 
     if (existed && !force) {
-        throw new Error(
-            `Fixture "${fixtureName}" уже существует: ${fixturePath}\n` + 'Используйте --force для перезаписи.',
-        );
+        throw new Error(`Fixture "${fixtureName}" already exists: ${fixturePath}\n` + 'Use --force to overwrite.');
     }
 
     const json = JSON.stringify(memory, null, 2);
@@ -96,19 +94,19 @@ function saveFixture(fixtureName, memory, opts = {}) {
 }
 
 /**
- * Глубокое слияние (deep merge) объектов Memory.
+ * Deep merge of Memory objects.
  *
- * Семантика: plain objects мерджатся рекурсивно, массивы и примитивы —
- * заменяются значением из patch. `undefined` в patch игнорируется
- * (не затирает существующие данные). Это и есть ожидаемое memory override
- * semantics, которым пользуются `createWorld()` и `world.writeMemory()`.
+ * Semantics: plain objects are merged recursively, arrays and primitives
+ * are replaced by the value from patch. `undefined` in patch is ignored
+ * (does not overwrite existing data). This is the expected memory override
+ * semantics used by `createWorld()` and `world.writeMemory()`.
  *
- * Приоритет: чем позже источник — тем выше. `deepMergeMemory(a, b)` =
- * `a` + наложенный `b`.
+ * Priority: later sources take precedence. `deepMergeMemory(a, b)` =
+ * `a` overlaid with `b`.
  *
- * @param {Object} target — базовый объект (не мутируется)
- * @param {...Object} sources — патчи, мерджатся в порядке передачи
- * @returns {Object} новый объект-результат
+ * @param {Object} target — base object (not mutated)
+ * @param {...Object} sources — patches, merged in order
+ * @returns {Object} new result object
  */
 function deepMergeMemory(target, ...sources) {
     const result = { ...target };
@@ -139,9 +137,9 @@ function deepMergeMemory(target, ...sources) {
 }
 
 /**
- * Нормализует источник стартовой памяти одного бота.
+ * Normalizes a single bot's initial memory source.
  *
- * Поддерживаемые формы:
+ * Supported forms:
  * - `'fixture-name'`
  * - `{ fixture: 'fixture-name' }`
  * - inline object Memory
@@ -158,7 +156,7 @@ function resolveMemorySource(source, contextLabel) {
         return loadFixture(source);
     }
     if (typeof source !== 'object' || Array.isArray(source)) {
-        throw new Error(`${contextLabel}: ожидается fixture name или object, получено ${typeof source}`);
+        throw new Error(`${contextLabel}: expected fixture name or object, got ${typeof source}`);
     }
     if (typeof source.fixture === 'string') {
         const { fixture, ...inlineOverrides } = source;
@@ -169,7 +167,7 @@ function resolveMemorySource(source, contextLabel) {
 }
 
 /**
- * Возвращает true, если значение похоже на map по username, а не на объект Memory.
+ * Returns true if the value looks like a map by username rather than a Memory object.
  *
  * @param {Object<string,*>|undefined|null} value
  * @param {string[]} botNames
@@ -186,10 +184,10 @@ function isPerBotMemoryMap(value, botNames) {
 }
 
 /**
- * Нормализует `memory` / `memoryOverrides` к per-bot map.
+ * Normalizes `memory` / `memoryOverrides` to a per-bot map.
  *
- * Для single-bot сценариев допускается shorthand без username.
- * Для multi-bot требуется явная map по username.
+ * For single-bot scenarios, a shorthand without username is allowed.
+ * For multi-bot, an explicit username map is required.
  *
  * @param {string} optionName
  * @param {string|BotMemory|Object<string,*>|undefined|null} value
@@ -210,16 +208,16 @@ function normalizePerBotMemoryOption(optionName, value, botNames) {
     }
 
     if (botNames.length === 0) {
-        throw new Error(`createWorld: ${optionName} нельзя задавать без bots`);
+        throw new Error(`createWorld: ${optionName} cannot be set without bots`);
     }
 
     throw new Error(
-        `createWorld: для multi-bot ${optionName} должен быть объектом вида { username: memory }, боты: ${botNames.join(', ')}`,
+        `createWorld: for multi-bot ${optionName} must be an object of the form { username: memory }, bots: ${botNames.join(', ')}`,
     );
 }
 
 /**
- * Резолвит initial memory для всех ботов по явному контракту `memory` + `memoryOverrides`.
+ * Resolves initial memory for all bots by explicit contract `memory` + `memoryOverrides`.
  *
  * @param {string[]} botNames
  * @param {string|BotMemory|Object<string,*>|undefined|null} memory

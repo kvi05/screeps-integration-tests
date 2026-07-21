@@ -8,24 +8,24 @@ const { once } = require('events');
  */
 
 /**
- * Worker entry point для запуска одного сценария.
+ * Worker entry point for running a single scenario.
  *
- * Каждый сценарий изолирован в отдельном дочернем процессе (`child_process.fork`).
- * Это гарантирует, что mockup-сервер и его дочерние процессы (storage,
- * engine_runner, engine_processor) не разделяют state между сценариями,
- * а при завершении/убийстве воркера ОС может корректно прибить всё дерево
- * процессов.
+ * Each scenario is isolated in a separate child process (`child_process.fork`).
+ * This ensures that the mockup server and its child processes (storage,
+ * engine_runner, engine_processor) do not share state between scenarios,
+ * and when the worker terminates/is killed, the OS can properly clean up
+ * the entire process tree.
  *
- * Поддерживает три статуса:
- * - pass — сценарий прошёл успешно
- * - skip — сценарий пропущен (result.skipped === true)
- * - fail — сценарий упал с ошибкой
+ * Supports three statuses:
+ * - pass — scenario passed successfully
+ * - skip — scenario skipped (result.skipped === true)
+ * - fail — scenario failed with an error
  *
- * process.exit(0) вызывается после отправки сообщения,
- * т.к. server.stop() не полностью освобождает storage (утечка файловых дескрипторов).
+ * process.exit(0) is called after sending the message,
+ * because server.stop() does not fully release storage (file descriptor leak).
  *
  * @example
- * // Запуск из bin/screeps-integration-tests.js:
+ * // Run from bin/screeps-integration-tests.js:
  * const cp = require('child_process');
  * const child = cp.fork('src/runScenario.js');
  * child.send({ scenarioPath: './scenarios/smoke-empty.scenario.js', opts: { profiling: false } });
@@ -36,8 +36,8 @@ const { once } = require('events');
     try {
         const [msg] = await once(process, 'message');
 
-        // Загружаем пользовательские room fixtures ДО require сценария,
-        // чтобы они были доступны через публичный API.
+        // Load user room fixtures BEFORE requiring the scenario,
+        // so they are available through the public API.
         if (msg.roomFixturesDir) {
             const { loadRoomFixturesFromDir } = require('./lib/fixtures/roomFixture');
             loadRoomFixturesFromDir(msg.roomFixturesDir);
@@ -59,9 +59,9 @@ const { once } = require('events');
         };
         process.send(message);
     } finally {
-        // Завершение worker process.
-        // server.stop() не полностью освобождает storage — process.exit() необходим.
-        // Небольшая задержка (100ms) чтобы сообщение успело доставиться в parent.
+        // Terminate worker process.
+        // server.stop() does not fully release storage — process.exit() is necessary.
+        // Small delay (100ms) to ensure the message is delivered to the parent.
         setTimeout(() => process.exit(0), 100);
     }
 })();

@@ -3,10 +3,10 @@
 const assert = require('node:assert');
 
 /**
- * Assertion helpers для time-series метрик integration tests.
+ * Assertion helpers for time-series metrics in integration tests.
  *
- * Принимает экземпляр MetricsReport в конструктор. Все методы бросают
- * assert-ошибки при невыполнении условий.
+ * Takes a MetricsReport instance in the constructor. All methods throw
+ * assertion errors when conditions are not met.
  *
  * @module metricAssertions
  */
@@ -26,7 +26,7 @@ class MetricsAssert {
     }
 
     /**
-     * Проверяет, что для сущности есть хотя бы один сэмпл.
+     * Asserts that the entity has at least one sample.
      *
      * @param {MetricEntityType} entityType
      * @param {string} entityId
@@ -38,7 +38,7 @@ class MetricsAssert {
     }
 
     /**
-     * Проверяет, что последнее значение метрики ≥ `expected`.
+     * Asserts that the latest metric value ≥ `expected`.
      *
      * @param {MetricEntityType} entityType
      * @param {string} entityId
@@ -65,7 +65,7 @@ class MetricsAssert {
     }
 
     /**
-     * Проверяет, что последнее значение метрики < `expected`.
+     * Asserts that the latest metric value < `expected`.
      *
      * @param {MetricEntityType} entityType
      * @param {string} entityId
@@ -92,7 +92,7 @@ class MetricsAssert {
     }
 
     /**
-     * Проверяет, что метрика хотя бы раз достигла значения `expected`.
+     * Asserts that the metric reached `expected` at least once.
      *
      * @param {MetricEntityType} entityType
      * @param {string} entityId
@@ -115,11 +115,11 @@ class MetricsAssert {
     }
 
     /**
-     * Проверяет, что метрика монотонно не убывает по series.
-     * Пропускает сэмплы с отсутствующим или нечисловым значением.
+     * Asserts that the metric is monotonically non-decreasing across the series.
+     * Skips samples with missing or non-numeric values.
      *
-     * Использовать только для метрик, которые действительно должны быть
-     * монотонными (например, суммарный прогресс или накопленный счётчик).
+     * Only use for metrics that are genuinely expected to be
+     * monotonic (e.g., cumulative progress or an accumulated counter).
      *
      * @param {MetricEntityType} entityType
      * @param {string} entityId

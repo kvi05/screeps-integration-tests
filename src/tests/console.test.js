@@ -4,109 +4,109 @@ const { createConsoleCapture, looksLikeError, ERROR_PATTERNS } = require('../lib
 
 describe('console capture', () => {
     describe('looksLikeError', () => {
-        it('определяет ReferenceError', () => {
+        it('detects ReferenceError', () => {
             expect(looksLikeError('ReferenceError: foo is not defined')).toBe(true);
         });
 
-        it('определяет SyntaxError', () => {
+        it('detects SyntaxError', () => {
             expect(looksLikeError('SyntaxError: Unexpected token')).toBe(true);
         });
 
-        it('определяет TypeError', () => {
+        it('detects TypeError', () => {
             expect(looksLikeError('TypeError: Cannot read property')).toBe(true);
         });
 
-        it('определяет "is not defined"', () => {
+        it('detects "is not defined"', () => {
             expect(looksLikeError('Something is not defined')).toBe(true);
         });
 
-        it('определяет "Maximum call stack"', () => {
+        it('detects "Maximum call stack"', () => {
             expect(looksLikeError('Maximum call stack size exceeded')).toBe(true);
         });
 
-        it('не срабатывает на обычной строке', () => {
+        it('does not trigger on a normal string', () => {
             expect(looksLikeError('Harvester moving to source')).toBe(false);
         });
 
-        it('не срабатывает на пустой строке', () => {
+        it('does not trigger on empty string', () => {
             expect(looksLikeError('')).toBe(false);
         });
     });
 
     describe('createConsoleCapture', () => {
-        // Семантика logLevel:
-        //   'all'   — ошибки → errors + logs; предупреждения → warnings + logs; нормальные → logs
-        //   'error' — ошибки → errors + logs; предупреждения → warnings; нормальные → никуда
-        //   'warn'  — ошибки → errors + logs; предупреждения → warnings + logs; нормальные → никуда
+        // logLevel semantics:
+        //   'all'   — errors → errors + logs; warnings → warnings + logs; normal → logs
+        //   'error' — errors → errors + logs; warnings → warnings; normal → nowhere
+        //   'warn'  — errors → errors + logs; warnings → warnings + logs; normal → nowhere
 
-        it('классифицирует [ERROR] строку как ошибку (logLevel=all: errors + logs)', () => {
+        it('classifies [ERROR] string as error (logLevel=all: errors + logs)', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all' });
             handler(['[ERROR] Something went wrong']);
             expect(report.errors).toEqual(['[ERROR] Something went wrong']);
             expect(report.logs).toEqual(['[ERROR] Something went wrong']);
         });
 
-        it('классифицирует [ERROR] строку как ошибку (logLevel=error: errors + logs)', () => {
+        it('classifies [ERROR] string as error (logLevel=error: errors + logs)', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'error' });
             handler(['[ERROR] Something went wrong']);
             expect(report.errors).toEqual(['[ERROR] Something went wrong']);
             expect(report.logs).toEqual(['[ERROR] Something went wrong']);
         });
 
-        it('классифицирует строку с ERROR_PATTERNS как ошибку', () => {
+        it('classifies string with ERROR_PATTERNS as error', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all' });
             handler(['ReferenceError: x is not defined']);
             expect(report.errors).toEqual(['ReferenceError: x is not defined']);
         });
 
-        it('классифицирует [WARN] строку как предупреждение (logLevel=all: warnings + logs)', () => {
+        it('classifies [WARN] string as warning (logLevel=all: warnings + logs)', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all' });
             handler(['[WARN] Low energy']);
             expect(report.warnings).toEqual(['[WARN] Low energy']);
             expect(report.logs).toEqual(['[WARN] Low energy']);
         });
 
-        it('классифицирует [WARN] строку как предупреждение (logLevel=warn: warnings + logs)', () => {
+        it('classifies [WARN] string as warning (logLevel=warn: warnings + logs)', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'warn' });
             handler(['[WARN] Low energy']);
             expect(report.warnings).toEqual(['[WARN] Low energy']);
             expect(report.logs).toEqual(['[WARN] Low energy']);
         });
 
-        it('при logLevel=error нормальные логи не попадают в report.logs', () => {
+        it('with logLevel=error normal logs do not go to report.logs', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'error' });
             handler(['Upgrader working']);
             expect(report.logs).toEqual([]);
         });
 
-        it('при logLevel=warn нормальные логи НЕ попадают в logs', () => {
+        it('with logLevel=warn normal logs do NOT go to logs', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'warn' });
             handler(['Normal log']);
             expect(report.logs).toEqual([]);
         });
 
-        it('maxConsoleLines обрезает логи (лимит на суммарное количество строк)', () => {
+        it('maxConsoleLines truncates logs (limit on total line count)', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all', maxConsoleLines: 2 });
             handler(['line1']);
             handler(['line2']);
             handler(['line3']);
-            // После line1: total=1, line2: total=2, line3: total=2 (2>2? false → добавляет)
-            // line4 был бы заблокирован
+            // After line1: total=1, line2: total=2, line3: total=2 (2>2? false → adds)
+            // line4 would be blocked
             expect(report.logs).toEqual(['line1', 'line2', 'line3']);
         });
 
-        it('maxConsoleLines блокирует следующий batch после превышения', () => {
+        it('maxConsoleLines blocks the next batch after exceeding limit', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all', maxConsoleLines: 2 });
             handler(['line1', 'line2']);
             handler(['line3']);
-            // После 1-го вызова: total=2, 2-й вызов: total=2, 2>2? false → добавляет line3
+            // After 1st call: total=2, 2nd call: total=2, 2>2? false → adds line3
             expect(report.logs).toEqual(['line1', 'line2', 'line3']);
-            // 3-й вызов: total=3, 3>2? true → блокировано
+            // 3rd call: total=3, 3>2? true → blocked
             handler(['line4']);
             expect(report.logs).toEqual(['line1', 'line2', 'line3']);
         });
 
-        it('maxConsoleLines обрезает суммарно errors+warnings+logs', () => {
+        it('maxConsoleLines truncates total errors+warnings+logs', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all', maxConsoleLines: 2 });
             handler(['line1']);
             handler(['[ERROR] err']);
@@ -114,7 +114,7 @@ describe('console capture', () => {
             expect(report.logs).toEqual(['line1', '[ERROR] err']);
         });
 
-        it('создаёт свой report если не передан внешний', () => {
+        it('creates its own report if no external report provided', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all' });
             handler(['test']);
             expect(report.logs).toEqual(['test']);
@@ -122,7 +122,7 @@ describe('console capture', () => {
             expect(report.warnings).toEqual([]);
         });
 
-        it('принимает внешний report', () => {
+        it('accepts external report', () => {
             const external = { errors: [], warnings: [], logs: [] };
             const { handler, report } = createConsoleCapture({ report: external, logLevel: 'all' });
             handler(['test']);
@@ -130,7 +130,7 @@ describe('console capture', () => {
             expect(external.logs).toEqual(['test']);
         });
 
-        it('пустой массив логов не меняет report', () => {
+        it('empty log array does not change report', () => {
             const { handler, report } = createConsoleCapture({ logLevel: 'all' });
             handler([]);
             expect(report.logs).toEqual([]);
@@ -143,34 +143,34 @@ describe('console capture', () => {
         });
 
         describe('logLevel validation', () => {
-            it('бросает TypeError при logLevel="errors"', () => {
+            it('throws TypeError on logLevel="errors"', () => {
                 expect(() => createConsoleCapture({ logLevel: 'errors' })).toThrow('Invalid logLevel');
             });
 
-            it('бросает TypeError при logLevel="silent"', () => {
+            it('throws TypeError on logLevel="silent"', () => {
                 expect(() => createConsoleCapture({ logLevel: 'silent' })).toThrow('Invalid logLevel');
             });
 
-            it('бросает TypeError при logLevel="unknown"', () => {
+            it('throws TypeError on logLevel="unknown"', () => {
                 expect(() => createConsoleCapture({ logLevel: 'unknown' })).toThrow('Invalid logLevel');
             });
 
-            it('не бросает при logLevel="all"', () => {
+            it('does not throw on logLevel="all"', () => {
                 expect(() => createConsoleCapture({ logLevel: 'all' })).not.toThrow();
             });
 
-            it('не бросает при logLevel="warn"', () => {
+            it('does not throw on logLevel="warn"', () => {
                 expect(() => createConsoleCapture({ logLevel: 'warn' })).not.toThrow();
             });
 
-            it('не бросает при logLevel="error"', () => {
+            it('does not throw on logLevel="error"', () => {
                 expect(() => createConsoleCapture({ logLevel: 'error' })).not.toThrow();
             });
         });
     });
 
     describe('ERROR_PATTERNS exports', () => {
-        it('содержит все ожидаемые паттерны', () => {
+        it('contains all expected patterns', () => {
             expect(ERROR_PATTERNS).toBeInstanceOf(Array);
             expect(ERROR_PATTERNS.length).toBeGreaterThan(0);
         });

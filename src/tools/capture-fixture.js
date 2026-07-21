@@ -1,36 +1,36 @@
 'use strict';
 
 /**
- * CLI tool для создания fixture-файлов Memory.
+ * CLI tool for creating Memory fixture files.
  *
- * Двухфазная логика:
- *   1. Прогон до достижения `controller.level >= --rcl` (predicate-based)
- *   2. Если RCL достигнут — доп. `--stabilize` тиков для стабилизации состояния
+ * Two-phase logic:
+ *   1. Run until `controller.level >= --rcl` is reached (predicate-based)
+ *   2. If RCL is reached — additional `--stabilize` ticks to stabilize state
  *
- * Использование:
+ * Usage:
  *   node src/tools/capture-fixture.js <name> [options]
  *
- * Опции:
- *   --from <fixture>     — стартовый snapshot (по умолчанию: bootstrap_with_anchor)
- *   --rcl <level>        — целевой RCL (по умолчанию: 3, диапазон: 1..8)
- *   --ticks <N>          — макс. тиков на достижение RCL (по умолчанию: 10000)
- *   --stabilize <N>      — доп. тики после достижения RCL (по умолчанию: 2000)
- *   --log-level <level>  — 'all'|'error'|'warn' (по умолчанию: 'error')
- *   --progress <N>       — логировать каждые N тиков (0 = выключено, по умолчанию: 0)
- *   --room <name>        — имя комнаты (по умолчанию: W0N1)
- *   --sources <JSON>     — позиции источников (по умолчанию: [{"x":15,"y":15},{"x":35,"y":35}])
- *   --force              — перезаписать существующий fixture
- *   --warn-size <N>      — порог предупреждения по размеру в байтах (по умолчанию: 50000)
- *   --help               — показать справку
+ * Options:
+ *   --from <fixture>     — starting snapshot (default: bootstrap_with_anchor)
+ *   --rcl <level>        — target RCL (default: 3, range: 1..8)
+ *   --ticks <N>          — max ticks to reach RCL (default: 10000)
+ *   --stabilize <N>      — extra ticks after reaching RCL (default: 2000)
+ *   --log-level <level>  — 'all'|'error'|'warn' (default: 'error')
+ *   --progress <N>       — log every N ticks (0 = disabled, default: 0)
+ *   --room <name>        — room name (default: W0N1)
+ *   --sources <JSON>     — source positions (default: [{"x":15,"y":15},{"x":35,"y":35}])
+ *   --force              — overwrite existing fixture
+ *   --warn-size <N>      — warning threshold in bytes (default: 50000)
+ *   --help               — show help
  *
- * Примеры:
+ * Examples:
  *   node capture-fixture.js rcl3-stable
  *   node capture-fixture.js rcl3-stable --from bootstrap_with_anchor --ticks 15000
  *   node capture-fixture.js rcl3-stable --rcl 3 --stabilize 3000 --progress 500
  *   node capture-fixture.js rcl3-stable --room W1N1 --force
  *
- * @file CLI для генерации memory fixture
- * @summary Создание `fixtures/<name>.memory.json` из прогона бота до целевого RCL.
+ * @file CLI for generating memory fixture
+ * @summary Creates `fixtures/<name>.memory.json` from running a bot to target RCL.
  */
 
 const { createWorld } = require('../lib/world');
@@ -43,49 +43,49 @@ const { parseArgs, HelpRequested } = require('../lib/cli');
  * @typedef {import('../lib/types').BotMemory} BotMemory
  */
 
-// ─── Схема CLI ──────────────────────────────────────────────────────────────
+// ─── CLI Schema ─────────────────────────────────────────────────────────────
 
 const SCHEMA = {
     title: 'capture-fixture',
     usage: 'node src/tools/capture-fixture.js <name> [options]',
-    positional: [{ name: 'name', required: true, description: 'имя fixture (без .memory.json)' }],
+    positional: [{ name: 'name', required: true, description: 'fixture name (without .memory.json)' }],
     options: {
-        from: { type: 'string', default: 'bootstrap_with_anchor', description: 'стартовая memory fixture' },
-        rcl: { type: 'int', default: 3, min: 1, max: 8, description: 'целевой RCL' },
-        ticks: { type: 'int', default: 10000, min: 1, description: 'макс. тиков на достижение RCL' },
-        stabilize: { type: 'int', default: 2000, min: 0, description: 'доп. тики после достижения RCL' },
+        from: { type: 'string', default: 'bootstrap_with_anchor', description: 'starting memory fixture' },
+        rcl: { type: 'int', default: 3, min: 1, max: 8, description: 'target RCL' },
+        ticks: { type: 'int', default: 10000, min: 1, description: 'max ticks to reach RCL' },
+        stabilize: { type: 'int', default: 2000, min: 0, description: 'extra ticks after reaching RCL' },
         logLevel: {
             type: 'enum',
             values: ['all', 'error', 'warn'],
             default: 'error',
             cli: '--log-level',
-            description: 'уровень логирования',
+            description: 'logging level',
         },
-        progress: { type: 'int', default: 0, min: 0, description: 'логировать каждые N тиков (0 = off)' },
-        room: { type: 'string', default: 'W0N1', description: 'имя комнаты' },
+        progress: { type: 'int', default: 0, min: 0, description: 'log every N ticks (0 = off)' },
+        room: { type: 'string', default: 'W0N1', description: 'room name' },
         sources: {
             type: 'json',
             default: [
                 { x: 15, y: 15 },
                 { x: 35, y: 35 },
             ],
-            description: 'позиции источников (JSON)',
+            description: 'source positions (JSON)',
         },
-        force: { type: 'bool', default: false, description: 'перезаписать существующий fixture' },
+        force: { type: 'bool', default: false, description: 'overwrite existing fixture' },
         warnSize: {
             type: 'int',
             default: 50000,
             min: 0,
             cli: '--warn-size',
-            description: 'порог предупреждения по размеру (байты)',
+            description: 'warning threshold (bytes)',
         },
     },
 };
 
-// ─── Вспомогательные функции ─────────────────────────────────────────────────
+// ─── Helper functions ───────────────────────────────────────────────────────────
 
 /**
- * Извлекает RCL из Memory бота.
+ * Extracts RCL from bot Memory.
  *
  * @param {BotMemory|null|undefined} memory
  * @param {string} roomName
@@ -100,21 +100,21 @@ function getRclFromMemory(memory, roomName) {
     return (ctrl && ctrl.level) || 0;
 }
 
-// ─── Тестируемый API ────────────────────────────────────────────────────────
+// ─── Tested API ─────────────────────────────────────────────────────────────
 
 /**
  * @typedef {Object} CaptureFixtureOpts
- * @property {string}  name                      — имя fixture (без .memory.json)
- * @property {string}  [from='bootstrap_with_anchor'] — стартовая memory fixture
+ * @property {string}  name                      — fixture name (without .memory.json)
+ * @property {string}  [from='bootstrap_with_anchor'] — starting memory fixture
  * @property {number}  [targetRcl=3]
  * @property {number}  [maxTicks=10000]
  * @property {number}  [stabilize=2000]
  * @property {'all'|'error'|'warn'} [logLevel='error']
- * @property {number}  [progress=0]              — шаг progress-логов (0 = off)
+ * @property {number}  [progress=0]              — progress log interval (0 = off)
  * @property {string}  [room='W0N1']
  * @property {Array<{x:number,y:number}>} [sources]
- * @property {boolean} [force=false]             — перезаписать существующий fixture
- * @property {number}  [warnSize=50000]          — предупреждать при size >= N
+ * @property {boolean} [force=false]             — overwrite existing fixture
+ * @property {number}  [warnSize=50000]          — warn when size >= N
  */
 
 /**
@@ -129,13 +129,13 @@ function getRclFromMemory(memory, roomName) {
  */
 
 /**
- * Создаёт fixture: прогоняет мир до targetRcl (Phase 1) и стабилизирует
- * Phase 2 (`stabilize` тиков). Возвращает результат — решение об exit-code
- * принимает вызывающий CLI.
+ * Creates a fixture: runs the world to targetRcl (Phase 1) and stabilizes
+ * Phase 2 (`stabilize` ticks). Returns the result — the calling CLI
+ * decides the exit-code.
  *
  * Exit codes:
- * - 0 — успех (RCL достигнут)
- * - 2 — RCL не достигнут (но fixture сохранён)
+ * - 0 — success (RCL reached)
+ * - 2 — RCL not reached (but fixture saved)
  *
  * @param {CaptureFixtureOpts} cfg
  * @returns {Promise<CaptureFixtureResult>}
@@ -158,16 +158,16 @@ async function captureFixture(cfg) {
         warnSize = 50000,
     } = cfg;
 
-    // Проверка на перезапись — ДО запуска мира (не тратим минуты впустую)
+    // Overwrite check — BEFORE starting the world (don't waste minutes)
     if (!force && hasFixture(name)) {
-        throw new Error(`Fixture "${name}" уже существует. Используйте --force для перезаписи.`);
+        throw new Error(`Fixture "${name}" already exists. Use --force to overwrite.`);
     }
 
     const startTime = Date.now();
     /** @type {string[]} */
     const warnings = [];
 
-    // ─── Создание мира ────────────────────────────────────────────────────
+    // ─── Create world ────────────────────────────────────────────────────────
     /** @type {SourceSpecCanonical[]} */
     const sourceSpecs = sources.map((s) => spec.source(s.x, s.y));
 
@@ -185,7 +185,7 @@ async function captureFixture(cfg) {
         profile: false,
         logLevel,
 
-        // Phase 1: до достижения targetRcl (или до maxTicks)
+        // Phase 1: until targetRcl is reached (or maxTicks)
         until: {
             maxTicks,
             predicate: async (w) => {
@@ -201,7 +201,7 @@ async function captureFixture(cfg) {
         },
     };
 
-    // Стартовая memory fixture прокидывается через общий memory-pipeline createWorld.
+    // Starting memory fixture is passed through the common createWorld memory-pipeline.
     if (from) {
         createWorldOpts.memory = from;
     }
@@ -209,7 +209,7 @@ async function captureFixture(cfg) {
     const world = await createWorld(createWorldOpts);
 
     try {
-        // ─── Фаза 1 (запускается в world.run) ────────────────────────────
+        // ─── Phase 1 (runs inside world.run) ─────────────────────────────────
         console.log(`  Phase 1: reaching RCL ${targetRcl} (max ${maxTicks} ticks)...`);
         await world.run();
 
@@ -221,7 +221,7 @@ async function captureFixture(cfg) {
             console.log(`  RCL ${rclAfterPhase1} reached at tick ${world.report.ticksRun}`);
         }
 
-        // ─── Фаза 2: стабилизация (после достижения RCL) ───────────────
+        // ─── Phase 2: stabilization (after reaching RCL) ─────────────────────
         if (targetReached && stabilize > 0) {
             console.log(`  Phase 2: stabilizing (${stabilize} ticks)...`);
 
@@ -238,7 +238,7 @@ async function captureFixture(cfg) {
             console.log(`  Phase 2: SKIPPED (RCL ${targetRcl} not reached)`);
         }
 
-        // ─── Сохранение fixture ───────────────────────────────────────────
+        // ─── Save fixture ─────────────────────────────────────────────────────
         const finalMemory = await world.readMemory('bot');
         const finalRcl = getRclFromMemory(finalMemory, room);
         const { path: filePath, size } = saveFixture(name, finalMemory, { force });
@@ -252,7 +252,7 @@ async function captureFixture(cfg) {
             warnings.push(`fixture size ${size} bytes >= threshold ${warnSize}`);
         }
 
-        // ─── Итоговый отчёт ──────────────────────────────────────────────
+        // ─── Final report ─────────────────────────────────────────────────────
         console.log(`  Fixture saved: ${filePath}`);
         console.log(`    RCL:      ${finalRcl} (target ${targetRcl}) ${targetReached ? '✓' : '✗'}`);
         console.log(`    ticks:    ${world.report.ticksRun}`);
@@ -282,7 +282,7 @@ async function captureFixture(cfg) {
 // ─── CLI entry point ────────────────────────────────────────────────────────
 
 /**
- * CLI entry point. Парсит args, вызывает captureFixture, возвращает exit-code.
+ * CLI entry point. Parses args, calls captureFixture, returns exit-code.
  * @returns {Promise<number>}
  */
 async function main() {

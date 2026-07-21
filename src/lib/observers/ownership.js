@@ -1,13 +1,13 @@
 'use strict';
 
 /**
- * Event log хранит только `objectId` (атакующий/уничтоженный) и `data.targetId`,
- * но НЕ хранит `user` (владельца). Чтобы assertions могли проверять "чей именно
- * объект получил урон/атаковал", нужно связать `_id` объекта с его `user` —
- * это делает снимок `rooms.objects` на каждый тик.
+ * Event log stores only `objectId` (attacker/destroyed) and `data.targetId`,
+ * but does NOT store `user` (owner). So that assertions can check "which exact
+ * object took damage/attacked", we need to link the object's `_id` to its `user` —
+ * this is done by snapshotting `rooms.objects` each tick.
  *
- * Снимок берётся ДО `server.tick()` (см. world.js), чтобы не потерять owner
- * для объектов, уничтоженных в течение этого же тика.
+ * Snapshot is taken BEFORE `server.tick()` (see world.js), so as not to lose
+ * the owner for objects destroyed during this same tick.
  */
 
 /**
@@ -18,9 +18,9 @@
  */
 
 /**
- * Снимает соответствие `_id → user` для всех объектов комнаты, у которых
- * есть владелец (creep, spawn, tower, extension, ...).
- * Объекты без `user` (source, wall, road) пропускаются.
+ * Captures the `_id → user` mapping for all room objects that have
+ * an owner (creep, spawn, tower, extension, ...).
+ * Objects without `user` (source, wall, road) are skipped.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -40,9 +40,9 @@ async function snapshotOwners(adapter, roomName) {
 }
 
 /**
- * Мержит снимок владельцев в `report.objectOwners`.
- * Накопительно: раз узнанный owner объекта не может измениться (объект не меняет
- * владельца), поэтому просто дополняем карту без затирания предыдущих записей.
+ * Merges owners snapshot into `report.objectOwners`.
+ * Accumulative: once an object's owner is known it cannot change (objects don't
+ * change owner), so we simply extend the map without overwriting previous entries.
  *
  * @param {WorldReport} report
  * @param {OwnersMap} owners

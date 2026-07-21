@@ -5,10 +5,10 @@ const { createStorageAdapter } = require('../lib/storageAdapter');
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Создаёт мок ScreepsServer с минимальным набором методов.
+ * Creates a mock ScreepsServer with a minimal set of methods.
  *
  * @param {Object} [overrides]
- * @returns {Object} — мок сервера
+ * @returns {Object} — mock server
  */
 function createMockServer(overrides = {}) {
     const mockDbCollection = {
@@ -67,7 +67,7 @@ function createMockServer(overrides = {}) {
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
 describe('createStorageAdapter', () => {
-    it('возвращает объект с правильной структурой', () => {
+    it('returns an object with the correct structure', () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -80,28 +80,28 @@ describe('createStorageAdapter', () => {
         expect(adapter._server).toBe(server);
     });
 
-    it('adapter.db — это server.common.storage.db (прямой проход)', () => {
+    it('adapter.db — is server.common.storage.db (direct pass-through)', () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
         expect(adapter.db).toBe(server.common.storage.db);
     });
 
-    it('adapter.env — это server.common.storage.env (прямой проход)', () => {
+    it('adapter.env — is server.common.storage.env (direct pass-through)', () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
         expect(adapter.env).toBe(server.common.storage.env);
     });
 
-    it('adapter.pubsub — это server.common.storage.pubsub (прямой проход)', () => {
+    it('adapter.pubsub — is server.common.storage.pubsub (direct pass-through)', () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
         expect(adapter.pubsub).toBe(server.common.storage.pubsub);
     });
 
-    it('db[коллекция].find работает через прямой проход', async () => {
+    it('db[collection].find works via direct pass-through', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
         const query = { room: 'W0N1' };
@@ -111,7 +111,7 @@ describe('createStorageAdapter', () => {
         expect(server.common.storage.db['rooms.objects'].find).toHaveBeenCalledWith(query);
     });
 
-    it('db[коллекция].findOne работает через прямой проход', async () => {
+    it('db[collection].findOne works via direct pass-through', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -123,7 +123,7 @@ describe('createStorageAdapter', () => {
         });
     });
 
-    it('db[коллекция].insert работает через прямой проход', async () => {
+    it('db[collection].insert works via direct pass-through', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
         const doc = { type: 'spawn', x: 10, y: 10 };
@@ -133,7 +133,7 @@ describe('createStorageAdapter', () => {
         expect(server.common.storage.db['rooms.objects'].insert).toHaveBeenCalledWith(doc);
     });
 
-    it('db[коллекция].update работает через прямой проход', async () => {
+    it('db[collection].update works via direct pass-through', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -142,7 +142,7 @@ describe('createStorageAdapter', () => {
         expect(server.common.storage.db.rooms.update).toHaveBeenCalledWith({ _id: 'abc' }, { $set: { active: true } });
     });
 
-    it('env.get работает через прямой проход', async () => {
+    it('env.get works via direct pass-through', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -151,7 +151,7 @@ describe('createStorageAdapter', () => {
         expect(server.common.storage.env.get).toHaveBeenCalledWith('memory_user123');
     });
 
-    it('env.set работает через прямой проход', async () => {
+    it('env.set works via direct pass-through', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -160,14 +160,14 @@ describe('createStorageAdapter', () => {
         expect(server.common.storage.env.set).toHaveBeenCalledWith('memory_user123', '{}');
     });
 
-    it('env.keys — это ссылка на оригинальный env.keys', () => {
+    it('env.keys — is a reference to the original env.keys', () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
         expect(adapter.env.keys).toBe(server.common.storage.env.keys);
     });
 
-    it('pubsub.subscribe работает через прямой проход', async () => {
+    it('pubsub.subscribe works via direct pass-through', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
         const handler = jest.fn();
@@ -177,7 +177,7 @@ describe('createStorageAdapter', () => {
         expect(server.common.storage.pubsub.subscribe).toHaveBeenCalledWith('user:42/console', handler);
     });
 
-    it('world.reset делегирует в server.world.reset', async () => {
+    it('world.reset delegates to server.world.reset', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -186,7 +186,7 @@ describe('createStorageAdapter', () => {
         expect(server.world.reset).toHaveBeenCalled();
     });
 
-    it('world.addRoom делегирует в server.world.addRoom', async () => {
+    it('world.addRoom delegates to server.world.addRoom', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -195,7 +195,7 @@ describe('createStorageAdapter', () => {
         expect(server.world.addRoom).toHaveBeenCalledWith('W0N1');
     });
 
-    it('world.genRandomBadge делегирует в server.world.genRandomBadge', () => {
+    it('world.genRandomBadge delegates to server.world.genRandomBadge', () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -205,7 +205,7 @@ describe('createStorageAdapter', () => {
         expect(result).toEqual({ type: 1, color1: '#fff' });
     });
 
-    it('getProcesses возвращает массив дочерних процессов', () => {
+    it('getProcesses returns an array of child processes', () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
 
@@ -216,7 +216,7 @@ describe('createStorageAdapter', () => {
         expect(processes[0]).toHaveProperty('kill');
     });
 
-    it('getProcesses возвращает пустой массив если processes отсутствует', () => {
+    it('getProcesses returns empty array if processes is absent', () => {
         const server = createMockServer({ processes: undefined });
         const adapter = createStorageAdapter(server);
 
@@ -226,7 +226,7 @@ describe('createStorageAdapter', () => {
         expect(processes).toHaveLength(0);
     });
 
-    it('разные коллекции через db работают независимо', async () => {
+    it('different collections via db work independently', async () => {
         const server = createMockServer();
         const adapter = createStorageAdapter(server);
         const userDoc = { username: 'testBot' };
@@ -238,7 +238,7 @@ describe('createStorageAdapter', () => {
         expect(server.common.storage.db['rooms.objects'].insert).toHaveBeenCalledWith({ type: 'spawn' });
     });
 
-    it('db возвращает результат от делегата', async () => {
+    it('db returns result from delegate', async () => {
         const server = createMockServer();
         const expected = [{ _id: '1', type: 'spawn' }];
         server.common.storage.db['rooms.objects'].find.mockResolvedValue(expected);
@@ -249,7 +249,7 @@ describe('createStorageAdapter', () => {
         expect(result).toEqual(expected);
     });
 
-    it('env.get возвращает результат от делегата', async () => {
+    it('env.get returns result from delegate', async () => {
         const server = createMockServer();
         server.common.storage.env.get.mockResolvedValue('{"rcl":5}');
         const adapter = createStorageAdapter(server);
@@ -259,7 +259,7 @@ describe('createStorageAdapter', () => {
         expect(result).toBe('{"rcl":5}');
     });
 
-    it('hget доступен через env (для eventLog)', async () => {
+    it('hget is accessible via env (for eventLog)', async () => {
         const server = createMockServer();
         server.common.storage.env.hget = jest.fn().mockResolvedValue('[{"event":1}]');
         const adapter = createStorageAdapter(server);
@@ -270,7 +270,7 @@ describe('createStorageAdapter', () => {
         expect(result).toBe('[{"event":1}]');
     });
 
-    it('генерирует исключение при отсутствии коллекции (ошибка делегата не перехватывается)', async () => {
+    it('throws if collection is missing (delegate error is not caught)', async () => {
         const server = createMockServer();
         const error = new Error('Collection not found');
         server.common.storage.db.objects = {

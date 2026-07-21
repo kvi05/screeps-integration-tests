@@ -1,44 +1,44 @@
 # Fixtures Guide
 
-Руководство по fixture-модели `screeps-integration-tests`: room fixtures и memory fixtures.
+Guide to the `screeps-integration-tests` fixture model: room fixtures and memory fixtures.
 
-## Содержание
+## Table of Contents
 
-- [1. Два типа fixtures](#1-два-типа-fixtures)
+- [1. Two types of fixtures](#1-two-types-of-fixtures)
 - [2. Room fixtures](#2-room-fixtures)
 - [3. Room overrides](#3-room-overrides)
 - [4. Memory fixtures](#4-memory-fixtures)
-- [5. Связь между room fixture и memory fixture](#5-связь-между-room-fixture-и-memory-fixture)
-- [6. Как выбрать подход](#6-как-выбрать-подход)
-- [7. Как создать room fixture](#7-как-создать-room-fixture)
-- [8. Как создать или обновить memory fixture](#8-как-создать-или-обновить-memory-fixture)
-- [9. Рекомендации и анти-паттерны](#9-рекомендации-и-анти-паттерны)
+- [5. Relationship between room fixture and memory fixture](#5-relationship-between-room-fixture-and-memory-fixture)
+- [6. How to choose an approach](#6-how-to-choose-an-approach)
+- [7. How to create a room fixture](#7-how-to-create-a-room-fixture)
+- [8. How to create or update a memory fixture](#8-how-to-create-or-update-a-memory-fixture)
+- [9. Recommendations and anti-patterns](#9-recommendations-and-anti-patterns)
 
-## 1. Два типа fixtures
+## 1. Two types of fixtures
 
 ### Room fixture
 
-Семантический spec комнаты: controller, sources, structures, creeps. Отвечает на вопрос: **"Какой мир должен существовать в комнате к старту сценария?"**
+Semantic spec of a room: controller, sources, structures, creeps. Answers the question: **"What world should exist in the room by scenario start?"**
 
 ### Memory fixture
 
-JSON-snapshot `Memory` бота. Отвечает на вопрос: **"С каким внутренним состоянием бот должен стартовать?"**
+JSON snapshot of the bot's `Memory`. Answers the question: **"What internal state should the bot start with?"**
 
-### Ключевая разница
+### Key difference
 
-| Что                | Room fixture                   | Memory fixture                                          |
-| ------------------ | ------------------------------ | ------------------------------------------------------- |
-| Описывает          | Объекты мира                   | Внутреннее состояние бота                               |
-| Формат             | Canonical spec                 | JSON snapshot                                           |
-| Где хранится       | `*.room.js` (пользовательские) | `fixtures/*.memory.json`                                |
-| Основной use case  | Переиспользуемая комната       | "Прогретое" состояние бота                              |
-| Подключается через | `rooms[].roomFixture`          | `createWorld({ memory: 'name' })` или `memoryOverrides` |
+| What          | Room fixture               | Memory fixture                                         |
+| ------------- | -------------------------- | ------------------------------------------------------ |
+| Describes     | World objects              | Bot's internal state                                   |
+| Format        | Canonical spec             | JSON snapshot                                          |
+| Where stored  | `*.room.js` (user-defined) | `fixtures/*.memory.json`                               |
+| Main use case | Reusable room              | "Warmed up" bot state                                  |
+| Connected via | `rooms[].roomFixture`      | `createWorld({ memory: 'name' })` or `memoryOverrides` |
 
 ## 2. Room fixtures
 
-Фреймворк **не поставляет готовых room fixtures**. Реестр стартует пустым (`ROOM_FIXTURES = {}`), а `examples/fixtures/` содержит только `.gitkeep`. Имена вроде `rcl3-stable` в примерах — иллюстративные.
+The framework **does not ship ready-made room fixtures**. The registry starts empty (`ROOM_FIXTURES = {}`), and `examples/fixtures/` only contains `.gitkeep`. Names like `rcl3-stable` in examples are illustrative.
 
-### Публичный API
+### Public API
 
 ```javascript
 const {
@@ -50,9 +50,9 @@ const {
 } = require('screeps-integration-tests/room-fixtures');
 ```
 
-Подробное описание функций см. в [API-REFERENCE.md](./API-REFERENCE.md#5-room-fixtures-api).
+See [API-REFERENCE.md](./API-REFERENCE.md#5-room-fixtures-api) for function details.
 
-### Пример собственного fixture
+### Example of a custom fixture
 
 ```javascript
 // fixtures/rooms/my-room.room.js
@@ -72,11 +72,11 @@ registerRoomFixture('my-room', {
 });
 ```
 
-`spec.controller` принимает `progress`, но **не** принимает `progressTotal`.
+`spec.controller` accepts `progress` but **does not** accept `progressTotal`.
 
-### Авто-загрузка из директории
+### Auto-loading from a directory
 
-Зарегистрируйте fixture автоматически через конфиг:
+Register fixtures automatically via config:
 
 ```javascript
 // screeps-integration.config.js
@@ -85,9 +85,9 @@ module.exports = {
 };
 ```
 
-Каждый `*.room.js` в этой директории либо вызывает `registerRoomFixture`, либо экспортирует `{ name, fixture }`. Загрузка происходит перед запуском сценария.
+Each `*.room.js` in that directory either calls `registerRoomFixture` or exports `{ name, fixture }`. Loading happens before the scenario runs.
 
-### Ручная регистрация в сценарии
+### Manual registration in a scenario
 
 ```javascript
 const { createWorld, spec } = require('screeps-integration-tests');
@@ -106,7 +106,7 @@ const world = await createWorld({
 });
 ```
 
-### Использование в сценарии
+### Usage in a scenario
 
 ```javascript
 const world = await createWorld({
@@ -116,28 +116,28 @@ const world = await createWorld({
 });
 ```
 
-### Почему это лучше, чем копировать layout
+### Why this is better than copying the layout
 
-- одна комната используется в нескольких тестах;
-- изменения layout фиксируются в одном месте;
-- сценарий описывает вариацию поведения, а не повторяет layout.
+- one room is reused across multiple tests;
+- layout changes are fixed in one place;
+- the scenario describes a variation of behavior, not repeats the layout.
 
 ## 3. Room overrides
 
-`roomOverrides` позволяет менять fixture локально под конкретный сценарий без полного копирования.
+`roomOverrides` allows you to modify a fixture locally for a specific scenario without full copying.
 
-### Поддерживаемые override-поля
+### Supported override fields
 
-| Поле         | Назначение                                          |
-| ------------ | --------------------------------------------------- |
-| `exclude`    | Удалить объекты по `id`, `type` или объекту-шаблону |
-| `controller` | Изменить controller (merge)                         |
-| `structures` | Переопределить поля существующих структур           |
-| `append`     | Добавить новые структуры                            |
-| `creeps`     | Добавить собственных крипов                         |
-| `hostiles`   | Добавить hostile creeps                             |
+| Field        | Purpose                                           |
+| ------------ | ------------------------------------------------- |
+| `exclude`    | Remove objects by `id`, `type` or template object |
+| `controller` | Modify controller (merge)                         |
+| `structures` | Override fields of existing structures            |
+| `append`     | Add new structures                                |
+| `creeps`     | Add own creeps                                    |
+| `hostiles`   | Add hostile creeps                                |
 
-### Пример 1. Убрать башню
+### Example 1. Remove a tower
 
 ```javascript
 const world = await createWorld({
@@ -152,9 +152,9 @@ const world = await createWorld({
 });
 ```
 
-`exclude` поддерживает строку (`id` или `type`) и объект (`{ id }` / `{ type }`).
+`exclude` supports a string (`id` or `type`) or an object (`{ id }` / `{ type }`).
 
-### Пример 2. Изменить controller и energy extension
+### Example 2. Modifying controller and energy extension
 
 ```javascript
 const { createWorld, spec } = require('screeps-integration-tests');
@@ -174,7 +174,7 @@ const world = await createWorld({
 });
 ```
 
-### Пример 3. Добавить hostile creeps
+### Example 3. Adding hostile creeps
 
 ```javascript
 const { createWorld, spec } = require('screeps-integration-tests');
@@ -193,41 +193,41 @@ const world = await createWorld({
 });
 ```
 
-### Когда использовать overrides, а не новую fixture
+### When to use overrides instead of a new fixture
 
-Используйте `roomOverrides` для локальных вариаций:
+Use `roomOverrides` for local variations:
 
-- убрать одну структуру;
-- изменить `safeMode`;
-- подправить энергию нескольких объектов;
-- добавить одного hostile creep.
+- remove one structure;
+- change `safeMode`;
+- tweak energy of a few objects;
+- add one hostile creep.
 
-Создавайте новую room fixture, если меняется базовая геометрия комнаты: другой layout или другая стадия развития.
+Create a new room fixture if the base geometry of the room changes: a different layout or a different stage of development.
 
 ## 4. Memory fixtures
 
-Фреймворк **не поставляет готовых memory fixtures**. Создавайте их самостоятельно.
+The framework **does not ship ready-made memory fixtures**. Create them yourself.
 
-### Публичный API
+### Public API
 
 ```javascript
 const { loadFixture, hasFixture, saveFixture, deepMergeMemory } = require('screeps-integration-tests/memory-fixtures');
 ```
 
-Подробное описание см. в [API-REFERENCE.md](./API-REFERENCE.md#6-memory-fixtures-api).
+See [API-REFERENCE.md](./API-REFERENCE.md#6-memory-fixtures-api) for details.
 
-### Когда memory fixture нужен
+### When a memory fixture is needed
 
-- бот должен стартовать с уже известной комнатой и кэшами;
-- в `Memory` должно существовать состояние задач;
-- сценарий начинается после bootstrap, а не с чистого старта.
+- the bot should start with an already known room and caches;
+- task state must exist in `Memory`;
+- the scenario starts after bootstrap, not from scratch.
 
-### Когда memory fixture не нужен
+### When a memory fixture is not needed
 
-- нужно описать только layout комнаты — используйте room fixture;
-- сценарий стартует с пустого `Memory` и bootstrap идет естественно.
+- you only need to describe the room layout — use a room fixture;
+- the scenario starts with empty `Memory` and bootstrap runs naturally.
 
-### Подключение
+### Connection
 
 ```javascript
 const world = await createWorld({
@@ -237,18 +237,18 @@ const world = await createWorld({
 });
 ```
 
-### Проверка существования
+### Checking existence
 
 ```javascript
 const { hasFixture } = require('screeps-integration-tests/memory-fixtures');
 
 if (!hasFixture('my-memory')) {
-  console.log('SKIP: memory fixture не найден');
+  console.log('SKIP: memory fixture not found');
   return { skipped: true };
 }
 ```
 
-### Сохранение из кода
+### Saving from code
 
 ```javascript
 const { saveFixture } = require('screeps-integration-tests/memory-fixtures');
@@ -257,23 +257,23 @@ const memory = await world.readMemory('bot');
 saveFixture('my-memory', memory, { force: true });
 ```
 
-`saveFixture(name, memory, { force = true })`. По умолчанию перезаписывает существующий файл.
+`saveFixture(name, memory, { force = true })`. By default overwrites existing file.
 
-## 5. Связь между room fixture и memory fixture
+## 5. Relationship between room fixture and memory fixture
 
-Room fixture и memory fixture могут быть связаны через `_id` объектов:
+Room fixtures and memory fixtures can be linked via `_id` of objects:
 
 ```javascript
 spec.source(15, 15, { id: '94e8a44a5fa6113' });
 ```
 
-Если в memory fixture хранятся ссылки на объекты по `_id` (например, кэш структур), изменение `id` в room fixture сломает эти ссылки.
+If the memory fixture stores references to objects by `_id` (e.g., structure cache), changing the `_id` in the room fixture will break those references.
 
-Совет: при необходимости фиксируйте `_id` в room fixture явно и синхронизируйте их с memory fixture.
+Tip: when needed, fix `_id` in the room fixture explicitly and keep them in sync with the memory fixture.
 
-## 6. Как выбрать подход
+## 6. How to choose an approach
 
-### Подход 1. Только spec (без fixture)
+### Approach 1. Only spec (no fixture)
 
 ```javascript
 createWorld({
@@ -289,9 +289,9 @@ createWorld({
 });
 ```
 
-Подходит для быстрых тестов без переиспользования.
+Suitable for quick tests without reuse.
 
-### Подход 2. Room fixture
+### Approach 2. Room fixture
 
 ```javascript
 createWorld({
@@ -300,9 +300,9 @@ createWorld({
 });
 ```
 
-Подходит, если переиспользуете одну и ту же комнату.
+Suitable if you reuse the same room.
 
-### Подход 3. Room fixture + overrides
+### Approach 3. Room fixture + overrides
 
 ```javascript
 createWorld({
@@ -317,9 +317,9 @@ createWorld({
 });
 ```
 
-Подходит для локальных вариаций одной комнаты.
+Suitable for local variations of one room.
 
-### Подход 4. Fixture + memory
+### Approach 4. Fixture + memory
 
 ```javascript
 createWorld({
@@ -329,12 +329,12 @@ createWorld({
 });
 ```
 
-Подходит для тестов готовой развитой колонии.
+Suitable for testing a fully developed colony.
 
-## 7. Как создать room fixture
+## 7. How to create a room fixture
 
-1. Создайте файл `*.room.js` в `roomFixturesDir` (или в любом месте, если регистрируете вручную).
-2. Опишите комнату через `spec.*` constructors:
+1. Create a `*.room.js` file in `roomFixturesDir` (or anywhere if registering manually).
+2. Describe the room using `spec.*` constructors:
    - `spec.controller`
    - `spec.source`
    - `spec.spawn`
@@ -348,46 +348,46 @@ createWorld({
    - `spec.creep`
    - `spec.invader`
    - `spec.dummyTarget`
-3. При необходимости задайте `id` явно, чтобы ссылаться из memory fixture.
-4. Вызовите `registerRoomFixture(name, fixture)` либо экспортируйте `{ name, fixture }`.
-5. Используйте `roomFixture: 'name'` в `createWorld`.
+3. Set `id` explicitly if needed to reference from a memory fixture.
+4. Call `registerRoomFixture(name, fixture)` or export `{ name, fixture }`.
+5. Use `roomFixture: 'name'` in `createWorld`.
 
-## 8. Как создать или обновить memory fixture
+## 8. How to create or update a memory fixture
 
-Для создания memory fixtures используйте CLI tool `src/tools/capture-fixture.js`.
+To create memory fixtures, use the CLI tool `src/tools/capture-fixture.js`.
 
-### Базовый запуск
+### Basic run
 
 ```bash
-# Сначала убедитесь, что smoke работает
+# First make sure smoke works
 npm run test:integration:smoke
 
-# Затем создайте / пересоберите fixture
+# Then create / rebuild the fixture
 node src/tools/capture-fixture.js my-memory
 ```
 
-### Что делает tool
+### What the tool does
 
-1. Запускает мир до целевого RCL.
-2. Даёт боту дополнительные тики на стабилизацию.
-3. Сохраняет итоговое `Memory` в `fixtures/<name>.memory.json`.
+1. Runs the world until the target RCL.
+2. Gives the bot extra ticks for stabilization.
+3. Saves the final `Memory` to `fixtures/<name>.memory.json`.
 
-### Флаги
+### Flags
 
-| Флаг          | По умолчанию                                           | Назначение                              |
-| ------------- | ------------------------------------------------------ | --------------------------------------- |
-| `--from`      | `bootstrap_with_anchor` (пример имени из личного бота) | Стартовая memory fixture                |
-| `--rcl`       | `3`                                                    | Целевой RCL                             |
-| `--ticks`     | `10000`                                                | Лимит тиков до достижения RCL           |
-| `--stabilize` | `2000`                                                 | Доп. тики на стабилизацию               |
-| `--room`      | `W0N1`                                                 | Имя комнаты                             |
-| `--sources`   | `[{"x":15,"y":15},{"x":35,"y":35}]`                    | Позиции источников (JSON)               |
-| `--progress`  | `0`                                                    | Логировать каждые N тиков (0 = выкл.)   |
-| `--log-level` | `error`                                                | `all` / `error` / `warn`                |
-| `--warn-size` | `50000`                                                | Порог предупреждения по размеру (байты) |
-| `--force`     | `false`                                                | Разрешить перезапись                    |
+| Flag          | Default                                               | Purpose                        |
+| ------------- | ----------------------------------------------------- | ------------------------------ |
+| `--from`      | `bootstrap_with_anchor` (example from a personal bot) | Starting memory fixture        |
+| `--rcl`       | `3`                                                   | Target RCL                     |
+| `--ticks`     | `10000`                                               | Tick limit to reach RCL        |
+| `--stabilize` | `2000`                                                | Extra ticks for stabilization  |
+| `--room`      | `W0N1`                                                | Room name                      |
+| `--sources`   | `[{"x":15,"y":15},{"x":35,"y":35}]`                   | Source positions (JSON)        |
+| `--progress`  | `0`                                                   | Log every N ticks (0 = off)    |
+| `--log-level` | `error`                                               | `all` / `error` / `warn`       |
+| `--warn-size` | `50000`                                               | Size warning threshold (bytes) |
+| `--force`     | `false`                                               | Allow overwrite                |
 
-### Примеры
+### Examples
 
 ```bash
 node src/tools/capture-fixture.js my-memory
@@ -397,24 +397,24 @@ node src/tools/capture-fixture.js my-memory --rcl 5 --ticks 20000
 node src/tools/capture-fixture.js my-memory --room W1N1 --force
 ```
 
-## 9. Рекомендации и анти-паттерны
+## 9. Recommendations and anti-patterns
 
-### Делайте так
+### Do this
 
-- храните layout комнаты в room fixture;
-- храните прогретое состояние бота в memory fixture;
-- описывайте вариации через `roomOverrides`;
-- фиксируйте `_id` объектов, если room fixture и memory fixture связаны.
+- store room layout in a room fixture;
+- store warmed-up bot state in a memory fixture;
+- describe variations via `roomOverrides`;
+- fix `_id` of objects if room fixture and memory fixture are linked.
 
-### Не делайте так
+### Don't do this
 
-- не храните room layout в `*.memory.json`;
-- не создавайте новую fixture ради одного маленького изменения, если хватает `roomOverrides`;
-- не смешивайте слои: топологию мира и runtime Memory.
+- don't store room layout in `*.memory.json`;
+- don't create a new fixture for one small change if `roomOverrides` suffices;
+- don't mix layers: world topology and runtime Memory.
 
-## Связанные документы
+## Related documents
 
-- [API-REFERENCE.md](./API-REFERENCE.md) — полный справочник API
-- [EXAMPLES.md](./EXAMPLES.md) — эталонные сценарии и приёмы
-- [GETTING-STARTED.md](./GETTING-STARTED.md) — быстрый старт
-- [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — multi-room и multi-bot
+- [API-REFERENCE.md](./API-REFERENCE.md) — full API reference
+- [EXAMPLES.md](./EXAMPLES.md) — reference scenarios and patterns
+- [GETTING-STARTED.md](./GETTING-STARTED.md) — quick start
+- [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — multi-room and multi-bot

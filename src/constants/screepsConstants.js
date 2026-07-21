@@ -1,24 +1,24 @@
 'use strict';
 
 /**
- * Single source of truth для игровых констант Screeps.
+ * Single source of truth for Screeps game constants.
  *
- * Используется одновременно:
- *  - в `src/lib/builders/spec.js` — для типов структур в дефолтах
- *  - в `src/lib/builders/materialize.js` — для типа 'spawn' в spec-е
- *  - в `src/lib/observers/metrics.js` — для фильтров объектов
- *  - в `src/lib/assertions.js` — для `BOT_STRUCTURE_TYPES`
+ * Used simultaneously:
+ *  - in `src/lib/builders/spec.js` — for structure types in defaults
+ *  - in `src/lib/builders/materialize.js` — for 'spawn' type in spec
+ *  - in `src/lib/observers/metrics.js` — for object filters
+ *  - in `src/lib/assertions.js` — for `BOT_STRUCTURE_TYPES`
  *
- * Значения совпадают с `@types/screeps` и с тем, что устанавливает `screeps-server-mockup`.
+ * Values match `@types/screeps` and what `screeps-server-mockup` sets.
  *
- * **Принцип:** если захочется ввести новую константу — добавляем сюда
- * одной строкой, и она автоматически подхватывается всеми потребителями.
+ * **Principle:** to introduce a new constant, add it here
+ * in one line and it is automatically picked up by all consumers.
  *
- * @file Общие игровые константы для unit, integration и perf тестов
+ * @file Common game constants for unit, integration and perf tests
  * @module test/setup/screepsConstants
  */
 
-// ─── FIND_* (поиск объектов) ────────────────────────────────────────────────
+// ─── FIND_* (object search) ────────────────────────────────────────────────────
 
 /** @type {number} */
 const FIND_SOURCES = 105;
@@ -171,15 +171,15 @@ const TERRAIN_MASK_SWAMP = 2;
 /** @type {number} */
 const TERRAIN_MASK_LAVA = 4;
 
-// ─── Type names (используются как тип объекта в `rooms.objects`) ──────────
+// ─── Type names (used as object type in `rooms.objects`) ───────────────────────
 
 /** @type {string} */
 const TYPE_CREEPS = 'creep';
 
 /**
  * @typedef {Object} DestroyedFilter
- * @property {string|string[]} [types]     — тип(ы) объекта (STRUCTURE_* или TYPE_CREEPS)
- * @property {string} [id]                 — конкретный _id
+ * @property {string|string[]} [types]     — object type(s) (STRUCTURE_* or TYPE_CREEPS)
+ * @property {string} [id]                 — specific _id
  */
 
 // ─── Object export ──────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ module.exports = {
     TOUGH,
     CLAIM,
 
-    // Type names (для type === ... в фильтрах)
+    // Type names (for type === ... in filters)
     TYPE_CREEPS,
 
     // Error codes

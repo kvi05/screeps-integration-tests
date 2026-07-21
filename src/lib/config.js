@@ -168,7 +168,7 @@ function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overri
     /** @type {FrameworkConfig} */
     const cfg = { ...DEFAULTS };
 
-    // 1. файл конфига
+    // 1. config file
     let cliOptions;
     try {
         ({ options: cliOptions } = parseArgs(CLI_SCHEMA, argv));
@@ -187,7 +187,7 @@ function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overri
         Object.assign(cfg, fileCfg);
     }
 
-    // 2. env (обратная совместимость с BOT_DIST_DIR)
+    // 2. env (backward compatibility with BOT_DIST_DIR)
     if (process.env.BOT_DIST_DIR) {
         cfg.distDir = process.env.BOT_DIST_DIR;
     }

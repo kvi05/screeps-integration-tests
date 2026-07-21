@@ -1,22 +1,22 @@
 'use strict';
 
 /**
- * Builders — фабрики объектов мира для integration tests.
+ * Builders — world object factories for integration tests.
  *
- * API разделено на два слоя:
+ * API is split into two layers:
  *
- * - `spec` — чистые конструкторы spec-объектов (без БД, без сервера)
- * - `materialize*` — единственный слой, знающий DB shape (mockup)
+ * - `spec` — pure spec-object constructors (no DB, no server)
+ * - `materialize*` — the only layer aware of DB shape (mockup)
  *
- * Materialize-функции параметризованы по `roomName` и `userId`,
- * так что один roomFixture можно переиспользовать в разных комнатах.
- * `s.id` используется как есть — главный потребитель `_id` это
- * memory fixture, и автоматическое переписывание id её сломало бы.
+ * Materialize functions are parameterized by `roomName` and `userId`,
+ * so one roomFixture can be reused across different rooms.
+ * `s.id` is used as-is — the main consumer of `_id` is
+ * memory fixture, and automatic id rewriting would break it.
  *
  * @module builders
  */
 
-// ─── Spec constructors (чистые, без БД) ─────────────────────────────────────
+// ─── Spec constructors (pure, no DB) ─────────────────────────────────────
 
 const spec = require('./spec');
 

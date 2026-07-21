@@ -1,14 +1,14 @@
 'use strict';
 
 /**
- * Юнит-тесты для buildCanonicalRoom — проверяют корректность сборки
- * канонической спецификации комнаты из fixture + overrides.
+ * Unit tests for buildCanonicalRoom — verify correct assembly of
+ * canonical room spec from fixture + overrides.
  *
- * Покрывают регрессии:
- * - `.map(applyDefaults)` без передачи индекса массива в userInvader
- *   (index 1 → truthy → userId='2' для обычных структур)
- * - hostiles получают userId='2' (Invader), остальные — defaultBotUserId
- * - roomName проставляется в каждый объект
+ * Cover regressions:
+ * - `.map(applyDefaults)` without passing array index to userInvader
+ *   (index 1 → truthy → userId='2' for regular structures)
+ * - hostiles get userId='2' (Invader), others — defaultBotUserId
+ * - roomName is set on every object
  *
  * @file Unit tests for buildCanonicalRoom.
  */
@@ -17,7 +17,7 @@ const { buildCanonicalRoom } = require('../lib/world');
 const { applyRoomOverrides, registerRoomFixture } = require('../lib/fixtures/roomFixture');
 const spec = require('../lib/builders/spec');
 
-// Тестовый room fixture вместо бот-специфичного rcl3-stable.
+// Test room fixture replacing bot-specific rcl3-stable.
 registerRoomFixture('rcl3-stable', {
     name: 'rcl3-stable',
     description: 'Test fixture replacing bot-specific rcl3-stable',
@@ -41,8 +41,8 @@ registerRoomFixture('rcl3-stable', {
 });
 
 describe('buildCanonicalRoom', () => {
-    describe('inline-поля (без fixture)', () => {
-        it('проставляет roomName и defaultBotUserId в структуры', async () => {
+    describe('inline fields (without fixture)', () => {
+        it('sets roomName and defaultBotUserId on structures', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -60,9 +60,9 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.structures[1]).toMatchObject({ type: 'tower', roomName: 'W0N1', userId: 'bot123' });
         });
 
-        it('не подставляет индекс массива в userInvader (регрессия .map)', async () => {
-            // Баг: .map(applyDefaults) передаёт (item, index, array) в applyDefaults.
-            // index=1 (truthy) → userInvader=1 → userId='2' для tower (элемент #2).
+        it('does not pass array index to userInvader (.map regression)', async () => {
+            // Bug: .map(applyDefaults) passes (item, index, array) to applyDefaults.
+            // index=1 (truthy) → userInvader=1 → userId='2' for tower (element #2).
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -72,13 +72,13 @@ describe('buildCanonicalRoom', () => {
                 'bot456',
             );
 
-            // Все структуры должны иметь userId бота, не '2' (Invader)
+            // All structures should have bot userId, not '2' (Invader)
             for (const s of canonical.structures) {
                 expect(s.userId).toBe('bot456');
             }
         });
 
-        it('проставляет userId=2 для hostiles', async () => {
+        it('sets userId=2 for hostiles', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -91,11 +91,11 @@ describe('buildCanonicalRoom', () => {
 
             expect(canonical.hostiles).toHaveLength(1);
             expect(canonical.hostiles[0]).toMatchObject({ roomName: 'W0N1', userId: '2' });
-            // structures не заражаются userId='2'
+            // structures are not infected with userId='2'
             expect(canonical.structures[0].userId).toBe('bot789');
         });
 
-        it('controller без userId получает defaultBotUserId', async () => {
+        it('controller without userId gets defaultBotUserId', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -110,7 +110,7 @@ describe('buildCanonicalRoom', () => {
     });
 
     describe('fixture-based', () => {
-        it('сохраняет level контроллера из fixture', async () => {
+        it('preserves controller level from fixture', async () => {
             const canonical = await buildCanonicalRoom(
                 { name: 'W0N1', roomFixture: 'rcl3-stable' },
                 'W0N1',
@@ -122,7 +122,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.structures.length).toBeGreaterThan(10);
         });
 
-        it('tower из fixture получает bot userId, не Invader', async () => {
+        it('tower from fixture gets bot userId, not Invader', async () => {
             const canonical = await buildCanonicalRoom({ name: 'W0N1', roomFixture: 'rcl3-stable' }, 'W0N1', 'botFix2');
 
             const tower = canonical.structures.find((s) => s.type === 'tower');
@@ -130,7 +130,7 @@ describe('buildCanonicalRoom', () => {
             expect(tower.userId).toBe('botFix2');
         });
 
-        it('overrides.hostiles добавляет invader с userId=2', async () => {
+        it('overrides.hostiles adds invader with userId=2', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -145,14 +145,14 @@ describe('buildCanonicalRoom', () => {
 
             expect(canonical.hostiles).toHaveLength(1);
             expect(canonical.hostiles[0].userId).toBe('2');
-            // structures остаются с bot userId
+            // structures remain with bot userId
             const tower = canonical.structures.find((s) => s.type === 'tower');
             expect(tower.userId).toBe('botOver');
         });
     });
 
     describe('applyRoomOverrides', () => {
-        it('возвращает новый объект при пустых overrides', () => {
+        it('returns a new object with empty overrides', () => {
             const fixture = {
                 controller: spec.controller({ level: 3 }),
                 sources: [spec.source(15, 15)],
@@ -162,19 +162,19 @@ describe('buildCanonicalRoom', () => {
 
             const result = applyRoomOverrides(fixture, {});
 
-            // новый объект
+            // new object
             expect(result).not.toBe(fixture);
-            // новый массив structures
+            // new structures array
             expect(result.structures).not.toBe(fixture.structures);
-            // новый массив creeps
+            // new creeps array
             expect(result.creeps).not.toBe(fixture.creeps);
-            // но controller — та же ссылка (не переопределён)
+            // but controller — same reference (not overridden)
             expect(result.controller).toBe(fixture.controller);
-            // sources — та же ссылка (не копируется)
+            // sources — same reference (not copied)
             expect(result.sources).toBe(fixture.sources);
         });
 
-        it('возвращает новый объект при undefined overrides', () => {
+        it('returns a new object with undefined overrides', () => {
             const fixture = { structures: [spec.spawn(25, 25)], creeps: [] };
             const result = applyRoomOverrides(fixture);
 
@@ -183,7 +183,7 @@ describe('buildCanonicalRoom', () => {
             expect(result.creeps).not.toBe(fixture.creeps);
         });
 
-        it('копия не мутирует исходный fixture при мутации результата', () => {
+        it('copy does not mutate original fixture when result is mutated', () => {
             const fixture = {
                 structures: [spec.spawn(25, 25)],
                 creeps: [],
@@ -196,7 +196,7 @@ describe('buildCanonicalRoom', () => {
             expect(result.structures).toHaveLength(2);
         });
 
-        it('сохраняет id и x/y контроллера после overrides', () => {
+        it('preserves controller id and x/y after overrides', () => {
             const fixture = {
                 controller: spec.controller({ id: 'ctrl_1', level: 3, x: 10, y: 10 }),
                 structures: [],
@@ -211,8 +211,8 @@ describe('buildCanonicalRoom', () => {
         });
     });
 
-    describe('controller в canonical', () => {
-        it('передаёт id контроллера из inline spec', async () => {
+    describe('controller in canonical', () => {
+        it('passes controller id from inline spec', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -232,7 +232,7 @@ describe('buildCanonicalRoom', () => {
             });
         });
 
-        it('контроллер optional — может отсутствовать', async () => {
+        it('controller is optional — may be absent', async () => {
             const canonical = await buildCanonicalRoom(
                 { name: 'W0N1', structures: [spec.spawn(25, 25)] },
                 'W0N1',
@@ -242,7 +242,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.controller).toBeUndefined();
         });
 
-        it('id контроллера не влияет на привязку userId (userId !== undefined)', async () => {
+        it('controller id does not affect userId binding (userId !== undefined)', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -252,7 +252,7 @@ describe('buildCanonicalRoom', () => {
                 'defaultBot',
             );
 
-            // При undefined userId — fallback на defaultBotUserId
+            // If userId is undefined — fallback to defaultBotUserId
             expect(canonical.controller.userId).toBe('defaultBot');
         });
     });

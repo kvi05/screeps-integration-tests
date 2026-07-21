@@ -1,13 +1,13 @@
 'use strict';
 
 /**
- * CLI tool для очистки .cache/ директории.
+ * CLI tool for cleaning the .cache/ directory.
  *
- * Использование:
+ * Usage:
  *   node src/tools/clean-cache.js [--keep 5]
  *
- * Удаляет все директории в .cache/ кроме N последних по времени модификации.
- * По умолчанию хранит 5 последних.
+ * Removes all directories in .cache/ except the N most recent by modification time.
+ * Defaults to keeping the last 5.
  */
 
 const { pruneCache } = require('../lib/cleanup');
@@ -17,8 +17,8 @@ const schema = {
     title: 'clean-cache',
     usage: 'node src/tools/clean-cache.js [options]',
     options: {
-        keep: { type: 'int', default: 5, min: 0, description: 'сколько последних кешей хранить' },
-        cacheDir: { type: 'string', description: 'путь к .cache директории (по умолчанию src/.cache)' },
+        keep: { type: 'int', default: 5, min: 0, description: 'how many recent caches to keep' },
+        cacheDir: { type: 'string', description: 'path to .cache directory (default src/.cache)' },
     },
 };
 

@@ -17,26 +17,26 @@ const spec = require('../lib/builders/spec');
 
 describe('roomFixture', () => {
     beforeEach(() => {
-        // Очистка registry между тестами
+        // Clear registry between tests
         Object.keys(ROOM_FIXTURES).forEach((k) => delete ROOM_FIXTURES[k]);
     });
 
     describe('registry', () => {
-        it('registerRoomFixture добавляет в registry', () => {
+        it('registerRoomFixture adds to registry', () => {
             registerRoomFixture('test1', { controller: spec.controller(), structures: [], creeps: [] });
             expect(hasRoomFixture('test1')).toBe(true);
             expect(getRoomFixture('test1')).toBeDefined();
         });
 
-        it('getRoomFixture возвращает null для неизвестного имени', () => {
+        it('getRoomFixture returns null for unknown name', () => {
             expect(getRoomFixture('nonexistent')).toBeNull();
         });
 
-        it('hasRoomFixture возвращает false для неизвестного имени', () => {
+        it('hasRoomFixture returns false for unknown name', () => {
             expect(hasRoomFixture('nonexistent')).toBe(false);
         });
 
-        it('loadRoomFixture возвращает { fixture } или null', () => {
+        it('loadRoomFixture returns { fixture } or null', () => {
             registerRoomFixture('test2', { controller: spec.controller(), structures: [], creeps: [] });
             const loaded = loadRoomFixture('test2');
             expect(loaded).toEqual({ fixture: expect.any(Object) });
@@ -56,7 +56,7 @@ describe('roomFixture', () => {
             creeps: [],
         });
 
-        it('возвращает новый объект при пустых overrides', () => {
+        it('returns a new object with empty overrides', () => {
             const f = baseFixture();
             const result = applyRoomOverrides(f, {});
             expect(result).not.toBe(f);
@@ -64,36 +64,36 @@ describe('roomFixture', () => {
             expect(result.creeps).not.toBe(f.creeps);
         });
 
-        it('не мутирует исходный fixture', () => {
+        it('does not mutate the original fixture', () => {
             const f = baseFixture();
             applyRoomOverrides(f, { exclude: ['spawn1'] });
             expect(f.structures).toHaveLength(3);
         });
 
         describe('exclude', () => {
-            it('удаляет структуру по id (строка)', () => {
+            it('removes structure by id (string)', () => {
                 const result = applyRoomOverrides(baseFixture(), { exclude: ['tower1'] });
                 expect(result.structures).toHaveLength(2);
                 expect(result.structures.find((s) => s.type === 'tower')).toBeUndefined();
             });
 
-            it('удаляет структуру по type (строка)', () => {
+            it('removes structure by type (string)', () => {
                 const result = applyRoomOverrides(baseFixture(), { exclude: ['extension'] });
                 expect(result.structures).toHaveLength(2);
                 expect(result.structures.find((s) => s.type === 'extension')).toBeUndefined();
             });
 
-            it('удаляет структуру по объекту { id }', () => {
+            it('removes structure by object { id }', () => {
                 const result = applyRoomOverrides(baseFixture(), { exclude: [{ id: 'spawn1' }] });
                 expect(result.structures).toHaveLength(2);
             });
 
-            it('удаляет структуру по объекту { type }', () => {
+            it('removes structure by object { type }', () => {
                 const result = applyRoomOverrides(baseFixture(), { exclude: [{ type: 'spawn' }] });
                 expect(result.structures).toHaveLength(2);
             });
 
-            it('удаляет несколько структур', () => {
+            it('removes multiple structures', () => {
                 const result = applyRoomOverrides(baseFixture(), { exclude: ['tower1', 'ext1'] });
                 expect(result.structures).toHaveLength(1);
                 expect(result.structures[0].id).toBe('spawn1');
@@ -101,13 +101,13 @@ describe('roomFixture', () => {
         });
 
         describe('controller overrides', () => {
-            it('мержит controller', () => {
+            it('merges controller', () => {
                 const result = applyRoomOverrides(baseFixture(), { controller: { safeMode: 20000 } });
                 expect(result.controller.safeMode).toBe(20000);
                 expect(result.controller.level).toBe(3);
             });
 
-            it('не меняет controller если override пустой', () => {
+            it('does not change controller if override is empty', () => {
                 const f = baseFixture();
                 const result = applyRoomOverrides(f, {});
                 expect(result.controller).toBe(f.controller);
@@ -115,7 +115,7 @@ describe('roomFixture', () => {
         });
 
         describe('structures overrides', () => {
-            it('переопределяет по id', () => {
+            it('overrides by id', () => {
                 const result = applyRoomOverrides(baseFixture(), {
                     structures: [spec.tower(26, 24, { id: 'tower1', hits: 1000 })],
                 });
@@ -123,7 +123,7 @@ describe('roomFixture', () => {
                 expect(tower.hits).toBe(1000);
             });
 
-            it('переопределяет по type+x+y', () => {
+            it('overrides by type+x+y', () => {
                 const result = applyRoomOverrides(baseFixture(), {
                     structures: [spec.structure('extension', 27, 24, { hits: 500 })],
                 });
@@ -131,7 +131,7 @@ describe('roomFixture', () => {
                 expect(ext.hits).toBe(500);
             });
 
-            it('не добавляет новую структуру при отсутствии совпадения', () => {
+            it('does not add a new structure when no match', () => {
                 const result = applyRoomOverrides(baseFixture(), {
                     structures: [spec.extension(99, 99, { hits: 100 })],
                 });
@@ -140,7 +140,7 @@ describe('roomFixture', () => {
         });
 
         describe('append', () => {
-            it('добавляет новые структуры', () => {
+            it('adds new structures', () => {
                 const result = applyRoomOverrides(baseFixture(), {
                     append: [spec.container(30, 30), spec.road(29, 29)],
                 });
@@ -149,7 +149,7 @@ describe('roomFixture', () => {
         });
 
         describe('creeps', () => {
-            it('добавляет крипов к пустым creeps', () => {
+            it('adds creeps to empty creeps', () => {
                 const f = baseFixture();
                 const result = applyRoomOverrides(f, {
                     creeps: [spec.creep(10, 10)],
@@ -157,7 +157,7 @@ describe('roomFixture', () => {
                 expect(result.creeps).toHaveLength(1);
             });
 
-            it('добавляет крипов к существующим', () => {
+            it('adds creeps to existing ones', () => {
                 const f = baseFixture();
                 f.creeps = [spec.creep(10, 10)];
                 const result = applyRoomOverrides(f, {
@@ -168,7 +168,7 @@ describe('roomFixture', () => {
         });
 
         describe('hostiles', () => {
-            it('добавляет hostiles', () => {
+            it('adds hostiles', () => {
                 const result = applyRoomOverrides(baseFixture(), {
                     hostiles: [spec.invader(40, 40)],
                 });
@@ -189,7 +189,7 @@ describe('roomFixture', () => {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         });
 
-        it('регистрирует fixture из файла с registerRoomFixture', () => {
+        it('registers fixture from file with registerRoomFixture', () => {
             const filePath = path.join(tmpDir, 'my-room.room.js');
             const roomFixturePath = require.resolve('../lib/fixtures/roomFixture');
             const specPath = require.resolve('../lib/builders/spec');
@@ -212,12 +212,12 @@ registerRoomFixture('auto-room', {
             expect(hasRoomFixture('auto-room')).toBe(true);
         });
 
-        it('пропускает не-js файлы', () => {
+        it('skips non-js files', () => {
             fs.writeFileSync(path.join(tmpDir, 'readme.md'), '# ignore');
             expect(() => loadRoomFixturesFromDir(tmpDir)).not.toThrow();
         });
 
-        it('ничего не делает если директории нет', () => {
+        it('does nothing if directory does not exist', () => {
             expect(() => loadRoomFixturesFromDir(path.join(tmpDir, 'nonexistent'))).not.toThrow();
         });
     });

@@ -1,15 +1,15 @@
 # Multi-Room Guide
 
-Работа с несколькими комнатами и ботами в одном сценарии.
+Working with multiple rooms and bots in a single scenario.
 
-## Содержание
+## Table of Contents
 
-- [Минимальный multi-room сценарий](#минимальный-multi-room-сценарий)
-- [Привязка структур к конкретному боту](#привязка-структур-к-конкретному-боту)
-- [Память и event log](#память-и-event-log)
-- [ID коллизии](#id-коллизии)
+- [Minimal multi-room scenario](#minimal-multi-room-scenario)
+- [Binding structures to a specific bot](#binding-structures-to-a-specific-bot)
+- [Memory and event log](#memory-and-event-log)
+- [ID collisions](#id-collisions)
 
-## Минимальный multi-room сценарий
+## Minimal multi-room scenario
 
 ```javascript
 const { createWorld, spec } = require('screeps-integration-tests');
@@ -35,18 +35,18 @@ const world = await createWorld({
 });
 ```
 
-После создания мира:
+After world creation:
 
 - `world.rooms` — `Record<roomName, RoomStatus>`.
-- `world.bots` — `Record<username, Bot>`. Поля `world.bot` **нет**.
+- `world.bots` — `Record<username, Bot>`. There is **no** `world.bot` field.
 
-См. также [`API-REFERENCE.md`](API-REFERENCE.md#createworld).
+See also [`API-REFERENCE.md`](API-REFERENCE.md#createworld).
 
-## Привязка структур к конкретному боту
+## Binding structures to a specific bot
 
-`buildCanonicalRoom` автоматически назначает `defaultBotUserId` (первый бот из `opts.bots`) всем структурам без явного `userId`. В single-bot это удобно, в multi-bot — опасно: второй бот останется без spawn.
+`buildCanonicalRoom` automatically assigns `defaultBotUserId` (the first bot from `opts.bots`) to all structures without an explicit `userId`. In single-bot this is convenient, in multi-bot it is dangerous: the second bot will be left without a spawn.
 
-Указывайте `userId` явно:
+Specify `userId` explicitly:
 
 ```javascript
 {
@@ -56,8 +56,8 @@ const world = await createWorld({
 }
 ```
 
-> `world.spawn()` создаёт только крипов (см. [API-REFERENCE.md](API-REFERENCE.md#2-worldinstance)).
-> Создать структуру после `createWorld()` можно только напрямую через БД:
+> `world.spawn()` only creates creeps (see [API-REFERENCE.md](API-REFERENCE.md#2-worldinstance)).
+> To create a structure after `createWorld()`, you must go directly through the DB:
 >
 > ```javascript
 > const { db } = world.server.common.storage;
@@ -67,34 +67,34 @@ const world = await createWorld({
 >   x: 25,
 >   y: 25,
 >   user: world.bots['Player2'].id,
->   // ... остальные поля структуры
+>   // ... remaining structure fields
 > });
 > ```
 
-## Память и event log
+## Memory and event log
 
-Чтение и запись памяти — **по боту**, не по комнате:
+Reading and writing memory is **per bot**, not per room:
 
 ```javascript
 const main = await world.readMemory('Player1');
 await world.writeMemory('Player2', { flag: true });
 ```
 
-`world.eventLog(room)` требует явного имени комнаты:
+`world.eventLog(room)` requires an explicit room name:
 
 ```javascript
 const eventsW0N1 = await world.eventLog('W0N1');
 const eventsW0N2 = await world.eventLog('W0N2');
 ```
 
-Детали — в [`API-REFERENCE.md`](API-REFERENCE.md#readmemorywritememory) и [`API-REFERENCE.md`](API-REFERENCE.md#eventlog).
+Details — in [`API-REFERENCE.md`](API-REFERENCE.md#readmemorywritememory) and [`API-REFERENCE.md`](API-REFERENCE.md#eventlog).
 
-## ID коллизии
+## ID collisions
 
-Если Room Fixture или `structures` жёстко кодируют `id`, один и тот же шаблон нельзя использовать в нескольких комнатах одного сценария: сервер отклонит дублирующийся `id`.
+If a Room Fixture or `structures` hardcodes `id`, the same template cannot be used in multiple rooms of a single scenario: the server will reject the duplicate `id`.
 
-Решения:
+Solutions:
 
-- не задавайте `id` если хотите использовать fixture в нескольких комнатах в одном мире;
-- создавайте отдельные fixture для каждой комнаты;
-- генерируйте `id` с уникальным префиксом, если нужен детерминизм.
+- don't set `id` if you want to use a fixture in multiple rooms in one world;
+- create separate fixtures for each room;
+- generate `id` with a unique prefix if you need determinism.

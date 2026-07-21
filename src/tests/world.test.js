@@ -1,14 +1,14 @@
 'use strict';
 
 /**
- * Юнит-тесты для world.js — публичного API и вспомогательных функций.
+ * Unit tests for world.js — public API and helper functions.
  *
- * Покрывают:
- * - buildCanonicalRoom: нейтральные структуры,
+ * Cover:
+ * - buildCanonicalRoom: neutral structures,
  *   fixture + overrides pipeline, hostiles userId='2',
- *   inline fixture, creeps userId, controller граничные случаи.
+ *   inline fixture, creeps userId, controller edge cases.
  * - defaultBot: single-bot, multi-bot, no-bot edge cases.
- * - resolveDistDir / resolveCacheBase (чистые функции).
+ * - resolveDistDir / resolveCacheBase (pure functions).
  *
  * @file Unit tests for world.js
  */
@@ -16,8 +16,8 @@
 const { buildCanonicalRoom, defaultBot, resolveDistDir, resolveCacheBase } = require('../lib/world');
 
 describe('buildCanonicalRoom', () => {
-    describe('нейтральные структуры (W3 regression)', () => {
-        it('структура с явным userId сохраняет его', async () => {
+    describe('neutral structures (W3 regression)', () => {
+        it('structure with explicit userId preserves it', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -34,7 +34,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.structures[1].userId).toBe('anotherUser');
         });
 
-        it('структура без userId получает defaultBotUserId', async () => {
+        it('structure without userId gets defaultBotUserId', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -52,7 +52,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.structures[1].userId).toBe('defaultBot');
         });
 
-        it('структура c userId="" считается нейтральной (не заменяется на defaultBot)', async () => {
+        it('structure with userId="" is considered neutral (not replaced with defaultBot)', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -62,11 +62,11 @@ describe('buildCanonicalRoom', () => {
                 'defaultBot',
             );
 
-            // '' ?? defaultBot = '' (пустая строка — falsy, но ?? не заменяет)
+            // '' ?? defaultBot = '' (empty string is falsy, but ?? does not replace)
             expect(canonical.structures[0].userId).toBe('');
         });
 
-        it('структура c userId=null считается нейтральной (не заменяется на defaultBot)', async () => {
+        it('structure with userId=null is considered neutral (not replaced with defaultBot)', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -76,13 +76,13 @@ describe('buildCanonicalRoom', () => {
                 'defaultBot',
             );
 
-            // null ?? defaultBot = defaultBot (null заменяется ??)
+            // null ?? defaultBot = defaultBot (null is replaced by ??)
             expect(canonical.structures[0].userId).toBe('defaultBot');
         });
     });
 
     describe('hostiles', () => {
-        it('hostile creep всегда получает userId="2"', async () => {
+        it('hostile creep always gets userId="2"', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -101,7 +101,7 @@ describe('buildCanonicalRoom', () => {
             }
         });
 
-        it('hostile creep с явным userId переопределяется на "2"', async () => {
+        it('hostile creep with explicit userId is overridden to "2"', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -120,13 +120,13 @@ describe('buildCanonicalRoom', () => {
                 'defaultBot',
             );
 
-            // hostiles всегда '2', даже если userId задан
+            // hostiles always '2', even if userId is set
             expect(canonical.hostiles[0].userId).toBe('2');
         });
     });
 
     describe('fixture + overrides', () => {
-        it('controller может отсутствовать (нейтральная комната)', async () => {
+        it('controller may be absent (neutral room)', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -142,7 +142,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.creeps).toEqual([]);
         });
 
-        it('проставляет roomName в каждый объект', async () => {
+        it('sets roomName on each object', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -161,7 +161,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.creeps[0].roomName).toBe('W0N1');
         });
 
-        it('roomName из объекта приоритетнее имени комнаты', async () => {
+        it('roomName from object takes precedence over room name', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -176,15 +176,15 @@ describe('buildCanonicalRoom', () => {
     });
 
     describe('error handling', () => {
-        it('бросает ошибку для несуществующего roomFixture', async () => {
+        it('throws for non-existent roomFixture', async () => {
             await expect(
                 buildCanonicalRoom({ name: 'W0N1', roomFixture: 'nonexistent_fixture' }, 'W0N1', 'defaultBot'),
-            ).rejects.toThrow("roomFixture 'nonexistent_fixture' не найден");
+            ).rejects.toThrow("roomFixture 'nonexistent_fixture' not found");
         });
     });
 
-    describe('inline fixture (объект)', () => {
-        it('roomFixture как объект используется напрямую', async () => {
+    describe('inline fixture (object)', () => {
+        it('roomFixture as object is used directly', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -205,7 +205,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.structures[0].userId).toBe('botInline');
         });
 
-        it('inline fixture с overrides применяются', async () => {
+        it('inline fixture with overrides is applied', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -230,7 +230,7 @@ describe('buildCanonicalRoom', () => {
     });
 
     describe('creeps', () => {
-        it('creep без userId получает defaultBotUserId', async () => {
+        it('creep without userId gets defaultBotUserId', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -243,7 +243,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.creeps[0].userId).toBe('botCreep');
         });
 
-        it('creep с явным userId сохраняет его', async () => {
+        it('creep with explicit userId preserves it', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -265,7 +265,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.creeps[0].userId).toBe('customUser');
         });
 
-        it('creep с userId="" считается нейтральным', async () => {
+        it('creep with userId="" is considered neutral', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -288,8 +288,8 @@ describe('buildCanonicalRoom', () => {
         });
     });
 
-    describe('controller граничные случаи', () => {
-        it('controller с userId="" остаётся нейтральным', async () => {
+    describe('controller edge cases', () => {
+        it('controller with userId="" stays neutral', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -299,11 +299,11 @@ describe('buildCanonicalRoom', () => {
                 'defaultBot',
             );
 
-            // '' ?? defaultBot = '' (пустая строка не заменяется)
+            // '' ?? defaultBot = '' (empty string is not replaced)
             expect(canonical.controller.userId).toBe('');
         });
 
-        it('controller без userId (undefined) получает defaultBotUserId', async () => {
+        it('controller without userId (undefined) gets defaultBotUserId', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -318,7 +318,7 @@ describe('buildCanonicalRoom', () => {
     });
 
     describe('sources', () => {
-        it('source без userId получает defaultBotUserId', async () => {
+        it('source without userId gets defaultBotUserId', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -332,8 +332,8 @@ describe('buildCanonicalRoom', () => {
         });
     });
 
-    describe('хост не указаны', () => {
-        it('hostiles отсутствуют → поле hostiles пустое', async () => {
+    describe('hostiles not specified', () => {
+        it('hostiles absent → hostiles field is empty', async () => {
             const canonical = await buildCanonicalRoom(
                 { name: 'W0N1', structures: [{ type: 'spawn', x: 25, y: 25 }] },
                 'W0N1',
@@ -346,18 +346,18 @@ describe('buildCanonicalRoom', () => {
 });
 
 describe('defaultBot', () => {
-    it('single-bot возвращает имя единственного бота', () => {
+    it('single-bot returns the only bot name', () => {
         const bots = { myBot: { id: 'u1' } };
         expect(defaultBot(bots)).toBe('myBot');
     });
 
-    it('no-bot бросает ошибку', () => {
-        expect(() => defaultBot({})).toThrow('defaultBot: в opts.bots ни одного бота');
+    it('no-bot throws an error', () => {
+        expect(() => defaultBot({})).toThrow('defaultBot: no bots in opts.bots');
     });
 
-    it('multi-bot бросает ошибку', () => {
+    it('multi-bot throws an error', () => {
         const bots = { bot1: { id: 'u1' }, bot2: { id: 'u2' } };
-        expect(() => defaultBot(bots)).toThrow(/ботов > 1/);
+        expect(() => defaultBot(bots)).toThrow(/more than 1 bot/);
     });
 });
 
@@ -375,42 +375,42 @@ describe('resolveDistDir / resolveCacheBase', () => {
     });
 
     describe('resolveDistDir', () => {
-        it('opts.distDir имеет приоритет', () => {
+        it('opts.distDir has priority', () => {
             expect(resolveDistDir({ distDir: '/custom/dist' })).toBe('/custom/dist');
         });
 
-        it('BOT_DIST_DIR используется если opts.distDir не задан', () => {
+        it('BOT_DIST_DIR is used if opts.distDir is not set', () => {
             process.env.BOT_DIST_DIR = '/env/dist';
             expect(resolveDistDir({})).toBe('/env/dist');
         });
 
-        it('cwd/dist используется если ни opts, ни env не заданы', () => {
+        it('cwd/dist is used if neither opts nor env are set', () => {
             const expected = require('path').resolve(process.cwd(), 'dist');
             expect(resolveDistDir({})).toBe(expected);
         });
 
-        it('opts.distDir приоритетнее env', () => {
+        it('opts.distDir takes precedence over env', () => {
             process.env.BOT_DIST_DIR = '/env/dist';
             expect(resolveDistDir({ distDir: '/opts/dist' })).toBe('/opts/dist');
         });
     });
 
     describe('resolveCacheBase', () => {
-        it('opts.cacheDir имеет приоритет', () => {
+        it('opts.cacheDir has priority', () => {
             expect(resolveCacheBase({ cacheDir: '/custom/cache' })).toBe('/custom/cache');
         });
 
-        it('SIT_CACHE_DIR используется если opts.cacheDir не задан', () => {
+        it('SIT_CACHE_DIR is used if opts.cacheDir is not set', () => {
             process.env.SIT_CACHE_DIR = '/env/cache';
             expect(resolveCacheBase({})).toBe('/env/cache');
         });
 
-        it('.cache используется если ни opts, ни env не заданы', () => {
+        it('.cache is used if neither opts nor env are set', () => {
             const expected = require('path').resolve(process.cwd(), '.cache');
             expect(resolveCacheBase({})).toBe(expected);
         });
 
-        it('opts.cacheDir приоритетнее env', () => {
+        it('opts.cacheDir takes precedence over env', () => {
             process.env.SIT_CACHE_DIR = '/env/cache';
             expect(resolveCacheBase({ cacheDir: '/opts/cache' })).toBe('/opts/cache');
         });

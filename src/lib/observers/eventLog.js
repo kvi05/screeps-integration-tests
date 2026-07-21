@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Константы событий из `@screeps/common/lib/constants.js`.
+ * Event constants from `@screeps/common/lib/constants.js`.
  * @see https://docs.screeps.com/api/#Constants
  */
 
@@ -40,9 +40,9 @@ const EVENT_POWER = 11;
 const EVENT_TRANSFER = 12;
 
 /**
- * Читает event log из storage для указанной комнаты.
- * Event log хранится как hset в `env.keys.ROOM_EVENT_LOG`.
- * Возвращает `[]`, если событий ещё нет или JSON битый.
+ * Reads event log from storage for the specified room.
+ * Event log is stored as an hset in `env.keys.ROOM_EVENT_LOG`.
+ * Returns `[]` if no events yet or JSON is corrupted.
  *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
@@ -62,10 +62,10 @@ async function readEventLog(adapter, roomName) {
 }
 
 /**
- * Фильтрует event log по типу события.
+ * Filters event log by event type.
  *
  * @param {EventLogEntry[]} eventLog
- * @param {number} eventType                — константа (EVENT_OBJECT_DESTROYED, EVENT_ATTACK, ...)
+ * @param {number} eventType                — constant (EVENT_OBJECT_DESTROYED, EVENT_ATTACK, ...)
  * @returns {EventLogEntry[]}
  */
 function filterByType(eventLog, eventType) {
@@ -73,7 +73,7 @@ function filterByType(eventLog, eventType) {
 }
 
 /**
- * Фильтрует `EVENT_OBJECT_DESTROYED` по типу(ам) объекта и/или по `_id`.
+ * Filters `EVENT_OBJECT_DESTROYED` by object type(s) and/or `_id`.
  *
  * @param {EventLogEntry[]} eventLog
  * @param {DestroyedFilter} [filter]
@@ -93,13 +93,13 @@ function filterDestroyed(eventLog, filter = {}) {
 }
 
 /**
- * Накапливает события в `report.events[]`.
- * Event log в engine перезаписывается каждый тик — этот метод
- * единственный способ собрать все события за прогон.
+ * Accumulates events in `report.events[]`.
+ * The event log in engine is overwritten each tick — this method
+ * is the only way to collect all events for a run.
  *
  * @param {WorldReport} report
- * @param {EventLogEntry[]} eventLog         — события за текущий тик
- * @param {number} tick                     — номер тика
+ * @param {EventLogEntry[]} eventLog         — events for current tick
+ * @param {number} tick                     — tick number
  * @returns {void}
  */
 function accumulateEvents(report, eventLog, tick) {

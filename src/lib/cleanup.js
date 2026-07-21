@@ -7,10 +7,10 @@ const DEFAULT_CACHE_DIR = path.join(__dirname, '..', '.cache');
 const DEFAULT_KEEP = 5;
 
 /**
- * Очищает .cache/, храня N последних директорий.
+ * Prunes .cache/, keeping the N most recent directories.
  * @param {Object} [opts]
- * @param {number} [opts.keep=5] — количество директорий для хранения
- * @param {string} [opts.cacheDir] — путь к .cache/
+ * @param {number} [opts.keep=5] — number of directories to keep
+ * @param {string} [opts.cacheDir] — path to .cache/
  * @returns {{ removed: number, kept: number, errors: string[] }}
  */
 function pruneCache(opts = {}) {
@@ -30,7 +30,7 @@ function pruneCache(opts = {}) {
             fullPath: path.join(cacheDir, e.name),
             mtime: fs.statSync(path.join(cacheDir, e.name)).mtimeMs,
         }))
-        .sort((a, b) => b.mtime - a.mtime); // свежие первые
+        .sort((a, b) => b.mtime - a.mtime); // newest first
 
     const toRemove = entries.slice(keep);
     for (const entry of toRemove) {
@@ -38,7 +38,7 @@ function pruneCache(opts = {}) {
             fs.rmSync(entry.fullPath, { recursive: true, force: true });
             result.removed++;
         } catch (e) {
-            result.errors.push(`Не удалось удалить ${entry.name}: ${e.message}`);
+            result.errors.push(`Failed to remove ${entry.name}: ${e.message}`);
         }
     }
 
