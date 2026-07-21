@@ -95,6 +95,15 @@ async function addBots(opts) {
     const resolvedBots = {};
 
     for (const b of botsList) {
+        // Validate — 'room' (singular) was renamed to 'rooms' (plural)
+        if (b.room !== undefined) {
+            const hint = typeof b.room === 'string' ? `rooms: '${b.room}'` : 'rooms: <value>';
+            throw new Error(
+                `addBots: BotSpec for "${b.username}" uses unknown field 'room' (singular). ` +
+                    `The field has been renamed to 'rooms' (plural). Replace \`room: ...\` with \`${hint}\`.`,
+            );
+        }
+
         // Per-bot resolution: local > global > default false.
         const effectiveProfiling = b.profiling ?? opts.profiling ?? false;
         const modules =

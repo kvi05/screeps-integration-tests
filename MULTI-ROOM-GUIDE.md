@@ -50,7 +50,7 @@ When each bot declares its `rooms`, structures in those rooms automatically inhe
 {
   name: 'W0N2',
   controller: spec.controller({ level: 3 }),
-  structures: [spec.spawn(25, 25)],       // auto-gets Player2's userId
+  structures: [spec.spawn(25, 25)],       // auto-gets Player2's userId because Player2.rooms includes 'W0N2'
 }
 ```
 

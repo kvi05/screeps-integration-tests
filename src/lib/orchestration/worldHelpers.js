@@ -166,7 +166,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
         }
         const merged = { ...spec };
         if (merged.userId === undefined) {
-            merged.userId = roomToBotUserId?.[spec.roomName] || defaultBotUserId;
+            merged.userId = roomToBotUserId?.[spec.roomName] ?? defaultBotUserId;
         }
         return materializeStructure(adapter, spec.roomName, merged);
     }

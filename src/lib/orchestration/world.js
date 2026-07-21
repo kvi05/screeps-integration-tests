@@ -248,6 +248,20 @@ async function createWorld(opts) {
         throw new Error('createWorld: opts.rooms is required and must be a non-empty array');
     }
 
+    // Validate bots spec — catch old 'room' (singular) rename to 'rooms'
+    if (opts.bots) {
+        for (const botSpec of opts.bots) {
+            if (botSpec.room !== undefined) {
+                const hint = typeof botSpec.room === 'string' ? `rooms: '${botSpec.room}'` : 'rooms: <value>';
+                throw new Error(
+                    `createWorld: BotSpec for "${botSpec.username}" uses unknown field 'room' (singular). ` +
+                        `The field has been renamed to 'rooms' (plural) to support multi-room bots. ` +
+                        `Replace \`room: ...\` with \`${hint}\`.`,
+                );
+            }
+        }
+    }
+
     const metricsConfig = MetricsReport.resolveConfig(opts);
 
     // Pipeline:
@@ -429,7 +443,7 @@ async function createWorld(opts) {
         if (!spawnSpec.roomName) {
             throw new Error('world.spawn: roomName is required (multi-room mode)');
         }
-        const userId = spawnSpec.userId || roomToBotUserId[spawnSpec.roomName] || defaultBotUserId;
+        const userId = spawnSpec.userId ?? roomToBotUserId[spawnSpec.roomName] ?? defaultBotUserId;
         if (!userId) {
             throw new Error('world.spawn: spawnSpec.userId is required (bot username or "2" for Invader)');
         }
