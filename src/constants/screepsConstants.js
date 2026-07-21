@@ -171,6 +171,11 @@ const TERRAIN_MASK_SWAMP = 2;
 /** @type {number} */
 const TERRAIN_MASK_LAVA = 4;
 
+// ─── Framework-specific constants ──────────────────────────────────────────────
+
+/** @type {string} */
+const INVADER_USER_ID = '2';
+
 // ─── Type names (used as object type in `rooms.objects`) ───────────────────────
 
 /** @type {string} */
@@ -227,6 +232,9 @@ module.exports = {
     HEAL,
     TOUGH,
     CLAIM,
+
+    // Framework-specific
+    INVADER_USER_ID,
 
     // Type names (for type === ... in filters)
     TYPE_CREEPS,

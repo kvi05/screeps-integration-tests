@@ -36,6 +36,13 @@
 const VALID_ENTITY_TYPES = ['rooms', 'colonies', 'bots', 'world'];
 const MAP_ENTITY_TYPES = ['rooms', 'colonies', 'bots'];
 
+// ─── Framework defaults ──────────────────────────────────────────────────────────
+
+/** @type {number} */
+const DEFAULT_METRICS_EVERY = 0;
+/** @type {boolean} */
+const DEFAULT_METRICS_ROOMS = true;
+
 class MetricsReport {
     constructor() {
         /** @private */
@@ -60,8 +67,8 @@ class MetricsReport {
      */
     static resolveConfig(opts) {
         const metricsOpts = opts.metrics || {};
-        const every = metricsOpts.every !== undefined ? metricsOpts.every : 0;
-        const rooms = metricsOpts.rooms !== undefined ? metricsOpts.rooms : true;
+        const every = metricsOpts.every !== undefined ? metricsOpts.every : DEFAULT_METRICS_EVERY;
+        const rooms = metricsOpts.rooms !== undefined ? metricsOpts.rooms : DEFAULT_METRICS_ROOMS;
 
         const unsupported = [];
         if (metricsOpts.colonies) {

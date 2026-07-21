@@ -140,15 +140,18 @@ async function materializeStructures(adapter, roomName, structures) {
  */
 async function materializeSource(adapter, roomName, src) {
     const { db } = adapter;
+    if (src.x === undefined) throw new Error('materializeSource: x is required');
+    if (src.y === undefined) throw new Error('materializeSource: y is required');
+
     const doc = {
         room: roomName,
         type: 'source',
         x: src.x,
         y: src.y,
-        energy: src.energy !== undefined ? src.energy : 3000,
-        energyCapacity: src.energyCapacity !== undefined ? src.energyCapacity : 3000,
-        ticksToRegeneration: src.ticksToRegeneration || 0,
     };
+    if (src.energy !== undefined) doc.energy = src.energy;
+    if (src.energyCapacity !== undefined) doc.energyCapacity = src.energyCapacity;
+    if (src.ticksToRegeneration !== undefined) doc.ticksToRegeneration = src.ticksToRegeneration;
     if (src.id) {
         doc._id = src.id;
     }
@@ -192,19 +195,22 @@ async function materializeController(adapter, roomName, ctrl) {
     const existing = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
 
     if (!existing) {
+        if (ctrl.x === undefined) throw new Error('materializeController: x is required');
+        if (ctrl.y === undefined) throw new Error('materializeController: y is required');
+        if (ctrl.level === undefined) throw new Error('materializeController: level is required');
+
         const doc = {
             room: roomName,
             type: 'controller',
-            x: ctrl.x ?? 35,
-            y: ctrl.y ?? 35,
-            level: ctrl.level ?? 1,
-            progress: ctrl.progress ?? 0,
-            downgradeTime: ctrl.downgradeTime ?? null,
-            safeMode: ctrl.safeMode ?? 0,
-            safeModeAvailable: ctrl.safeModeAvailable ?? 0,
-            isPowerEnabled: ctrl.isPowerEnabled ?? false,
+            x: ctrl.x,
+            y: ctrl.y,
+            level: ctrl.level,
         };
-
+        if (ctrl.progress !== undefined) doc.progress = ctrl.progress;
+        if (ctrl.downgradeTime !== undefined) doc.downgradeTime = ctrl.downgradeTime;
+        if (ctrl.safeMode !== undefined) doc.safeMode = ctrl.safeMode;
+        if (ctrl.safeModeAvailable !== undefined) doc.safeModeAvailable = ctrl.safeModeAvailable;
+        if (ctrl.isPowerEnabled !== undefined) doc.isPowerEnabled = ctrl.isPowerEnabled;
         if (ctrl.userId !== undefined) {
             doc.user = ctrl.userId;
         }

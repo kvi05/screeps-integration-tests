@@ -15,6 +15,17 @@
  * @typedef {import('./types').MetricEntityType} MetricEntityType
  */
 
+// ─── Framework defaults ──────────────────────────────────────────────────────────
+
+/** @type {number} */
+const DEFAULT_TOLERANCE = 0;
+/** @type {number} */
+const DEFAULT_RELATIVE_TOLERANCE = 0;
+/** @type {import('./types').RegressionDirection} */
+const DEFAULT_REGRESSION_DIRECTION = 'both';
+/** @type {'average'|'latest'|'sum'|'delta'} */
+const DEFAULT_AGGREGATOR = 'average';
+
 /**
  * @typedef {'increase'|'decrease'|'both'} RegressionDirection
  */
@@ -57,10 +68,10 @@ class MetricsRegression {
      * @returns {CompareResult}
      */
     compare(currentReport, entityType, entityId, metricName, opts = {}) {
-        const aggregator = opts.aggregator || 'average';
-        const direction = opts.direction || 'both';
-        const tolerance = opts.tolerance || 0;
-        const relativeTolerance = opts.relativeTolerance || 0;
+        const aggregator = opts.aggregator || DEFAULT_AGGREGATOR;
+        const direction = opts.direction || DEFAULT_REGRESSION_DIRECTION;
+        const tolerance = opts.tolerance || DEFAULT_TOLERANCE;
+        const relativeTolerance = opts.relativeTolerance || DEFAULT_RELATIVE_TOLERANCE;
 
         const currentSeries = this._selectWindow(currentReport.series(entityType, entityId), opts.window);
         const baselineSeries = this._selectWindow(this._baseline.series(entityType, entityId), opts.window);

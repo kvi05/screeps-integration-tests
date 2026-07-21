@@ -12,6 +12,20 @@ const { evaluatePredicate } = require('./observers/predicate');
 const { snapshotOwners, mergeOwners } = require('./observers/ownership');
 const { createConsoleCapture } = require('./console');
 const { createWorldHelpers } = require('./worldHelpers');
+const { INVADER_USER_ID } = require('../constants/screepsConstants');
+
+// ─── Framework defaults ──────────────────────────────────────────────────────────
+
+/** @type {string} */
+const DEFAULT_WORLD_LOG_LEVEL = 'all';
+/** @type {number} */
+const DEFAULT_MAX_CONSOLE_LINES = 10000;
+/** @type {number} */
+const DEFAULT_MAX_TICKS = 100;
+/** @type {number} */
+const DEFAULT_INVADER_SPAWN_X = 10;
+/** @type {number} */
+const DEFAULT_INVADER_SPAWN_Y = 25;
 
 function resolveDistDir(opts) {
     return opts.distDir || process.env.BOT_DIST_DIR || path.resolve(process.cwd(), 'dist');
@@ -155,8 +169,8 @@ async function createWorld(opts) {
         stopReason: null,
     };
 
-    const globalLogLevel = opts.logLevel || 'all';
-    const maxConsoleLines = opts.maxConsoleLines || 10000;
+    const globalLogLevel = opts.logLevel || DEFAULT_WORLD_LOG_LEVEL;
+    const maxConsoleLines = opts.maxConsoleLines || DEFAULT_MAX_CONSOLE_LINES;
 
     // ─── 4. Per-bot initialization (single pass) ───────────────────────
     // Memory + Console handler — everything in a single pass over bots.
@@ -190,11 +204,11 @@ async function createWorld(opts) {
 
     registerEvent('spawnInvader', async (adpt, room, params) => {
         await materializeCreep(adpt, room, {
-            x: params.x ?? 10,
-            y: params.y ?? 25,
+            x: params.x ?? DEFAULT_INVADER_SPAWN_X,
+            y: params.y ?? DEFAULT_INVADER_SPAWN_Y,
             name: params.name || `Invader_${Date.now()}`,
             body: params.body,
-            userId: '2',
+            userId: INVADER_USER_ID,
         });
     });
 
@@ -341,7 +355,7 @@ async function createWorld(opts) {
     async function run() {
         let runError;
         try {
-            const maxTicks = (opts.until && opts.until.maxTicks) || opts.ticks || 100;
+            const maxTicks = (opts.until && opts.until.maxTicks) || opts.ticks || DEFAULT_MAX_TICKS;
 
             // Don't tick if the scenario is already stopped
             if (!report.stopReason) {
@@ -638,7 +652,7 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId) {
         return {
             ...s,
             roomName: s.roomName || name,
-            userId: userInvader ? '2' : (s.userId ?? defaultBotUserId),
+            userId: userInvader ? INVADER_USER_ID : (s.userId ?? defaultBotUserId),
         };
     };
 

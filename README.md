@@ -25,17 +25,17 @@ mechanics, same memory model. You get:
 
 ## Features at a glance
 
-| Feature | Description |
-|---|---|
-| 🎮 **Full game server** | Real `screeps-server-mockup`, not a mock. Your bot runs against authentic game mechanics. |
-| 🏗️ **Declarative world** | Build rooms, structures, creeps via `spec.*` — pure functions, clean and composable. |
-| 📦 **Fixtures** | Reusable room and memory templates with overrides. Don't copy-paste setup code. |
-| ✅ **16 assertions** | RCL progress, errors, destroyed objects, combat damage — by object ID and by user. |
-| 📊 **Metrics pipeline** | Time-series collection, query helpers, CSV export, regression comparison. |
-| ⚡ **Profiling** | Built-in callgrind support via `screeps-profiler`. Find CPU bottlenecks. |
-| 🌐 **Multi-room / multi-bot** | Multiple rooms, multiple bots, cross-room interactions — all in one scenario. |
-| 🔀 **Parallel workers** | `--jobs N` runs scenarios in parallel in a `child_process` pool. Uses all your cores. |
-| 🛡️ **Worker isolation** | Each scenario gets its own server, port, and cache directory. No leaks between tests. |
+| Feature                       | Description                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------- |
+| 🎮 **Full game server**       | Real `screeps-server-mockup`, not a mock. Your bot runs against authentic game mechanics. |
+| 🏗️ **Declarative world**      | Build rooms, structures, creeps via `spec.*` — pure functions, clean and composable.      |
+| 📦 **Fixtures**               | Reusable room and memory templates with overrides. Don't copy-paste setup code.           |
+| ✅ **16 assertions**          | RCL progress, errors, destroyed objects, combat damage — by object ID and by user.        |
+| 📊 **Metrics pipeline**       | Time-series collection, query helpers, CSV export, regression comparison.                 |
+| ⚡ **Profiling**              | Built-in callgrind support via `screeps-profiler`. Find CPU bottlenecks.                  |
+| 🌐 **Multi-room / multi-bot** | Multiple rooms, multiple bots, cross-room interactions — all in one scenario.             |
+| 🔀 **Parallel workers**       | `--jobs N` runs scenarios in parallel in a `child_process` pool. Uses all your cores.     |
+| 🛡️ **Worker isolation**       | Each scenario gets its own server, port, and cache directory. No leaks between tests.     |
 
 ## Quick start
 
@@ -58,13 +58,13 @@ async function run() {
     rooms: [
       {
         name: 'W0N1',
-        controller: spec.controller({ level: 1 }),           // RCL 1 controller at default position
+        controller: spec.controller({ level: 1 }), // RCL 1 controller at default position
         sources: [spec.source(15, 15), spec.source(35, 35)], // Two energy sources
-        structures: [spec.spawn(25, 25)],                     // A spawn for your creeps
+        structures: [spec.spawn(25, 25)], // A spawn for your creeps
       },
     ],
-    bots: [{ username: 'bot', room: 'W0N1' }],               // Your bot, placed in W0N1
-    ticks: 30,                                                // Run simulation for 30 ticks
+    bots: [{ username: 'bot', room: 'W0N1' }], // Your bot, placed in W0N1
+    ticks: 30, // Run simulation for 30 ticks
   });
 
   try {
@@ -72,8 +72,8 @@ async function run() {
     await world.run();
 
     // Assertions: did the bot survive without errors?
-    assertBotWorked(world.report);  // ticks > 0, memory is populated, no errors
-    assertNoErrors(world.report);   // no [ERROR] lines in console output
+    assertBotWorked(world.report); // ticks > 0, memory is populated, no errors
+    assertNoErrors(world.report); // no [ERROR] lines in console output
 
     console.log(`PASS: ${world.report.ticksRun} ticks`);
     return world.report;
@@ -117,7 +117,7 @@ The contract is simple:
 
 ```js
 async function run() {
-  const world = await createWorld({ /* ... */ });
+  const world = await createWorld({/* ... */});
   try {
     await world.run();
     // ... assertions ...
@@ -134,9 +134,6 @@ Every scenario runs in its own `child_process.fork`. This gives you:
 
 - **No shared state.** Each scenario gets its own `ScreepsServer` on a
   random free port.
-- **No memory leaks.** The mockup server has a known file-descriptor leak
-  on `stop()`. Worker isolation solves this: the process simply exits after
-  the scenario, releasing all resources.
 - **Parallel execution.** The CLI uses a worker pool (`--jobs N`, default:
   `min(4, CPU cores)`). Scenarios are pulled dynamically — no fixed
   assignment, no idle workers.
@@ -157,19 +154,19 @@ npx screeps-integration-tests [options]
 npx sit [options]
 ```
 
-| Flag | Description | Default |
-|---|---|---|
-| `--only <name>` | Run a single scenario (without `.scenario.js`) | — |
-| `--jobs <n>` | Parallel scenario workers | `min(4, CPU cores)` |
-| `--timeout <ms>` | Per-scenario timeout | `1800000` (30 min) |
-| `--bail` | Stop on first failure | off |
-| `--profiling` | Enable callgrind profiling | off |
-| `--build` | Run build command before scenarios | off |
-| `--config <path>` | Path to config file | auto-detect |
-| `--distDir <dir>` | Bot build directory | `./dist` |
-| `--scenariosDir <dir>` | Scenario files directory | `./scenarios` |
-| `--fixturesDir <dir>` | Memory fixtures directory | `./fixtures` |
-| `--cacheDir <dir>` | Server cache directory | `./.cache` |
+| Flag                   | Description                                    | Default             |
+| ---------------------- | ---------------------------------------------- | ------------------- |
+| `--only <name>`        | Run a single scenario (without `.scenario.js`) | —                   |
+| `--jobs <n>`           | Parallel scenario workers                      | `min(4, CPU cores)` |
+| `--timeout <ms>`       | Per-scenario timeout                           | `1800000` (30 min)  |
+| `--bail`               | Stop on first failure                          | off                 |
+| `--profiling`          | Enable callgrind profiling                     | off                 |
+| `--build`              | Run build command before scenarios             | off                 |
+| `--config <path>`      | Path to config file                            | auto-detect         |
+| `--distDir <dir>`      | Bot build directory                            | `./dist`            |
+| `--scenariosDir <dir>` | Scenario files directory                       | `./scenarios`       |
+| `--fixturesDir <dir>`  | Memory fixtures directory                      | `./fixtures`        |
+| `--cacheDir <dir>`     | Server cache directory                         | `./.cache`          |
 
 Configuration is merged from multiple sources (lowest to highest priority):
 **defaults → config file → env (`BOT_DIST_DIR`) → CLI flags → code overrides**.
@@ -178,15 +175,15 @@ Full config reference — see [CONFIG.md](./CONFIG.md).
 
 ## Documentation
 
-| File | Purpose |
-|---|---|
-| [GETTING-STARTED.md](./GETTING-STARTED.md) | Installation, first run, writing a scenario |
-| [CONFIG.md](./CONFIG.md) | `screeps-integration.config.js` and CLI flags |
-| [API-REFERENCE.md](./API-REFERENCE.md) | Full API reference: `createWorld`, builders, events |
-| [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md) | Room fixtures, memory fixtures, overrides |
-| [EXAMPLES.md](./EXAMPLES.md) | Reference scenarios and typical patterns |
-| [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md) | Architecture and internal mechanisms |
-| [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) | Multiple rooms and bots |
+| File                                           | Purpose                                             |
+| ---------------------------------------------- | --------------------------------------------------- |
+| [GETTING-STARTED.md](./GETTING-STARTED.md)     | Installation, first run, writing a scenario         |
+| [CONFIG.md](./CONFIG.md)                       | `screeps-integration.config.js` and CLI flags       |
+| [API-REFERENCE.md](./API-REFERENCE.md)         | Full API reference: `createWorld`, builders, events |
+| [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)       | Room fixtures, memory fixtures, overrides           |
+| [EXAMPLES.md](./EXAMPLES.md)                   | Reference scenarios and typical patterns            |
+| [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md) | Architecture and internal mechanisms                |
+| [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)   | Multiple rooms and bots                             |
 
 ## Running inside the repository (for contributors)
 
@@ -234,4 +231,3 @@ local development and testing.
   await world.exec();
   await world.tick(2); // The command will only execute on the 2nd tick
   ```
-

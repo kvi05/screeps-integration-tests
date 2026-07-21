@@ -28,6 +28,8 @@ const ERROR_PATTERNS = [
  */
 const WARN_PATTERNS = [];
 
+const DEFAULT_LOG_LEVEL = 'error';
+const DEFAULT_MAX_CONSOLE_LINES = 10000;
 const VALID_LOG_LEVELS = ['all', 'error', 'warn'];
 
 /**
@@ -64,13 +66,13 @@ function looksLikeWarn(line) {
  */
 function createConsoleCapture(opts = {}) {
     const report = opts.report || { errors: [], warnings: [], logs: [] };
-    const logLevel = opts.logLevel || 'error';
+    const logLevel = opts.logLevel || DEFAULT_LOG_LEVEL;
     if (!VALID_LOG_LEVELS.includes(logLevel)) {
         throw new Error(
             `Invalid logLevel "${logLevel}". Valid values: ${VALID_LOG_LEVELS.map((v) => `"${v}"`).join(', ')}`,
         );
     }
-    const maxConsoleLines = opts.maxConsoleLines || 10000;
+    const maxConsoleLines = opts.maxConsoleLines || DEFAULT_MAX_CONSOLE_LINES;
 
     const handler = (logs /*, results, userid, username */) => {
         if (report.errors.length + report.warnings.length + report.logs.length > maxConsoleLines) {
@@ -97,4 +99,4 @@ function createConsoleCapture(opts = {}) {
     return { handler, report };
 }
 
-module.exports = { createConsoleCapture, looksLikeError, ERROR_PATTERNS };
+module.exports = { createConsoleCapture, looksLikeError, ERROR_PATTERNS, DEFAULT_LOG_LEVEL, DEFAULT_MAX_CONSOLE_LINES };

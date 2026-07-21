@@ -22,6 +22,19 @@ const { loadBotModules } = require('./loadBot');
  * @typedef {import('./types').DisposeFn} DisposeFn
  */
 
+// ─── Framework defaults ──────────────────────────────────────────────────────────
+
+/** @type {number} */
+const DEFAULT_BOT_CPU = 100;
+/** @type {number} */
+const DEFAULT_BOT_CPU_AVAILABLE = 10000;
+/** @type {number} */
+const DEFAULT_BOT_GCL = 1;
+/** @type {number} */
+const DEFAULT_BOT_ACTIVE = 10000;
+/** @type {string} */
+const DEFAULT_BOT_BRANCH = 'default';
+
 /**
  * Returns a free TCP port on 127.0.0.1.
  *
@@ -149,10 +162,10 @@ async function addBot(adapter, username, opts = {}) {
     const { db, env } = adapter;
     const user = await db.users.insert({
         username,
-        cpu: opts.cpu ?? 100,
-        cpuAvailable: opts.cpuAvailable ?? 10000,
-        gcl: opts.gcl ?? 1,
-        active: 10000,
+        cpu: opts.cpu ?? DEFAULT_BOT_CPU,
+        cpuAvailable: opts.cpuAvailable ?? DEFAULT_BOT_CPU_AVAILABLE,
+        gcl: opts.gcl ?? DEFAULT_BOT_GCL,
+        active: DEFAULT_BOT_ACTIVE,
         badge: adapter.world.genRandomBadge(),
     });
 
@@ -162,7 +175,7 @@ async function addBot(adapter, username, opts = {}) {
         db.rooms.update({ _id: opts.room }, { $set: { active: true } }),
         db['users.code'].insert({
             user: user._id,
-            branch: 'default',
+            branch: DEFAULT_BOT_BRANCH,
             modules: opts.modules || {},
             activeWorld: true,
         }),

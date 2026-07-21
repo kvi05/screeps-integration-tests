@@ -23,6 +23,7 @@ const {
     STRUCTURE_ROAD,
     STRUCTURE_WALL,
     STRUCTURE_RAMPART,
+    INVADER_USER_ID,
     WORK,
     MOVE,
     ATTACK,
@@ -440,7 +441,7 @@ function creep(x, y, opts = {}) {
 function invader(x, y, opts = {}) {
     return creep(x, y, {
         roomName: opts.roomName,
-        userId: '2',
+        userId: INVADER_USER_ID,
         name: opts.name || 'Invader_1',
         body: opts.body || DEFAULT_INVADER_BODY,
         id: opts.id,
