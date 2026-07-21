@@ -26,7 +26,7 @@
 
 /**
  * StorageAdapter — facade for accessing DB, env, pubsub, and world API.
- * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
+ * @typedef {import('./runtime/storageAdapter').StorageAdapter} StorageAdapter
  */
 
 /**
@@ -369,6 +369,13 @@
  * @property {number} event                   — event type (EVENT_ATTACK=1, EVENT_OBJECT_DESTROYED=2, ...)
  * @property {string} objectId                — _id of the initiating object
  * @property {Object} data                    — depends on type (targetId, damage, type, ...)
+ */
+
+/**
+ * Filter for destroyed-object assertions.
+ * @typedef {Object} DestroyedFilter
+ * @property {string|string[]} [types]     — object type(s) (STRUCTURE_* or TYPE_CREEPS)
+ * @property {string} [id]                 — specific _id
  */
 
 /**

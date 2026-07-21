@@ -22,7 +22,7 @@
  * @module screeps-integration-tests/metrics
  */
 
-const { MetricsReport } = require('../lib/metricsReport');
-const { MetricsRegression } = require('../lib/metricRegression');
+const { MetricsReport } = require('../lib/assertions/metricsReport');
+const { MetricsRegression } = require('../lib/assertions/metricRegression');
 
 module.exports = { MetricsReport, MetricsRegression };

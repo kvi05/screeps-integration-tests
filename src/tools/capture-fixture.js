@@ -33,10 +33,10 @@
  * @summary Creates `fixtures/<name>.memory.json` from running a bot to target RCL.
  */
 
-const { createWorld } = require('../lib/world');
+const { createWorld } = require('../lib/orchestration/world');
 const spec = require('../lib/builders/spec');
 const { saveFixture, hasFixture } = require('../lib/builders/memory');
-const { parseArgs, HelpRequested } = require('../lib/cli');
+const { parseArgs, HelpRequested } = require('../lib/config/cli');
 
 /**
  * @typedef {import('../lib/types').SourceSpecCanonical} SourceSpecCanonical

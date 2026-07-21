@@ -109,4 +109,33 @@ async function evaluatePredicate(ctx, until) {
     return { shouldStop: false, reason: '' };
 }
 
-module.exports = { evaluatePredicate };
+/**
+ * Convenience wrapper around `evaluatePredicate` used by the tick loop.
+ *
+ * Builds the context from the tick loop's available references and
+ * returns `{ shouldStop, reason }`. Sets `report.stopReason` if stopping.
+ *
+ * @param {import('../types').WorldOpts} opts
+ * @param {WorldReport} report
+ * @param {ScreepsServer} server
+ * @param {Object<string,import('../types').Bot>} bots
+ * @param {Function} readMemory
+ * @param {Function} getEventLog
+ * @returns {Promise<{ shouldStop: boolean, reason: string }>}
+ */
+async function checkStopCondition(opts, report, server, bots, readMemory, getEventLog) {
+    if (!opts.until) {
+        return { shouldStop: false, reason: '' };
+    }
+
+    const { shouldStop, reason } = await evaluatePredicate(
+        { report, server, bots, readMemory, getEventLog },
+        opts.until,
+    );
+    if (shouldStop) {
+        report.stopReason = reason;
+    }
+    return { shouldStop, reason };
+}
+
+module.exports = { evaluatePredicate, checkStopCondition };

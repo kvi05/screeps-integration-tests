@@ -5,7 +5,7 @@ const path = require('path');
 /**
  * Jest-конфиг для unit-тестов integration framework.
  *
- * Тесты инфраструктуры живут в `src/` и запускаются отдельно
+ * Тесты инфраструктуры живут в `tests/` и запускаются отдельно
  * от юнит-тестов самого бота.
  *
  * @file Jest configuration for integration test helpers.
@@ -13,7 +13,7 @@ const path = require('path');
 module.exports = {
     testEnvironment: 'node',
     rootDir: path.resolve(__dirname),
-    testMatch: ['<rootDir>/src/**/*.test.js'],
+    testMatch: ['<rootDir>/tests/**/*.test.js'],
     testPathIgnorePatterns: ['/node_modules/', '/.cache/', '/fixtures/', '/profiles/', '/scenarios/', '/tools/'],
     coverageDirectory: '<rootDir>/.coverage',
     testTimeout: 5000,
