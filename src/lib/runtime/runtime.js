@@ -10,17 +10,17 @@ const { TestBot } = require('./testBot');
 const { createDispose } = require('./cleanup');
 
 /**
- * @typedef {import('./types').ScreepsServer} ScreepsServer
+ * @typedef {import('../types').ScreepsServer} ScreepsServer
  * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
- * @typedef {import('./types').Bot} Bot
- * @typedef {import('./types').BotSpec} BotSpec
- * @typedef {import('./types').RuntimeOpts} RuntimeOpts
- * @typedef {import('./types').RuntimeResult} RuntimeResult
- * @typedef {import('./types').PrepareServerOpts} PrepareServerOpts
- * @typedef {import('./types').PreparedServer} PreparedServer
- * @typedef {import('./types').AddBotsOpts} AddBotsOpts
- * @typedef {import('./types').AddedBots} AddedBots
- * @typedef {import('./types').DisposeFn} DisposeFn
+ * @typedef {import('../types').Bot} Bot
+ * @typedef {import('../types').BotSpec} BotSpec
+ * @typedef {import('../types').RuntimeOpts} RuntimeOpts
+ * @typedef {import('../types').RuntimeResult} RuntimeResult
+ * @typedef {import('../types').PrepareServerOpts} PrepareServerOpts
+ * @typedef {import('../types').PreparedServer} PreparedServer
+ * @typedef {import('../types').AddBotsOpts} AddBotsOpts
+ * @typedef {import('../types').AddedBots} AddedBots
+ * @typedef {import('../types').DisposeFn} DisposeFn
  */
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────

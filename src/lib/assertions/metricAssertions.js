@@ -12,8 +12,8 @@ const assert = require('node:assert');
  */
 
 /**
- * @typedef {import('./types').MetricEntityType} MetricEntityType
- * @typedef {import('./types').MetricsReport} MetricsReport
+ * @typedef {import('../types').MetricEntityType} MetricEntityType
+ * @typedef {import('../types').MetricsReport} MetricsReport
  */
 
 class MetricsAssert {

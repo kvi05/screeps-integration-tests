@@ -27,7 +27,7 @@
  */
 
 /**
- * @typedef {import('./types').ScreepsServer} ScreepsServer
+ * @typedef {import('../types').ScreepsServer} ScreepsServer
  *
  * @typedef {Object} StorageAdapter
  * @property {Object} db — passthrough to server.common.storage.db

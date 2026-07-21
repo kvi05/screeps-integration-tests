@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * @typedef {import('./types').LoadBotOpts} LoadBotOpts
+ * @typedef {import('../types').LoadBotOpts} LoadBotOpts
  */
 
 /**

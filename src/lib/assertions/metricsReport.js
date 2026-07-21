@@ -26,11 +26,11 @@
  */
 
 /**
- * @typedef {import('./types').MetricEntityType} MetricEntityType
- * @typedef {import('./types').MetricsSample} MetricsSample
- * @typedef {import('./types').MetricSeries} MetricSeries
- * @typedef {import('./types').WorldReport} WorldReport
- * @typedef {import('./types').WorldOpts} WorldOpts
+ * @typedef {import('../types').MetricEntityType} MetricEntityType
+ * @typedef {import('../types').MetricsSample} MetricsSample
+ * @typedef {import('../types').MetricSeries} MetricSeries
+ * @typedef {import('../types').WorldReport} WorldReport
+ * @typedef {import('../types').WorldOpts} WorldOpts
  */
 
 const VALID_ENTITY_TYPES = ['rooms', 'colonies', 'bots', 'world'];

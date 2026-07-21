@@ -6,8 +6,8 @@ const { EVENT_ATTACK, filterByType, filterDestroyed } = require('../observers/ev
 const { BOT_STRUCTURE_TYPES } = require('../../constants/screepsConstants');
 
 /**
- * @typedef {import('./types').WorldReport} WorldReport
- * @typedef {import('./types').EventLogEntry} EventLogEntry
+ * @typedef {import('../types').WorldReport} WorldReport
+ * @typedef {import('../types').EventLogEntry} EventLogEntry
  *
  * @typedef {Object} ObjectFilter
  * @property {string|string[]} [types]     — type(s) of object (STRUCTURE_* or TYPE_CREEPS)

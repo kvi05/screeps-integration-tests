@@ -11,8 +11,8 @@
  */
 
 /**
- * @typedef {import('./types').MetricSeries} MetricSeries
- * @typedef {import('./types').MetricEntityType} MetricEntityType
+ * @typedef {import('../types').MetricSeries} MetricSeries
+ * @typedef {import('../types').MetricEntityType} MetricEntityType
  */
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────

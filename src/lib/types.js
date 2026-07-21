@@ -26,7 +26,7 @@
 
 /**
  * StorageAdapter — facade for accessing DB, env, pubsub, and world API.
- * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
+ * @typedef {import('./runtime/storageAdapter').StorageAdapter} StorageAdapter
  */
 
 /**

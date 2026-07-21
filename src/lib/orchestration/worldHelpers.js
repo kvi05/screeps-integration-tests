@@ -23,7 +23,7 @@
 const { materializeStructure } = require('../builders/materialize');
 
 /**
- * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
+ * @typedef {import('../runtime/storageAdapter').StorageAdapter} StorageAdapter
  */
 
 // ─── Helper functions ─────────────────────────────────────────────────

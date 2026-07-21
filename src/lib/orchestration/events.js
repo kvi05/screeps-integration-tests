@@ -11,7 +11,7 @@ const DEFAULT_INVADER_SPAWN_X = 10;
 const DEFAULT_INVADER_SPAWN_Y = 25;
 
 /**
- * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
+ * @typedef {import('../runtime/storageAdapter').StorageAdapter} StorageAdapter
  */
 
 // ─── Event registry factory ──────────────────────────────────────────────────

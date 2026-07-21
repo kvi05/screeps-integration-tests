@@ -29,6 +29,8 @@ const {
     ATTACK,
 } = require('../../constants/screepsConstants');
 
+const crypto = require('crypto');
+
 /**
  * @typedef {import('../types').BodyPart} BodyPart
  * @typedef {import('../types').StructureType} StructureType

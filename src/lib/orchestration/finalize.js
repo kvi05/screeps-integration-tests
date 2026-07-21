@@ -14,11 +14,11 @@
  */
 
 /**
- * @typedef {import('./types').ScreepsServer} ScreepsServer
- * @typedef {import('./types').WorldReport} WorldReport
- * @typedef {import('./types').RoomStatus} RoomStatus
- * @typedef {import('./types').Bot} Bot
- * @typedef {import('./types').ResolvedBotSpec} ResolvedBotSpec
+ * @typedef {import('../types').ScreepsServer} ScreepsServer
+ * @typedef {import('../types').WorldReport} WorldReport
+ * @typedef {import('../types').RoomStatus} RoomStatus
+ * @typedef {import('../types').Bot} Bot
+ * @typedef {import('../types').ResolvedBotSpec} ResolvedBotSpec
  */
 
 /**

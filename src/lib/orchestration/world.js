@@ -35,36 +35,36 @@ function resolveCacheBase(opts) {
 }
 
 /**
- * @typedef {import('./types').ScreepsServer} ScreepsServer
- * @typedef {import('./storageAdapter').StorageAdapter} StorageAdapter
- * @typedef {import('./types').Bot} Bot
- * @typedef {import('./types').WorldOpts} WorldOpts
- * @typedef {import('./types').WorldInstance} WorldInstance
- * @typedef {import('./types').WorldReport} WorldReport
- * @typedef {import('./types').RoomSpecInput} RoomSpecInput
- * @typedef {import('./types').RoomSpecCanonical} RoomSpecCanonical
- * @typedef {import('./types').RoomOverrides} RoomOverrides
- * @typedef {import('./types').RoomFixtureSpec} RoomFixtureSpec
- * @typedef {import('./types').RoomStatus} RoomStatus
- * @typedef {import('./types').BotSpec} BotSpec
- * @typedef {import('./types').ControllerSpec} ControllerSpec
- * @typedef {import('./types').SourceSpecCanonical} SourceSpecCanonical
- * @typedef {import('./types').StructureSpec} StructureSpec
- * @typedef {import('./types').CreepSpecCanonical} CreepSpecCanonical
- * @typedef {import('./types').EventLogEntry} EventLogEntry
- * @typedef {import('./types').MetricsSample} MetricsSample
- * @typedef {import('./types').SpawnSpecInput} SpawnSpecInput
- * @typedef {import('./types').UntilOpts} UntilOpts
- * @typedef {import('./types').RunFn} RunFn
- * @typedef {import('./types').TickFn} TickFn
- * @typedef {import('./types').ExecFn} ExecFn
- * @typedef {import('./types').SpawnFn} SpawnFn
- * @typedef {import('./types').EventLogFn} EventLogFn
- * @typedef {import('./types').ReadMemoryFn} ReadMemoryFn
- * @typedef {import('./types').WriteMemoryFn} WriteMemoryFn
- * @typedef {import('./types').RegisterEventFn} RegisterEventFn
- * @typedef {import('./types').BotIdFn} BotIdFn
- * @typedef {import('./types').DisposeFn} DisposeFn
+ * @typedef {import('../types').ScreepsServer} ScreepsServer
+ * @typedef {import('../runtime/storageAdapter').StorageAdapter} StorageAdapter
+ * @typedef {import('../types').Bot} Bot
+ * @typedef {import('../types').WorldOpts} WorldOpts
+ * @typedef {import('../types').WorldInstance} WorldInstance
+ * @typedef {import('../types').WorldReport} WorldReport
+ * @typedef {import('../types').RoomSpecInput} RoomSpecInput
+ * @typedef {import('../types').RoomSpecCanonical} RoomSpecCanonical
+ * @typedef {import('../types').RoomOverrides} RoomOverrides
+ * @typedef {import('../types').RoomFixtureSpec} RoomFixtureSpec
+ * @typedef {import('../types').RoomStatus} RoomStatus
+ * @typedef {import('../types').BotSpec} BotSpec
+ * @typedef {import('../types').ControllerSpec} ControllerSpec
+ * @typedef {import('../types').SourceSpecCanonical} SourceSpecCanonical
+ * @typedef {import('../types').StructureSpec} StructureSpec
+ * @typedef {import('../types').CreepSpecCanonical} CreepSpecCanonical
+ * @typedef {import('../types').EventLogEntry} EventLogEntry
+ * @typedef {import('../types').MetricsSample} MetricsSample
+ * @typedef {import('../types').SpawnSpecInput} SpawnSpecInput
+ * @typedef {import('../types').UntilOpts} UntilOpts
+ * @typedef {import('../types').RunFn} RunFn
+ * @typedef {import('../types').TickFn} TickFn
+ * @typedef {import('../types').ExecFn} ExecFn
+ * @typedef {import('../types').SpawnFn} SpawnFn
+ * @typedef {import('../types').EventLogFn} EventLogFn
+ * @typedef {import('../types').ReadMemoryFn} ReadMemoryFn
+ * @typedef {import('../types').WriteMemoryFn} WriteMemoryFn
+ * @typedef {import('../types').RegisterEventFn} RegisterEventFn
+ * @typedef {import('../types').BotIdFn} BotIdFn
+ * @typedef {import('../types').DisposeFn} DisposeFn
  */
 
 // ─── Helper functions ────────────────────────────────────────────────────────
