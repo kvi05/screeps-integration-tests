@@ -25,6 +25,10 @@ const ERROR_PATTERNS = [
 /**
  * Warning patterns that the engine may log WITHOUT a [WARN] prefix.
  * Used to detect warnings in lines from report.logs.
+ *
+ * Currently empty, you can insert your patterns
+ *
+ * The `looksLikeWarn` function always returns `false` today.
  */
 const WARN_PATTERNS = [];
 

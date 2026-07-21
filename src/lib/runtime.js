@@ -1,12 +1,13 @@
 'use strict';
 
 const fs = require('fs');
-const net = require('net');
 const path = require('path');
-const { EventEmitter, once } = require('events');
 const { ScreepsServer } = require('screeps-server-mockup');
 const { createStorageAdapter } = require('./storageAdapter');
 const { loadBotModules } = require('./loadBot');
+const { getFreePort } = require('./port');
+const { TestBot } = require('./testBot');
+const { createDispose } = require('./cleanup');
 
 /**
  * @typedef {import('./types').ScreepsServer} ScreepsServer
@@ -34,28 +35,6 @@ const DEFAULT_BOT_GCL = 1;
 const DEFAULT_BOT_ACTIVE = 10000;
 /** @type {string} */
 const DEFAULT_BOT_BRANCH = 'default';
-
-/**
- * Returns a free TCP port on 127.0.0.1.
- *
- * Used so each mockup server runs on its own port and does not
- * conflict with other parallel or sequential runs.
- *
- * @returns {Promise<number>}
- */
-async function getFreePort() {
-    const server = net.createServer();
-    return new Promise((resolve, reject) => {
-        server.once('error', reject);
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => {
-                server.removeAllListeners();
-                resolve(port);
-            });
-        });
-    });
-}
 
 /**
  * Creates a mockup server, rooms, and terrain.
@@ -185,52 +164,6 @@ async function addBot(adapter, username, opts = {}) {
 }
 
 /**
- * Minimal bot object compatible with the API used by the framework.
- * Console subscription is handled here rather than through the mockup User,
- * so runtime does not depend on `world.addBot`'s implementation.
- */
-class TestBot extends EventEmitter {
-    constructor(adapter, data) {
-        super();
-        this._adapter = adapter;
-        this._id = data._id;
-        this._username = data.username;
-    }
-
-    get id() {
-        return this._id;
-    }
-
-    get username() {
-        return this._username;
-    }
-
-    get memory() {
-        const { env } = this._adapter;
-        return env.get(env.keys.MEMORY + this._id);
-    }
-
-    async console(expression) {
-        const { db } = this._adapter;
-        return db['users.console'].insert({ user: this._id, expression, hidden: false });
-    }
-
-    async init() {
-        const { pubsub } = this._adapter;
-        await pubsub.subscribe(`user:${this._id}/console`, (event) => {
-            const data = JSON.parse(event);
-            const { messages, error } = data;
-            const { log = [], results = [] } = messages || {};
-            if (error) {
-                log.push(error);
-            }
-            this.emit('console', log, results, this._id, this._username);
-        });
-        return this;
-    }
-}
-
-/**
  * Facade runtime API.
  *
  * Full world pipeline: prepareServer → addBots → buildCanonicalRoom →
@@ -282,69 +215,4 @@ async function prepareRoom(adapter, roomName) {
     }
 }
 
-/**
- * Waits for a child process to exit with a timeout.
- *
- * @param {import('child_process').ChildProcess} proc
- * @param {number} timeoutMs
- * @returns {Promise<void>}
- */
-async function waitForProcessExit(proc, timeoutMs) {
-    if (proc.exitCode !== null || proc.signalCode !== null) {
-        return;
-    }
-
-    const ac = new AbortController();
-    const timer = setTimeout(() => {
-        ac.abort();
-        try {
-            proc.kill('SIGKILL');
-        } catch {
-            // ignore
-        }
-    }, timeoutMs);
-
-    try {
-        await once(proc, 'exit', { signal: ac.signal });
-    } catch {
-        // AbortError — process already killed by timer
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
-/**
- * Creates a single safe dispose for all runtime phases.
- *
- * Stops server child processes, waits for them to exit, and
- * removes the cache directory. This prevents storage/engine
- * process leaks and port conflicts between sequential runs.
- *
- * @param {ScreepsServer} server
- * @param {StorageAdapter} adapter
- * @param {string} cacheDir
- * @returns {DisposeFn}
- */
-function createDispose(server, adapter, cacheDir) {
-    return async () => {
-        const processes = adapter.getProcesses();
-
-        for (const proc of processes) {
-            try {
-                proc.kill();
-            } catch {
-                // ignore
-            }
-        }
-
-        await Promise.all(processes.map((proc) => waitForProcessExit(proc, 5000)));
-
-        try {
-            fs.rmSync(cacheDir, { recursive: true, force: true });
-        } catch {
-            // ignore
-        }
-    };
-}
-
-module.exports = { createRuntime, prepareServer, addBots, addBot, TestBot };
+module.exports = { createRuntime, prepareServer, addBots, addBot };

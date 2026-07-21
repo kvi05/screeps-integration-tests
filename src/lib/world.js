@@ -8,10 +8,13 @@ const { loadRoomFixture, applyRoomOverrides } = require('./fixtures/roomFixture'
 const { readEventLog, accumulateEvents } = require('./observers/eventLog');
 const { collectMetrics, sampleMetrics } = require('./observers/metrics');
 const { MetricsReport } = require('./metricsReport');
-const { evaluatePredicate } = require('./observers/predicate');
+const { checkStopCondition } = require('./observers/predicate');
 const { snapshotOwners, mergeOwners } = require('./observers/ownership');
 const { createConsoleCapture } = require('./console');
+const { createEventRegistry, registerDefaultEvents } = require('./events');
 const { createWorldHelpers } = require('./worldHelpers');
+const { finalizeReport } = require('./finalize');
+const { exportProfiles } = require('./profile');
 const { INVADER_USER_ID } = require('../constants/screepsConstants');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
@@ -22,10 +25,6 @@ const DEFAULT_WORLD_LOG_LEVEL = 'all';
 const DEFAULT_MAX_CONSOLE_LINES = 10000;
 /** @type {number} */
 const DEFAULT_MAX_TICKS = 100;
-/** @type {number} */
-const DEFAULT_INVADER_SPAWN_X = 10;
-/** @type {number} */
-const DEFAULT_INVADER_SPAWN_Y = 25;
 
 function resolveDistDir(opts) {
     return opts.distDir || process.env.BOT_DIST_DIR || path.resolve(process.cwd(), 'dist');
@@ -84,6 +83,150 @@ async function getRcl(adapter, roomName) {
     return controller ? controller.level : 0;
 }
 
+/**
+ * Advances the server by one tick and increments the tick counter.
+ *
+ * @param {import('screeps-server-mockup').ScreepsServer} server
+ * @param {WorldReport} report
+ */
+async function doServerTick(server, report) {
+    await server.tick();
+    report.ticksRun++;
+}
+
+/**
+ * Runs all per-room observations for a single tick: event log, owners
+ * snapshot, metrics sampling, and RCL tracking.
+ *
+ * @param {import('./storageAdapter').StorageAdapter} adapter
+ * @param {Object<string, import('./types').RoomStatus>} roomStatus
+ * @param {WorldReport} report
+ * @param {import('./types').MetricsOpts} metricsConfig
+ * @param {number} tickNum
+ */
+async function observeAllRooms(adapter, roomStatus, report, metricsConfig, tickNum) {
+    /** @type {string[]} */
+    const roomNames = Object.keys(roomStatus);
+    for (const name of roomNames) {
+        try {
+            const eventLog = await readEventLog(adapter, name);
+            accumulateEvents(report, eventLog, tickNum);
+            roomStatus[name].events += eventLog.length;
+        } catch (e) {
+            report.frameworkWarnings.push(`eventLog room ${name}: ${e.message ?? String(e)}`);
+        }
+
+        // Owners snapshot
+        try {
+            const owners = await snapshotOwners(adapter, name);
+            mergeOwners(report, owners);
+        } catch (e) {
+            report.frameworkWarnings.push(`ownersSnapshot room ${name}: ${e.message ?? String(e)}`);
+        }
+
+        // Metrics sampling
+        if (metricsConfig.rooms && metricsConfig.every > 0 && tickNum % metricsConfig.every === 0) {
+            try {
+                const metrics = await collectMetrics(adapter, name);
+                sampleMetrics(report.metrics, name, metrics, tickNum);
+            } catch (e) {
+                report.frameworkWarnings.push(`metrics room ${name} tick ${tickNum}: ${e.message ?? String(e)}`);
+            }
+        }
+
+        // RCL tracking (updated each tick for availability after tick())
+        try {
+            report.finalRcl[name] = await getRcl(adapter, name);
+        } catch (e) {
+            report.frameworkWarnings.push(`RCL room ${name}: ${e.message ?? String(e)}`);
+        }
+
+        roomStatus[name].ticks++;
+    }
+}
+
+/**
+ * Creates an empty {@link WorldReport} with default values.
+ *
+ * @returns {WorldReport}
+ */
+function createEmptyReport() {
+    return {
+        ticksRun: 0,
+        finalRcl: {},
+        errors: [],
+        warnings: [],
+        logs: [],
+        finalMemory: {},
+        profileText: {},
+        profileCallgrind: {},
+        wallClockMs: 0,
+        events: [],
+        metrics: new MetricsReport(),
+        objectOwners: {},
+        frameworkWarnings: [],
+        stopReason: null,
+    };
+}
+
+/**
+ * Materialises all rooms from input specs into the DB.
+ *
+ * Iterates over `roomInputs`, calls `buildCanonicalRoom` to resolve
+ * fixtures/overrides, then `materializeRoom` to write to the DB.
+ *
+ * @param {import('./types').RoomSpecInput[]} roomInputs
+ * @param {import('./storageAdapter').StorageAdapter} adapter
+ * @param {string} [defaultBotUserId] — _id of the first bot for default structure ownership
+ * @returns {Promise<Object<string, import('./types').RoomStatus>>}
+ */
+async function materializeRooms(roomInputs, adapter, defaultBotUserId) {
+    /** @type {Object<string, import('./types').RoomStatus>} */
+    const roomStatus = {};
+    for (const roomInput of roomInputs) {
+        const name = roomInput.name;
+        const canonical = await buildCanonicalRoom(roomInput, name, defaultBotUserId);
+        const ids = await materializeRoom(adapter, canonical);
+        roomStatus[name] = {
+            name,
+            canonical,
+            ids,
+            ticks: 0,
+            events: 0,
+        };
+    }
+    return roomStatus;
+}
+
+/**
+ * Initialises bots: sets initial memory and attaches console capture.
+ *
+ * Called after `server.start()` so that console events can be received.
+ *
+ * @param {Object<string, import('./types').Bot>} bots
+ * @param {Object<string, import('./types').ResolvedBotSpec>} resolvedBots
+ * @param {import('./storageAdapter').StorageAdapter} adapter
+ * @param {Object} opts — WorldOpts (uses `.memory`, `.memoryOverrides`)
+ * @param {import('./types').WorldReport} report
+ * @param {string} globalLogLevel
+ * @param {number} maxConsoleLines
+ */
+async function initializeBots(bots, resolvedBots, adapter, opts, report, globalLogLevel, maxConsoleLines) {
+    const initialMemoryByBot = resolveInitialMemoryByBot(Object.keys(bots), opts.memory, opts.memoryOverrides);
+    for (const [username, bot] of Object.entries(bots)) {
+        const botSpec = resolvedBots[username];
+        const effectiveLogLevel = botSpec?.logLevel ?? globalLogLevel;
+
+        const initialMemory = initialMemoryByBot[username];
+        if (initialMemory) {
+            await setBotMemory(adapter, bot.id, initialMemory);
+        }
+
+        const { handler } = createConsoleCapture({ report, logLevel: effectiveLogLevel, maxConsoleLines });
+        bot.on('console', handler);
+    }
+}
+
 // ─── Main API ────────────────────────────────────────────────────────────
 
 /**
@@ -132,96 +275,25 @@ async function createWorld(opts) {
     const { bots, resolvedBots } = added;
     const defaultBotUserId = bots[opts.bots?.[0]?.username]?.id;
 
-    /** @type {Object<string,RoomStatus>} */
-    const roomStatus = {};
-    for (const roomInput of opts.rooms) {
-        const name = roomInput.name;
-        const canonical = await buildCanonicalRoom(roomInput, name, defaultBotUserId);
-        const ids = await materializeRoom(adapter, canonical);
-        roomStatus[name] = {
-            name,
-            canonical,
-            ids,
-            ticks: 0,
-            events: 0,
-        };
-    }
+    const roomStatus = await materializeRooms(opts.rooms, adapter, defaultBotUserId);
 
     await server.start();
     const runtime = { ...prepared, ...added };
 
-    // ─── 3. Report accumulator ────────────────────────────────────────────
-    /** @type {WorldReport} */
-    const report = {
-        ticksRun: 0,
-        finalRcl: {},
-        errors: [],
-        warnings: [],
-        logs: [],
-        finalMemory: {},
-        profileText: {},
-        profileCallgrind: {},
-        wallClockMs: 0,
-        events: [],
-        metrics: new MetricsReport(),
-        objectOwners: {},
-        frameworkWarnings: [],
-        stopReason: null,
-    };
+    const report = createEmptyReport();
 
     const globalLogLevel = opts.logLevel || DEFAULT_WORLD_LOG_LEVEL;
     const maxConsoleLines = opts.maxConsoleLines || DEFAULT_MAX_CONSOLE_LINES;
 
-    // ─── 4. Per-bot initialization (single pass) ───────────────────────
-    // Memory + Console handler — everything in a single pass over bots.
-    // Code already loaded in createRuntime → addBot.
-    const initialMemoryByBot = resolveInitialMemoryByBot(Object.keys(bots), opts.memory, opts.memoryOverrides);
-    for (const [username, bot] of Object.entries(bots)) {
-        // Per-bot settings: local takes priority over global
-        const botSpec = resolvedBots[username];
-        const effectiveLogLevel = botSpec?.logLevel ?? globalLogLevel;
-
-        // Memory
-        const initialMemory = initialMemoryByBot[username];
-        if (initialMemory) {
-            await setBotMemory(adapter, bot.id, initialMemory);
-        }
-
-        // Console handler with per-bot logLevel
-        const { handler } = createConsoleCapture({ report, logLevel: effectiveLogLevel, maxConsoleLines });
-        bot.on('console', handler);
-    }
+    await initializeBots(bots, resolvedBots, adapter, opts, report, globalLogLevel, maxConsoleLines);
 
     const startTime = Date.now();
 
-    // ─── 7. Event registry ───────────────────────────────────────────────
-    /** @type {Object<string,(adapter:StorageAdapter,room:string,params:Object)=>Promise<void>>} */
-    const eventsRegistry = {};
-    /** @type {RegisterEventFn} */
-    function registerEvent(action, handler) {
-        eventsRegistry[action] = handler;
-    }
+    // ─── Event registry ──────────────────────────────────────────────────
+    const { register: registerEvent, dispatch: dispatchEvents } = createEventRegistry();
+    registerDefaultEvents({ register: registerEvent });
 
-    registerEvent('spawnInvader', async (adpt, room, params) => {
-        await materializeCreep(adpt, room, {
-            x: params.x ?? DEFAULT_INVADER_SPAWN_X,
-            y: params.y ?? DEFAULT_INVADER_SPAWN_Y,
-            name: params.name || `Invader_${Date.now()}`,
-            body: params.body,
-            userId: INVADER_USER_ID,
-        });
-    });
-
-    registerEvent('spawnCreep', async (adpt, room, params) => {
-        await materializeCreep(adpt, room, params);
-    });
-
-    /** @type {WorldInstance|undefined} */
-    // world is referenced by onTick before assignment — circular dependency requires let
-    // eslint-disable-next-line prefer-const
-    let world;
-
-    // ─── 8. Main loop ────────────────────────────────────────────────
+    // ─── Main loop ────────────────────────────────────────────────
 
     /**
      * One tick: collect event log / owners / metrics for each room,
@@ -230,113 +302,24 @@ async function createWorld(opts) {
      * @param {number} tickNum  — tick number (0-based); usually passed
      *   as `report.ticksRun` before increment so events/metrics
      *   reference the actual tick number.
+     * @param {WorldInstance} worldInstance — needed for `opts.onTick` callback
      * @returns {Promise<boolean>} true if the test should stop
      */
-    async function doTick(tickNum) {
-        await server.tick();
-        report.ticksRun++;
-
-        // Event log
-        /** @type {string[]} */
-        const roomNames = Object.keys(roomStatus);
-        for (const name of roomNames) {
-            try {
-                const eventLog = await readEventLog(adapter, name);
-                accumulateEvents(report, eventLog, tickNum);
-                roomStatus[name].events += eventLog.length;
-            } catch (e) {
-                report.frameworkWarnings.push(`eventLog room ${name}: ${e.message ?? String(e)}`);
-            }
-
-            // Owners snapshot
-            try {
-                const owners = await snapshotOwners(adapter, name);
-                mergeOwners(report, owners);
-            } catch (e) {
-                report.frameworkWarnings.push(`ownersSnapshot room ${name}: ${e.message ?? String(e)}`);
-            }
-
-            // Metrics sampling
-            if (metricsConfig.rooms && metricsConfig.every > 0 && tickNum % metricsConfig.every === 0) {
-                try {
-                    const metrics = await collectMetrics(adapter, name);
-                    sampleMetrics(report.metrics, name, metrics, tickNum);
-                } catch (e) {
-                    report.frameworkWarnings.push(`metrics room ${name} tick ${tickNum}: ${e.message ?? String(e)}`);
-                }
-            }
-
-            // RCL tracking (updated each tick for availability after tick())
-            try {
-                report.finalRcl[name] = await getRcl(adapter, name);
-            } catch (e) {
-                report.frameworkWarnings.push(`RCL room ${name}: ${e.message ?? String(e)}`);
-            }
-
-            roomStatus[name].ticks++;
-        }
+    async function doTick(tickNum, worldInstance) {
+        await doServerTick(server, report);
+        await observeAllRooms(adapter, roomStatus, report, metricsConfig, tickNum);
 
         // Events (declarative)
-        if (opts.events) {
-            for (const event of opts.events) {
-                if (event.atTick === tickNum && eventsRegistry[event.action]) {
-                    await eventsRegistry[event.action](adapter, event.room, event.params || {});
-                }
-            }
-        }
+        await dispatchEvents(opts.events, tickNum, adapter);
 
         // onTick callback
         if (opts.onTick) {
-            await opts.onTick(world, tickNum);
+            await opts.onTick(worldInstance, tickNum);
         }
 
         // Predicate check
-        if (opts.until) {
-            const { shouldStop, reason } = await evaluatePredicate(
-                { report, server, bots, readMemory, getEventLog },
-                opts.until,
-            );
-            if (shouldStop) {
-                report.stopReason = reason;
-                return true; // stop
-            }
-        }
-
-        return false; // continue
-    }
-
-    /**
-     * Exports profiling results for bots with effectiveProfiling flag.
-     *
-     * Sets the `__profileFinalize` flag in each profiled bot's Memory
-     * and runs one technical server tick (DIRECTLY via server.tick(), not
-     * via doTick — to avoid incrementing ticksRun and generating
-     * metrics/events/predicate noise). The wrapper in main.js sees the flag, calls
-     * profiler.output()/callgrind() and stores results in
-     * Memory.__profileText / __profileCallgrind, which finalize() then reads.
-     *
-     * Always called — including on premature scenario termination
-     * (predicate / maxTicks / exception in doTick).
-     *
-     * @returns {Promise<void>}
-     */
-    async function exportProfiles() {
-        const profilingBots = Object.entries(resolvedBots)
-            .filter(([, spec]) => spec && spec.effectiveProfiling)
-            .map(([username]) => username);
-        if (profilingBots.length === 0) {
-            return;
-        }
-        for (const username of profilingBots) {
-            await writeMemory(username, { __profileFinalize: true });
-        }
-        try {
-            await server.tick();
-        } catch (e) {
-            // Server may have died — profile can no longer be retrieved. Don't suppress the original
-            // run error (it will be re-thrown in run() after finalize).
-            report.errors.push(`profile export tick failed: ${e.message || String(e)}`);
-        }
+        const { shouldStop } = await checkStopCondition(opts, report, server, bots, readMemory, getEventLog);
+        return shouldStop;
     }
 
     /**
@@ -350,7 +333,7 @@ async function createWorld(opts) {
      * catches the error, runs the profiler finalization tick and
      * finalize(), then re-throws the original exception.
      *
-     *  @type {RunFn}
+     * @type {RunFn}
      */
     async function run() {
         let runError;
@@ -360,7 +343,7 @@ async function createWorld(opts) {
             // Don't tick if the scenario is already stopped
             if (!report.stopReason) {
                 while (report.ticksRun < maxTicks) {
-                    if (await doTick(report.ticksRun)) {
+                    if (await doTick(report.ticksRun, world)) {
                         break;
                     }
                 }
@@ -369,8 +352,17 @@ async function createWorld(opts) {
             runError = e;
         }
 
-        await exportProfiles();
-        const result = await finalize();
+        await exportProfiles(resolvedBots, writeMemory, server, report);
+        const result = await finalizeReport(
+            report,
+            startTime,
+            bots,
+            adapter,
+            roomStatus,
+            resolvedBots,
+            getBotMemory,
+            getRcl,
+        );
 
         if (runError) {
             throw runError;
@@ -395,7 +387,7 @@ async function createWorld(opts) {
         }
 
         for (let i = 0; i < n; i++) {
-            if (await doTick(report.ticksRun)) {
+            if (await doTick(report.ticksRun, world)) {
                 break;
             }
         }
@@ -468,51 +460,6 @@ async function createWorld(opts) {
     }
 
     /**
-     * Finalizes `report`:
-     * - wallClockMs
-     * - finalMemory per bot (via Memory from storage)
-     * - finalRcl per room
-     * - profileText/profileCallgrind per bot
-     *
-     * @returns {Promise<WorldReport>}
-     */
-    async function finalize() {
-        report.wallClockMs = Date.now() - startTime;
-
-        // finalMemory per-bot
-        for (const [username, bot] of Object.entries(bots)) {
-            try {
-                report.finalMemory[username] = await getBotMemory(adapter, bot.id);
-            } catch {
-                report.finalMemory[username] = {};
-            }
-        }
-
-        // finalRcl per-room
-        /** @type {string[]} */
-        const roomNames = Object.keys(roomStatus);
-        for (const name of roomNames) {
-            report.finalRcl[name] = await getRcl(adapter, name);
-        }
-
-        // Profiler per-bot (text + callgrind)
-        for (const [username, mem] of Object.entries(report.finalMemory)) {
-            const botSpec = resolvedBots[username];
-
-            if (botSpec?.effectiveProfiling) {
-                if (mem.__profileText) {
-                    report.profileText[username] = mem.__profileText || null;
-                }
-                if (mem.__profileCallgrind) {
-                    report.profileCallgrind[username] = mem.__profileCallgrind;
-                }
-            }
-        }
-
-        return report;
-    }
-
-    /**
      * Stops the server and releases resources.
      * @type {DisposeFn}
      */
@@ -558,7 +505,7 @@ async function createWorld(opts) {
 
     // ─── Return API ──────────────────────────────────────────────────────
     /** @type {WorldInstance} */
-    world = {
+    const world = {
         run,
         tick,
         exec,

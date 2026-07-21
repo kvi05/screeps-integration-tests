@@ -112,6 +112,24 @@ async function materializeStructure(adapter, roomName, s) {
 }
 
 /**
+ * Generic batch materializer — calls `materializeFn` for each item.
+ *
+ * @param {(adapter: StorageAdapter, roomName: string, item: Object) => Promise<string>} materializeFn
+ * @param {StorageAdapter} adapter
+ * @param {string} roomName
+ * @param {Object[]} items
+ * @returns {Promise<string[]>}
+ */
+async function materializeMany(materializeFn, adapter, roomName, items) {
+    const ids = [];
+    for (const item of items) {
+        const id = await materializeFn(adapter, roomName, item);
+        ids.push(id);
+    }
+    return ids;
+}
+
+/**
  * Creates multiple structure objects in `rooms.objects`.
  *
  * @param {StorageAdapter} adapter
@@ -120,12 +138,7 @@ async function materializeStructure(adapter, roomName, s) {
  * @returns {Promise<string[]>} _id of created objects
  */
 async function materializeStructures(adapter, roomName, structures) {
-    const ids = [];
-    for (const s of structures) {
-        const id = await materializeStructure(adapter, roomName, s);
-        ids.push(id);
-    }
-    return ids;
+    return materializeMany(materializeStructure, adapter, roomName, structures);
 }
 
 // ─── Materialize sources ────────────────────────────────────────────────────
@@ -168,15 +181,84 @@ async function materializeSource(adapter, roomName, src) {
  * @returns {Promise<string[]>} _id
  */
 async function materializeSources(adapter, roomName, sources) {
-    const ids = [];
-    for (const src of sources) {
-        const id = await materializeSource(adapter, roomName, src);
-        ids.push(id);
-    }
-    return ids;
+    return materializeMany(materializeSource, adapter, roomName, sources);
 }
 
 // ─── Materialize controller ─────────────────────────────────────────────────
+
+/**
+ * Materializes controller in `rooms.objects`.
+ *
+ * If controller already exists (e.g., created earlier), updates its
+ * fields; otherwise inserts a new document. This is safe for tick-based environment —
+ * calling again doesn't duplicate the controller.
+ *
+ * @param {StorageAdapter} adapter
+ * @param {string} roomName
+ * @param {ControllerSpec} ctrl
+ * @returns {Promise<string>} _id of existing or created controller
+ */
+/**
+ * Inserts a new controller into `rooms.objects`.
+ *
+ * @param {StorageAdapter} adapter
+ * @param {string} roomName
+ * @param {ControllerSpec} ctrl
+ * @returns {Promise<string>} _id of created controller
+ */
+async function _insertController(adapter, roomName, ctrl) {
+    const { db } = adapter;
+
+    if (ctrl.x === undefined) throw new Error('materializeController: x is required');
+    if (ctrl.y === undefined) throw new Error('materializeController: y is required');
+    if (ctrl.level === undefined) throw new Error('materializeController: level is required');
+
+    const doc = {
+        room: roomName,
+        type: 'controller',
+        x: ctrl.x,
+        y: ctrl.y,
+        level: ctrl.level,
+    };
+    if (ctrl.progress !== undefined) doc.progress = ctrl.progress;
+    if (ctrl.downgradeTime !== undefined) doc.downgradeTime = ctrl.downgradeTime;
+    if (ctrl.safeMode !== undefined) doc.safeMode = ctrl.safeMode;
+    if (ctrl.safeModeAvailable !== undefined) doc.safeModeAvailable = ctrl.safeModeAvailable;
+    if (ctrl.isPowerEnabled !== undefined) doc.isPowerEnabled = ctrl.isPowerEnabled;
+    if (ctrl.userId !== undefined) doc.user = ctrl.userId;
+    if (ctrl.id) doc._id = ctrl.id;
+
+    const result = await db['rooms.objects'].insert(doc);
+    return result._id;
+}
+
+/**
+ * Updates an existing controller in `rooms.objects`.
+ * Only sets fields that are explicitly provided in `ctrl`.
+ *
+ * @param {StorageAdapter} adapter
+ * @param {string} roomName
+ * @param {ControllerSpec} ctrl
+ * @returns {Promise<void>}
+ */
+async function _updateController(adapter, roomName, ctrl) {
+    const { db } = adapter;
+
+    const update = {};
+    if (ctrl.x !== undefined) update.x = ctrl.x;
+    if (ctrl.y !== undefined) update.y = ctrl.y;
+    if (ctrl.level !== undefined) update.level = ctrl.level;
+    if (ctrl.progress !== undefined) update.progress = ctrl.progress;
+    if (ctrl.userId !== undefined) update.user = ctrl.userId;
+    if (ctrl.downgradeTime !== undefined) update.downgradeTime = ctrl.downgradeTime;
+    if (ctrl.safeMode !== undefined) update.safeMode = ctrl.safeMode;
+    if (ctrl.safeModeAvailable !== undefined) update.safeModeAvailable = ctrl.safeModeAvailable;
+    if (ctrl.isPowerEnabled !== undefined) update.isPowerEnabled = ctrl.isPowerEnabled;
+
+    if (Object.keys(update).length > 0) {
+        await db['rooms.objects'].update({ room: roomName, type: 'controller' }, { $set: update });
+    }
+}
 
 /**
  * Materializes controller in `rooms.objects`.
@@ -195,65 +277,10 @@ async function materializeController(adapter, roomName, ctrl) {
     const existing = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
 
     if (!existing) {
-        if (ctrl.x === undefined) throw new Error('materializeController: x is required');
-        if (ctrl.y === undefined) throw new Error('materializeController: y is required');
-        if (ctrl.level === undefined) throw new Error('materializeController: level is required');
-
-        const doc = {
-            room: roomName,
-            type: 'controller',
-            x: ctrl.x,
-            y: ctrl.y,
-            level: ctrl.level,
-        };
-        if (ctrl.progress !== undefined) doc.progress = ctrl.progress;
-        if (ctrl.downgradeTime !== undefined) doc.downgradeTime = ctrl.downgradeTime;
-        if (ctrl.safeMode !== undefined) doc.safeMode = ctrl.safeMode;
-        if (ctrl.safeModeAvailable !== undefined) doc.safeModeAvailable = ctrl.safeModeAvailable;
-        if (ctrl.isPowerEnabled !== undefined) doc.isPowerEnabled = ctrl.isPowerEnabled;
-        if (ctrl.userId !== undefined) {
-            doc.user = ctrl.userId;
-        }
-        if (ctrl.id) {
-            doc._id = ctrl.id;
-        }
-
-        const result = await db['rooms.objects'].insert(doc);
-        return result._id;
+        return _insertController(adapter, roomName, ctrl);
     }
 
-    const update = {};
-    if (ctrl.x !== undefined) {
-        update.x = ctrl.x;
-    }
-    if (ctrl.y !== undefined) {
-        update.y = ctrl.y;
-    }
-    if (ctrl.level !== undefined) {
-        update.level = ctrl.level;
-    }
-    if (ctrl.progress !== undefined) {
-        update.progress = ctrl.progress;
-    }
-    if (ctrl.userId !== undefined) {
-        update.user = ctrl.userId;
-    }
-    if (ctrl.downgradeTime !== undefined) {
-        update.downgradeTime = ctrl.downgradeTime;
-    }
-    if (ctrl.safeMode !== undefined) {
-        update.safeMode = ctrl.safeMode;
-    }
-    if (ctrl.safeModeAvailable !== undefined) {
-        update.safeModeAvailable = ctrl.safeModeAvailable;
-    }
-    if (ctrl.isPowerEnabled !== undefined) {
-        update.isPowerEnabled = ctrl.isPowerEnabled;
-    }
-
-    if (Object.keys(update).length > 0) {
-        await db['rooms.objects'].update({ room: roomName, type: 'controller' }, { $set: update });
-    }
+    await _updateController(adapter, roomName, ctrl);
     return existing._id;
 }
 
@@ -312,12 +339,7 @@ async function materializeCreep(adapter, roomName, c) {
  * @returns {Promise<string[]>} _id
  */
 async function materializeCreeps(adapter, roomName, creeps) {
-    const ids = [];
-    for (const c of creeps) {
-        const id = await materializeCreep(adapter, roomName, c);
-        ids.push(id);
-    }
-    return ids;
+    return materializeMany(materializeCreep, adapter, roomName, creeps);
 }
 
 // ─── Materialize bot code ───────────────────────────────────────────────────

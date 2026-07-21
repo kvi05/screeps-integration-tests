@@ -181,12 +181,6 @@ const INVADER_USER_ID = '2';
 /** @type {string} */
 const TYPE_CREEPS = 'creep';
 
-/**
- * @typedef {Object} DestroyedFilter
- * @property {string|string[]} [types]     — object type(s) (STRUCTURE_* or TYPE_CREEPS)
- * @property {string} [id]                 — specific _id
- */
-
 // ─── Object export ──────────────────────────────────────────────────────────
 
 module.exports = {

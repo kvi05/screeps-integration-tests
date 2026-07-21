@@ -42,20 +42,15 @@ neighboring files:
 │  │  │  │  │   └─ ScreepsServer + rooms + terrain    │  │  │  │
 │  │  │  │  ├─ addBots()                              │  │  │  │
 │  │  │  │  │   └─ users + code + console handlers    │  │  │  │
-│  │  │  │  ├─ buildCanonicalRoom()                   │  │  │  │
-│  │  │  │  │   └─ spec + fixture + overrides         │  │  │  │
-│  │  │  │  ├─ materializeRoom() per room             │  │  │  │
-│  │  │  │  │   └─ controller / sources / structures  │  │  │  │
-│  │  │  │  │       / creeps / hostiles               │  │  │  │
-│  │  │  │  ├─ setBotMemory() per bot                 │  │  │  │
-│  │  │  │  └─ server.start()                         │  │  │  │
+│  │  │  │  ├─ materializeRooms()                 │  │  │  │
+│  │  │  │  ├─ initializeBots()                   │  │  │  │
+│  │  │  │  └─ server.start()                     │  │  │  │
 │  │  │  │                                            │  │  │  │
 │  │  │  │  world.run() / world.tick(n)               │  │  │  │
-│  │  │  │  ├─ server.tick()                          │  │  │  │
-│  │  │  │  ├─ observers (eventLog, metrics)          │  │  │  │
-│  │  │  │  ├─ events (declarative spawns)            │  │  │  │
+│  │  │  │  ├─ doServerTick() + observeAllRooms()  │  │  │  │
+│  │  │  │  ├─ dispatchEvents() (declarative)      │  │  │  │
 │  │  │  │  ├─ onTick callback                        │  │  │  │
-│  │  │  │  └─ predicate check → stop?                │  │  │  │
+│  │  │  │  └─ checkStopCondition() → stop?        │  │  │  │
 │  │  │  └────────────────────────────────────────────┘  │  │  │
 │  │  │  assert*() → pass/fail                           │  │  │
 │  │  └──────────────────────────────────────────────────┘  │  │
@@ -63,18 +58,17 @@ neighboring files:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Four layers:
+Seven layers:
 
-1. **Config** (`lib/config.js`, `lib/cli.js`) — loads
-   `screeps-integration.config.js`, merges defaults → file → env → CLI →
-   overrides.
-2. **Runtime** (`lib/runtime.js`) — wrapper over `screeps-server-mockup`:
-   `prepareServer`, `addBots`, `createRuntime`. Class `TestBot` (EventEmitter).
-3. **World orchestration** (`lib/world.js`) — `createWorld(opts)`. Pipeline:
-   prepareServer → addBots → materializeRoom → setBotMemory → server.start →
-   `WorldInstance` with methods `run/tick/exec/spawn/eventLog/readMemory/…`.
-4. **Builders & Observers** (`lib/builders/`, `lib/observers/`) — pure
-   spec constructors and stateless DB readers.
+| Layer | Files | Responsibility |
+|-------|-------|----------------|
+| **Config** | `lib/config.js`, `lib/cli.js` | Config loading, CLI parsing |
+| **Runtime** | `lib/runtime.js`, `lib/port.js`, `lib/testBot.js`, `lib/cleanup.js` | Server wrapper, ports, bots, lifecycle |
+| **Orchestration** | `lib/world.js`, `lib/events.js`, `lib/finalize.js` | `createWorld`, pipeline, event registry, report finalisation |
+| **Builders** | `lib/builders/spec.js`, `lib/builders/materialize.js`, `lib/builders/memory.js` | Spec constructors and DB materialisation |
+| **Observers** | `lib/observers/eventLog.js`, `lib/observers/metrics.js`, `lib/observers/ownership.js`, `lib/observers/predicate.js` | Stateless DB readers |
+| **Assertions** | `lib/assertions.js`, `lib/metricAssertions.js`, `lib/metricRegression.js` | Bot behaviour assertions |
+| **Fixtures** | `lib/fixtures/roomFixture.js` | Room fixture registry |
 
 ### Separation in builders
 
@@ -102,10 +96,10 @@ Observers only read the DB and return data. They do not mutate state.
 | Layer      | File                      | Purpose                                      |
 | ---------- | ------------------------- | -------------------------------------------- |
 | Observer   | `observers/metrics.js`    | Reading world state, returning `RoomMetrics` |
-| Recorder   | `lib/metrics.js`          | Writing samples to `report.metrics`          |
-| Query      | `lib/metrics.js`          | Reading series, aggregation                  |
+| Recorder   | `lib/metricsReport.js`    | Writing samples to `report.metrics`          |
+| Query      | `lib/metricsReport.js`    | Reading series, aggregation                  |
 | Assertions | `lib/metricAssertions.js` | Assertions based on time-series              |
-| Export     | `lib/metricExport.js`     | Conversion to CSV                            |
+| Export     | `lib/metricsReport.js`    | Conversion to CSV (`toCsv()`)                |
 | Regression | `lib/metricRegression.js` | Comparison of current vs baseline            |
 
 ### Constants
@@ -171,6 +165,12 @@ The runtime is split into three independent phases:
   the canonical specification.
 
 `createRuntime` is a thin facade: prepareServer → addBots → start.
+
+**Module decomposition:**
+- `getFreePort()` → `src/lib/port.js` — network utility, reusable outside runtime.
+- `TestBot` class → `src/lib/testBot.js` — EventEmitter-based bot with console subscription.
+- `waitForProcessExit()` + `createDispose()` → `src/lib/cleanup.js` — process lifecycle.
+- `runtime.js` now contains only `prepareServer`, `addBots`, `addBot`, `prepareRoom`, `createRuntime`.
 
 ```js
 // Full pipeline (createWorld) — internal functions, not exported to public API.
@@ -329,53 +329,67 @@ screeps-integration-tests/
 ├── bin/
 │   └── screeps-integration-tests.js   # CLI runner
 ├── src/
-│   ├── index.js                       # Public API (createWorld, spec)
+│   ├── index.js                       # Public API (createWorld, spec, buildCanonicalRoom)
 │   ├── public/                        # Sub-path exports
 │   │   ├── assertions.js              #   screeps-integration-tests/assertions
+│   │   ├── constants.js               #   screeps-integration-tests/constants
 │   │   ├── events.js                  #   screeps-integration-tests/events
 │   │   ├── memory-fixtures.js         #   screeps-integration-tests/memory-fixtures
 │   │   ├── metric-assertions.js       #   screeps-integration-tests/metric-assertions
 │   │   ├── metrics.js                 #   screeps-integration-tests/metrics (MetricsReport + MetricsRegression)
-│   │   └── room-fixtures.js           #   screeps-integration-tests/room-fixtures
+│   │   ├── room-fixtures.js           #   screeps-integration-tests/room-fixtures
+│   │   └── worldHelpers.js            #   screeps-integration-tests/world-helpers
 │   ├── runScenario.js                 # Worker entry (fork target)
 │   ├── constants/
 │   │   └── screepsConstants.js        # Game constants for spec/assert/metric
-│   ├── tests/                         # Unit tests of the framework (Jest)
-│   │   ├── buildCanonicalRoom.test.js
-│   │   ├── metrics.test.js
-│   │   ├── metricAssertions.test.js
-│   │   ├── metricExport.test.js
-│   │   └── metricRegression.test.js
 │   ├── lib/
 │   │   ├── config.js                  # Config loader
-│   │   ├── cli.js                     # Парсинг CLI-аргументов
+│   │   ├── cli.js                     # CLI argument parser
+│   │   ├── port.js                    # Free TCP port allocation
+│   │   ├── runtime.js                 # ScreepsServer wrapper (prepareServer, addBots)
+│   │   ├── testBot.js                 # TestBot class (EventEmitter)
 │   │   ├── world.js                   # createWorld — orchestration API
-│   │   ├── runtime.js                 # ScreepsServer wrapper
-│   │   ├── loadBot.js                 # Загрузка dist/*.js + profiling inject
+│   │   ├── events.js                  # Event registry (createEventRegistry, dispatchEvents)
+│   │   ├── finalize.js                # Report finalisation (finalizeReport)
+│   │   ├── loadBot.js                 # Bot module loader + profiling inject
 │   │   ├── console.js                 # Console capture
-│   │   ├── assertions.js              # assert* (internal)
-│   │   ├── metricAssertions.js        # assert* для метрик (internal)
-│   │   ├── metrics.js                 # Recorder + query + aggregation
-│   │   ├── metricExport.js            # CSV export
-│   │   ├── metricRegression.js        # Current vs baseline
-│   │   ├── profile.js                 # saveCallgrind
-│   │   ├── cleanup.js                 # pruneCache
-│   │   ├── types.js                   # JSDoc-типы
+│   │   ├── assertions.js              # Bot behaviour assertions
+│   │   ├── metricAssertions.js        # Metrics assertions
+│   │   ├── metricsReport.js           # Metrics recorder + query + CSV export
+│   │   ├── metricRegression.js        # Current vs baseline comparison
+│   │   ├── profile.js                 # saveCallgrind + exportProfiles
+│   │   ├── cleanup.js                 # pruneCache + waitForProcessExit + createDispose
+│   │   ├── types.js                   # Centralised JSDoc typedefs
 │   │   ├── builders/
 │   │   │   ├── index.js               # Re-export surface
 │   │   │   ├── spec.js                # Spec constructors
-│   │   │   ├── materialize.js         # DB-aware layer
-│   │   │   └── memory.js              # load/save/hasFixture
+│   │   │   ├── materialize.js         # DB-aware layer (DRY: materializeMany)
+│   │   │   └── memory.js              # Memory fixture load/save/merge
 │   │   ├── fixtures/
 │   │   │   └── roomFixture.js         # Room fixture registry
 │   │   └── observers/
-│   │       ├── eventLog.js
-│   │       ├── metrics.js
-│   │       ├── ownership.js
-│   │       └── predicate.js
+│   │       ├── eventLog.js            # Event log reader + filters
+│   │       ├── metrics.js             # Room metrics collector
+│   │       ├── ownership.js           # Owner snapshotting
+│   │       └── predicate.js           # Stop condition (checkStopCondition)
 │   └── tools/                         # CLI tools
 │       ├── capture-fixture.js
 │       └── clean-cache.js
+├── tests/                             # Unit tests of the framework (Jest)
+│   ├── assertions.test.js
+│   ├── buildCanonicalRoom.test.js
+│   ├── cli.test.js
+│   ├── config.test.js
+│   ├── console.test.js
+│   ├── memory.test.js
+│   ├── metricAssertions.test.js
+│   ├── metricRegression.test.js
+│   ├── metricsReport.test.js
+│   ├── roomFixture.test.js
+│   ├── spec.test.js
+│   ├── storageAdapter.test.js
+│   ├── world.test.js
+│   └── worldHelpers.test.js
 ├── examples/                          # Self-test examples
 │   ├── screeps-integration.config.js
 │   ├── mock-bot/
@@ -443,8 +457,8 @@ module.exports = { ..., assertMyCondition };
 1. Add a field to `collectMetrics()` (`observers/metrics.js`).
 2. If the metric is scalar, it automatically appears in CSV export.
 3. For non-scalar fields (e.g., `creepsByRole`), handle the format in
-   `metricExport.js`.
-4. Add unit tests to `src/tests/`.
+   `metricsReport.js`.
+4. Add unit tests to `tests/`.
 
 ### How to add a new room fixture
 

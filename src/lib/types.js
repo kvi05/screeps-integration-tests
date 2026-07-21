@@ -372,6 +372,13 @@
  */
 
 /**
+ * Filter for destroyed-object assertions.
+ * @typedef {Object} DestroyedFilter
+ * @property {string|string[]} [types]     — object type(s) (STRUCTURE_* or TYPE_CREEPS)
+ * @property {string} [id]                 — specific _id
+ */
+
+/**
  * Entity type for time-series metrics.
  * @typedef {'rooms'|'colonies'|'bots'|'world'} MetricEntityType
  */
