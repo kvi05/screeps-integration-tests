@@ -92,7 +92,7 @@ Run it:
 npx screeps-integration-tests --only smoke
 ```
 
-More ready-made recipes — in [EXAMPLES.md](./EXAMPLES.md).
+More ready-made recipes — in [EXAMPLES.md](./docs/EXAMPLES.md).
 
 ## How it works
 
@@ -171,19 +171,19 @@ npx sit [options]
 Configuration is merged from multiple sources (lowest to highest priority):
 **defaults → config file → env → CLI flags → code overrides**.
 
-Full config reference — see [CONFIG.md](./CONFIG.md).
+Full config reference — see [CONFIG.md](./docs/CONFIG.md).
 
 ## Documentation
 
-| File                                           | Purpose                                             |
-| ---------------------------------------------- | --------------------------------------------------- |
-| [GETTING-STARTED.md](./GETTING-STARTED.md)     | Installation, first run, writing a scenario         |
-| [CONFIG.md](./CONFIG.md)                       | `screeps-integration.config.js` and CLI flags       |
-| [API-REFERENCE.md](./API-REFERENCE.md)         | Full API reference: `createWorld`, builders, events |
-| [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)       | Room fixtures, memory fixtures, overrides           |
-| [EXAMPLES.md](./EXAMPLES.md)                   | Reference scenarios and typical patterns            |
-| [INTEGRATION-TESTS.md](./INTEGRATION-TESTS.md) | Architecture and internal mechanisms                |
-| [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md)   | Multiple rooms and bots                             |
+| File                                                | Purpose                                             |
+| --------------------------------------------------- | --------------------------------------------------- |
+| [GETTING-STARTED.md](./docs/GETTING-STARTED.md)     | Installation, first run, writing a scenario         |
+| [CONFIG.md](./docs/CONFIG.md)                       | `screeps-integration.config.js` and CLI flags       |
+| [API-REFERENCE.md](./docs/API-REFERENCE.md)         | Full API reference: `createWorld`, builders, events |
+| [FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md)       | Room fixtures, memory fixtures, overrides           |
+| [EXAMPLES.md](./docs/EXAMPLES.md)                   | Reference scenarios and typical patterns            |
+| [INTEGRATION-TESTS.md](./docs/INTEGRATION-TESTS.md) | Architecture and internal mechanisms                |
+| [MULTI-ROOM-GUIDE.md](./docs/MULTI-ROOM-GUIDE.md)   | Multiple rooms and bots                             |
 
 ## Running inside the repository (for contributors)
 
