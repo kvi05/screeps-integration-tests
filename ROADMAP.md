@@ -3,7 +3,6 @@
 ## Distribution & Publishing
 
 - [ ] Publish the package to npm
-- [ ] Switch `andre-bot` from `file:../screeps-integration-tests` to an npm version / GitHub URL
 
 ## CLI & Tooling
 
@@ -12,8 +11,8 @@
 
 ## API & Architecture
 
-- [ ] Rethink the `bots` parameter in `createWorld`
-- [ ] API for creating structures after the world has started
+- [x] Rethink the `bots` parameter in `createWorld`
+- [x] API for creating structures after the world has started
 - [ ] Support loading different AI for different bots
 - [ ] Group tests and run them by group
 - [ ] Resolve ID collisions when using fixtures across multiple rooms

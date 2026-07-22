@@ -4,7 +4,7 @@ This document describes the **architecture and internal mechanisms** of the fram
 a contributor's perspective. This is not a tutorial — practical guides are in
 neighboring files:
 
-- [README.md](./README.md) — documentation navigation
+- [README.md](../README.md) — documentation navigation
 - [GETTING-STARTED.md](./GETTING-STARTED.md) — installation, running, first scenario
 - [API-REFERENCE.md](./API-REFERENCE.md) — full public API reference
 - [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md) — room fixtures, memory fixtures, overrides

@@ -50,7 +50,7 @@ function loadFixture(fixtureName) {
     if (!fs.existsSync(fixturePath)) {
         throw new Error(
             `Fixture "${fixtureName}" not found: ${fixturePath}\n` +
-                'Create a fixture per the guide: src/fixtures/FIXTURES-GUIDE.md',
+                'Create a fixture per the guide: docs/FIXTURES-GUIDE.md',
         );
     }
     return JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
