@@ -25,17 +25,17 @@ mechanics, same memory model. You get:
 
 ## Features at a glance
 
-| Feature                       | Description                                                                               |
-| ----------------------------- | ----------------------------------------------------------------------------------------- |
-| 🎮 **Full game server**       | Real `screeps-server-mockup`, not a mock. Your bot runs against authentic game mechanics. |
-| 🏗️ **Declarative world**      | Build rooms, structures, creeps via `spec.*` — pure functions, clean and composable.      |
-| 📦 **Fixtures**               | Reusable room and memory templates with overrides. Don't copy-paste setup code.           |
-| ✅ **16 assertions**          | RCL progress, errors, destroyed objects, combat damage — by object ID and by user.        |
-| 📊 **Metrics pipeline**       | Time-series collection, query helpers, CSV export, regression comparison.                 |
-| ⚡ **Profiling**              | Built-in callgrind support via `screeps-profiler`. Find CPU bottlenecks.                  |
-| 🌐 **Multi-room / multi-bot** | Multiple rooms, multiple bots, cross-room interactions — all in one scenario.             |
-| 🔀 **Parallel workers**       | `--jobs N` runs scenarios in parallel in a `child_process` pool. Uses all your cores.     |
-| 🛡️ **Worker isolation**       | Each scenario gets its own server, port, and cache directory. No leaks between tests.     |
+| Feature                       | Description                                                                                                             |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 🎮 **Full game server**       | Runs the official open-source Screeps server locally — real game mechanics.                                             |
+| 🏗️ **Declarative world**      | Build rooms, structures, creeps via `spec.*` — pure functions, clean and composable.                                    |
+| 📦 **Fixtures**               | Reusable room and memory templates with overrides. Don't copy-paste setup code.                                         |
+| ✅ **assertions**             | RCL progress, errors, destroyed objects, combat damage — by object ID and by user.                                      |
+| 📊 **Metrics pipeline**       | Time-series collection, query helpers, CSV export, regression comparison.                                               |
+| ⚡ **Profiling**              | Built-in callgrind support via [screeps-profiler](https://github.com/screepers/screeps-profiler). Find CPU bottlenecks. |
+| 🌐 **Multi-room / multi-bot** | Multiple rooms, multiple bots, cross-room interactions — all in one scenario.                                           |
+| 🔀 **Parallel workers**       | `--jobs N` runs scenarios in parallel in a `child_process` pool. Uses all your cores.                                   |
+| 🛡️ **Worker isolation**       | Each scenario gets its own server, port, and cache directory. No leaks between tests.                                   |
 
 ## Quick start
 
@@ -166,10 +166,10 @@ npx sit [options]
 | `--distDir <dir>`      | Bot build directory                            | `./dist`            |
 | `--scenariosDir <dir>` | Scenario files directory                       | `./scenarios`       |
 | `--fixturesDir <dir>`  | Memory fixtures directory                      | `./fixtures`        |
-| `--cacheDir <dir>`     | Server cache directory                         | `./.cache`          |
+| and more               |                                                |                     |
 
 Configuration is merged from multiple sources (lowest to highest priority):
-**defaults → config file → env (`BOT_DIST_DIR`) → CLI flags → code overrides**.
+**defaults → config file → env → CLI flags → code overrides**.
 
 Full config reference — see [CONFIG.md](./CONFIG.md).
 
@@ -207,15 +207,18 @@ npm run check          # Full check: lint → format → unit → integration
 ## Acknowledgments
 
 Built on top of **[screeps-server-mockup](https://github.com/screepers/screeps-server-mockup)** —
-a community-maintained, full implementation of the Screeps game server for
-local development and testing.
+a community-maintained test harness that runs the official open-source Screeps server locally, one tick at a time.
 
 ## Known issues
 
-- **Memory leak:** `server.stop()` does not fully release storage. Solved
-  via `child_process.fork` + `tree-kill` + `process.exit(0)`.
 - **Profiler delay:** recording starts from tick 2 (0 — init,
   1 — startup, 2 — first measurement).
+- **User command execution delay:** As in the game, player commands execute
+  on the next tick. But `world.exec()` in the framework looks like this:
+  ```js
+  await world.exec();
+  await world.tick(2); // The command will only execute on the 2nd tick
+  ```
 - **Storage-singleton race:** `@screeps/common/lib/storage.js` holds one
   TCP socket per process. When multiple `createWorld` calls happen in a row
   in one scenario (e.g., `world-spawn` with 15 worlds), there is a narrow
@@ -225,9 +228,3 @@ local development and testing.
   (Screeps) + the duration of the `createWorld` pipeline cover the race.
   Symptom — `Storage connection lost` in stderr (filtered in
   `pipeChildStreams`).
-- **User command execution delay:** As in the game, player commands execute
-  on the next tick. But `world.exec()` in the framework looks like this:
-  ```js
-  await world.exec();
-  await world.tick(2); // The command will only execute on the 2nd tick
-  ```
