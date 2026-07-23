@@ -491,7 +491,7 @@ function creep(x, y, opts = {}) {
         body,
         hits,
         hitsMax: opts.hitsMax || hits,
-        store: { energy: Math.min(500, effectiveCapacity) },
+        store: { energy: 0 },
         storeCapacity: effectiveCapacity,
     };
     if (effectiveCapacity > 0) {
