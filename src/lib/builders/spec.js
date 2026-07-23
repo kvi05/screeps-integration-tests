@@ -23,13 +23,19 @@ const {
     STRUCTURE_ROAD,
     STRUCTURE_WALL,
     STRUCTURE_RAMPART,
+    STRUCTURE_LINK,
+    STRUCTURE_TERMINAL,
     INVADER_USER_ID,
     WORK,
     MOVE,
+    CARRY,
     ATTACK,
 } = require('../../constants/screepsConstants');
 
 const crypto = require('crypto');
+
+/** Ёмкость одного CARRY-сегмента = 50 единиц */
+const CARRY_CAPACITY = 50;
 
 /**
  * @typedef {import('../types').BodyPart} BodyPart
@@ -67,6 +73,9 @@ const crypto = require('crypto');
  * @property {BodyPart[]} [body]
  * @property {number} [hits]
  * @property {number} [hitsMax]
+ * @property {Object} [store]                  — override the computed store (e.g. { energy: 100 })
+ * @property {number} [storeCapacity]           — override the computed storeCapacity (default: CARRY parts × 50)
+ * @property {Object} [storeCapacityResource]  — override per-resource capacity limits
  * @property {string} [id]
  */
 
@@ -120,6 +129,20 @@ const STRUCTURE_DEFAULTS = {
     [STRUCTURE_RAMPART]: {
         hits: 10000,
         hitsMax: 300000000,
+        notifyWhenAttacked: true,
+    },
+    [STRUCTURE_LINK]: {
+        store: { energy: 800 },
+        storeCapacityResource: { energy: 800 },
+        hits: 1000,
+        hitsMax: 1000,
+        notifyWhenAttacked: true,
+    },
+    [STRUCTURE_TERMINAL]: {
+        store: { energy: 0 },
+        storeCapacityResource: { energy: 300000 },
+        hits: 3000,
+        hitsMax: 3000,
         notifyWhenAttacked: true,
     },
 };
@@ -349,6 +372,48 @@ function rampart(x, y, opts = {}) {
 }
 
 /**
+ * Creates a link spec.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
+ */
+function link(x, y, opts = {}) {
+    const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
+    if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
+        overrides.store = { energy: opts.energy || 0 };
+        overrides.storeCapacityResource = {
+            energy: opts.storeCapacity || STRUCTURE_DEFAULTS.link.storeCapacityResource.energy,
+        };
+    }
+    if (opts.hits !== undefined) {
+        overrides.hits = opts.hits;
+        overrides.hitsMax = opts.hits;
+    }
+    return structure(STRUCTURE_LINK, x, y, overrides);
+}
+
+/**
+ * Creates a terminal spec.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
+ */
+function terminal(x, y, opts = {}) {
+    const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
+    if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
+        overrides.store = { energy: opts.energy || 0 };
+        overrides.storeCapacityResource = {
+            energy: opts.storeCapacity || STRUCTURE_DEFAULTS.terminal.storeCapacityResource.energy,
+        };
+    }
+    if (opts.hits !== undefined) {
+        overrides.hits = opts.hits;
+        overrides.hitsMax = opts.hits;
+    }
+    return structure(STRUCTURE_TERMINAL, x, y, overrides);
+}
+
+/**
  * Creates a canonical source spec.
 
  * @param {number} x
@@ -415,6 +480,9 @@ function controller(opts = {}) {
 function creep(x, y, opts = {}) {
     const body = opts.body || DEFAULT_CREEP_BODY;
     const hits = opts.hits || body.reduce((sum, p) => sum + p.hits, 0);
+    // Рассчитываем storeCapacity из CARRY-частей тела
+    const carryCapacity = body.filter((p) => p.type === CARRY).reduce((sum) => sum + CARRY_CAPACITY, 0);
+    const effectiveCapacity = opts.storeCapacity ?? carryCapacity;
     const spec = {
         x,
         y,
@@ -423,7 +491,18 @@ function creep(x, y, opts = {}) {
         body,
         hits,
         hitsMax: opts.hitsMax || hits,
+        store: { energy: 0 },
+        storeCapacity: effectiveCapacity,
     };
+    if (effectiveCapacity > 0) {
+        spec.storeCapacityResource = { energy: effectiveCapacity };
+    }
+    if (opts.store) {
+        spec.store = { ...spec.store, ...opts.store };
+    }
+    if (opts.storeCapacityResource) {
+        spec.storeCapacityResource = { ...(spec.storeCapacityResource || {}), ...opts.storeCapacityResource };
+    }
     if (opts.id) {
         spec.id = opts.id;
     }
@@ -474,6 +553,8 @@ module.exports = {
     road,
     wall,
     rampart,
+    link,
+    terminal,
     source,
     controller,
     creep,

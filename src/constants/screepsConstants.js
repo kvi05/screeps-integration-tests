@@ -70,6 +70,10 @@ const STRUCTURE_WALL = 'constructedWall';
 /** @type {string} */
 const STRUCTURE_RAMPART = 'rampart';
 /** @type {string} */
+const STRUCTURE_LINK = 'link';
+/** @type {string} */
+const STRUCTURE_TERMINAL = 'terminal';
+/** @type {string} */
 const STRUCTURE_CONTROLLER = 'controller';
 
 /** @type {string[]} */
@@ -80,6 +84,8 @@ const BOT_STRUCTURE_TYPES = [
     STRUCTURE_WALL,
     STRUCTURE_CONTAINER,
     STRUCTURE_STORAGE,
+    STRUCTURE_LINK,
+    STRUCTURE_TERMINAL,
 ];
 
 // ─── RESOURCE_* ─────────────────────────────────────────────────────────────
@@ -210,6 +216,8 @@ module.exports = {
     STRUCTURE_ROAD,
     STRUCTURE_WALL,
     STRUCTURE_RAMPART,
+    STRUCTURE_LINK,
+    STRUCTURE_TERMINAL,
     STRUCTURE_CONTROLLER,
     BOT_STRUCTURE_TYPES,
 

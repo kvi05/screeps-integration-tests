@@ -139,6 +139,9 @@
  * @property {BodyPart[]} [body]            — defaults to 3 WORK + 3 MOVE
  * @property {number} [hits]                — auto-sum of body if not set
  * @property {number} [hitsMax]
+ * @property {Object} [store]               — { energy: N } (e.g. { energy: 50 } for 1×CARRY)
+ * @property {number} [storeCapacity]       — total carry capacity (CARRY parts × 50)
+ * @property {Object} [storeCapacityResource] — per-resource capacity limit, { energy: N }
  * @property {string} [id]                  — explicit _id (for memory fixtures)
  */
 
@@ -535,8 +538,8 @@
 
 /**
  * @callback SpawnFn
- * @param {SpawnSpecInput} spec
- * @returns {Promise<string>}     _id of the created creep
+ * @param {CreepSpecCanonical} spec   — complete creep spec (use spec.creep() / spec.invader() / spec.dummyTarget())
+ * @returns {Promise<string>}          _id of the created creep
  */
 
 /**
@@ -638,23 +641,6 @@
 /**
  * @callback DisposeFn
  * @returns {Promise<void>}
- */
-
-/**
- * Creep specification for `world.spawn()`. In multi-room mode, all
- * context-dependent parameters must be passed explicitly.
- *
- * For convenience, use `spec.creep()`, `spec.invader()`, or
- * `spec.dummyTarget()` — they provide default body and
- * automatically compute hits.
- *
- * @typedef {Object} SpawnSpecInput
- * @property {string} roomName                     — target room (required)
- * @property {number} x
- * @property {number} y
- * @property {string} [userId]                     — _id of owner bot or '2' (Invader); defaults to first bot
- * @property {string} [name]
- * @property {BodyPart[]} [body]                   — array of BodyPart; required (spec constructors fill it in)
  */
 
 // ─── Runtime ───────────────────────────────────────────────────────────────
