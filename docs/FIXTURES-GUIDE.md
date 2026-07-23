@@ -257,7 +257,8 @@ const memory = await world.readMemory('bot');
 saveFixture('my-memory', memory, { force: true });
 ```
 
-`saveFixture(name, memory, { force = true })`. By default overwrites existing file.
+`saveFixture(name, memory, { force = true })`. By default overwrites existing file. \
+This will save the Memory to the file specified in `screeps-integration.config`
 
 ## 5. Relationship between room fixture and memory fixture
 
