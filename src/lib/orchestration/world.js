@@ -53,7 +53,6 @@ function resolveCacheBase(opts) {
  * @typedef {import('../types').CreepSpecCanonical} CreepSpecCanonical
  * @typedef {import('../types').EventLogEntry} EventLogEntry
  * @typedef {import('../types').MetricsSample} MetricsSample
- * @typedef {import('../types').SpawnSpecInput} SpawnSpecInput
  * @typedef {import('../types').UntilOpts} UntilOpts
  * @typedef {import('../types').RunFn} RunFn
  * @typedef {import('../types').TickFn} TickFn
@@ -447,21 +446,26 @@ async function createWorld(opts) {
     /**
      * Creates a new creep in the room.
      *
-     * For convenience use `spec.creep()`, `spec.invader()` or
-     * `spec.dummyTarget()` — they fill in body and hits.
+     * Accepts a complete creep spec — use `spec.creep()`, `spec.invader()`
+     * or `spec.dummyTarget()` to build one.
      *
-     * @param {SpawnSpecInput} spawnSpec
+     * If `userId` is not set, resolves it from the bot's room claim
+     * or falls back to the first bot. This is the only field that
+     * `world.spawn` may add — all other fields (hits, store, etc.)
+     * must be pre-computed by the spec constructor.
+     *
+     * @param {CreepSpecCanonical} creepSpec
      * @type {SpawnFn}
      */
-    async function spawn(spawnSpec) {
-        if (!spawnSpec.roomName) {
+    async function spawn(creepSpec) {
+        if (!creepSpec.roomName) {
             throw new Error('world.spawn: roomName is required (multi-room mode)');
         }
-        const userId = spawnSpec.userId ?? roomToBotUserId[spawnSpec.roomName] ?? defaultBotUserId;
+        const userId = creepSpec.userId ?? roomToBotUserId[creepSpec.roomName] ?? defaultBotUserId;
         if (!userId) {
-            throw new Error('world.spawn: spawnSpec.userId is required (bot username or "2" for Invader)');
+            throw new Error('world.spawn: creepSpec.userId is required (bot username or "2" for Invader)');
         }
-        return materializeCreep(adapter, spawnSpec.roomName, { ...spawnSpec, userId });
+        return materializeCreep(adapter, creepSpec.roomName, { ...creepSpec, userId });
     }
 
     /**

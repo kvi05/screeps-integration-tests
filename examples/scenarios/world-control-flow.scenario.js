@@ -154,14 +154,14 @@ async function run(opts = {}) {
         try {
             // Спавним крипа до run через метод spawn
             const botId = world.bots[BOT].id;
-            const creepId = await world.spawn({
-                roomName: ROOM,
-                x: 10,
-                y: 10,
-                name: 'TestCreep',
-                body: [{ type: 'move', hits: 100 }],
-                userId: botId,
-            });
+            const creepId = await world.spawn(
+                spec.creep(10, 10, {
+                    roomName: ROOM,
+                    name: 'TestCreep',
+                    body: [{ type: 'move', hits: 100 }],
+                    userId: botId,
+                }),
+            );
             assert.ok(creepId, 'spawn вернул _id');
 
             await world.tick(2);

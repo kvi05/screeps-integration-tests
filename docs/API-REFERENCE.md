@@ -143,7 +143,7 @@ const world = await createWorld({
 | `world.run()`                          | Run the scenario until `opts.ticks` / `until.maxTicks` / predicate |
 | `world.tick(n)`                        | Execute `n` ticks; respects `until.maxTicks`, ignores `opts.ticks` |
 | `world.exec(code, username?)`          | Execute JS code in bot context                                     |
-| `world.spawn(spec)`                    | Create a creep. See `SpawnSpecInput` (§14) for spec format.        |
+| `world.spawn(spec)`                    | Create a creep. See `CreepSpecCanonical` (§14) for spec format.    |
 | `world.createStructure(spec)`          | Create a structure via spec (see §Helpers)                         |
 | `world.eventLog(room)`                 | Event log for the room for the current tick                        |
 | `world.readMemory(username?)`          | Read bot Memory                                                    |
@@ -787,27 +787,34 @@ Below is a summary of key types. Full JSDoc definitions — in `src/lib/types.js
 }
 ```
 
-### SpawnSpecInput
+### CreepSpecCanonical
+
+Complete creep specification. Build it with `spec.creep()`, `spec.invader()`
+or `spec.dummyTarget()` — they compute `body`, `hits`, `store` and
+`storeCapacity` automatically.
+
+For `world.spawn()`, `roomName` is required (the world needs to know
+which room to put the creep in).
 
 ```typescript
 {
-    roomName: string,            // required
     x: number,
     y: number,
-    name?: string,               // if not specified — generated
-    body: { type: string, hits: number }[],  // required
-    userId?: string,             // fallback to first bot if not specified
-    hits?: number,               // default is sum of body hits
-    hitsMax?: number,            // default is hits
-    energy?: number,
-    energyCapacity?: number,
-    overrides?: Object,          // arbitrary fields for materializer
+    roomName?: string,           // target room
+    name?: string,               // generated if not set
+    userId?: string,             // owner _id; fallback to first bot
+    body?: BodyPart[],           // defaults to 3 WORK + 3 MOVE
+    hits?: number,               // auto-sum of body if not set
+    hitsMax?: number,
+    store?: { [resource: string]: number },   // computed from CARRY parts
+    storeCapacity?: number,                   // computed from CARRY parts
+    storeCapacityResource?: { [resource: string]: number },
+    id?: string,                 // explicit _id (for memory fixtures)
 }
 ```
 
-`spawn()` accepts both a plain object of this format and the result of
-`spec.creep()`, `spec.invader()` or `spec.dummyTarget()` — all of them
-return a compatible `SpawnSpecInput`.
+All examples in this doc use `spec.creep()`, `spec.invader()` or
+`spec.dummyTarget()` which return a compatible `CreepSpecCanonical`.
 
 ### WorldReport
 

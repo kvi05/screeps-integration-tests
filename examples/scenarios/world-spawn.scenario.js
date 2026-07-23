@@ -51,14 +51,14 @@ async function run(opts = {}) {
 
             // Test A: spawn с явным userId
             {
-                const creepId = await world.spawn({
-                    roomName: ROOM,
-                    x: 10,
-                    y: 10,
-                    name: 'TestCreep_A',
-                    body: [{ type: 'move', hits: 100 }],
-                    userId: botId,
-                });
+                const creepId = await world.spawn(
+                    spec.creep(10, 10, {
+                        roomName: ROOM,
+                        name: 'TestCreep_A',
+                        body: [{ type: 'move', hits: 100 }],
+                        userId: botId,
+                    }),
+                );
                 assert.ok(typeof creepId === 'string', 'A: spawn возвращает строку _id');
                 const creep = await world.findOne({ _id: creepId });
                 assert.ok(creep, 'A: крип найден в БД');
@@ -72,13 +72,13 @@ async function run(opts = {}) {
 
             // Test B: spawn без userId (single bot — fallback)
             {
-                const creepId = await world.spawn({
-                    roomName: ROOM,
-                    x: 12,
-                    y: 12,
-                    name: 'TestCreep_B',
-                    body: [{ type: 'work', hits: 100 }],
-                });
+                const creepId = await world.spawn(
+                    spec.creep(12, 12, {
+                        roomName: ROOM,
+                        name: 'TestCreep_B',
+                        body: [{ type: 'work', hits: 100 }],
+                    }),
+                );
                 assert.ok(typeof creepId === 'string', 'B: spawn без userId возвращает _id');
                 const creep = await world.findOne({ _id: creepId });
                 assert.ok(creep, 'B: крип найден в БД');
@@ -87,14 +87,14 @@ async function run(opts = {}) {
 
             // Test C: spawn с userId='2' (invader)
             {
-                const creepId = await world.spawn({
-                    roomName: ROOM,
-                    x: 30,
-                    y: 30,
-                    name: 'Invader_C',
-                    body: [{ type: 'attack', hits: 100 }],
-                    userId: '2',
-                });
+                const creepId = await world.spawn(
+                    spec.creep(30, 30, {
+                        roomName: ROOM,
+                        name: 'Invader_C',
+                        body: [{ type: 'attack', hits: 100 }],
+                        userId: '2',
+                    }),
+                );
                 assert.ok(typeof creepId === 'string', 'C: spawn с userId="2"');
                 const creep = await world.findOne({ _id: creepId });
                 assert.strictEqual(creep.user, '2', 'C: invader имеет userId="2"');
@@ -142,22 +142,22 @@ async function run(opts = {}) {
 
             // Test O: spawn возвращает уникальные _id при каждом вызове
             {
-                const id1 = await world.spawn({
-                    roomName: ROOM,
-                    x: 1,
-                    y: 1,
-                    name: 'Unique_O_1',
-                    body: [{ type: 'move', hits: 100 }],
-                    userId: botId,
-                });
-                const id2 = await world.spawn({
-                    roomName: ROOM,
-                    x: 2,
-                    y: 2,
-                    name: 'Unique_O_2',
-                    body: [{ type: 'move', hits: 100 }],
-                    userId: botId,
-                });
+                const id1 = await world.spawn(
+                    spec.creep(1, 1, {
+                        roomName: ROOM,
+                        name: 'Unique_O_1',
+                        body: [{ type: 'move', hits: 100 }],
+                        userId: botId,
+                    }),
+                );
+                const id2 = await world.spawn(
+                    spec.creep(2, 2, {
+                        roomName: ROOM,
+                        name: 'Unique_O_2',
+                        body: [{ type: 'move', hits: 100 }],
+                        userId: botId,
+                    }),
+                );
                 assert.notStrictEqual(id1, id2, 'O: каждый spawn возвращает уникальный _id');
             }
 
@@ -270,16 +270,16 @@ async function run(opts = {}) {
                     { type: 'move', hits: 150 },
                     { type: 'heal', hits: 200 },
                 ];
-                const creepId = await world.spawn({
-                    roomName: ROOM,
-                    x: 20,
-                    y: 25,
-                    name: 'CustomBody_J',
-                    body: customBody,
-                    userId: botId,
-                    hits: 600,
-                    hitsMax: 800,
-                });
+                const creepId = await world.spawn(
+                    spec.creep(20, 25, {
+                        roomName: ROOM,
+                        name: 'CustomBody_J',
+                        body: customBody,
+                        userId: botId,
+                        hits: 600,
+                        hitsMax: 800,
+                    }),
+                );
                 const creep = await world.findOne({ _id: creepId });
                 assert.strictEqual(creep.body.length, 4, 'J: 4 body parts');
                 assert.deepStrictEqual(creep.body, customBody, 'J: body совпадает');
@@ -292,14 +292,14 @@ async function run(opts = {}) {
                 const NUM_CREEPS = 5;
                 const ids = [];
                 for (let i = 0; i < NUM_CREEPS; i++) {
-                    const id = await world.spawn({
-                        roomName: ROOM,
-                        x: 10 + i,
-                        y: 10,
-                        name: `MultiCreep_K_${i}`,
-                        body: [{ type: 'move', hits: 100 }],
-                        userId: botId,
-                    });
+                    const id = await world.spawn(
+                        spec.creep(10 + i, 10, {
+                            roomName: ROOM,
+                            name: `MultiCreep_K_${i}`,
+                            body: [{ type: 'move', hits: 100 }],
+                            userId: botId,
+                        }),
+                    );
                     ids.push(id);
                 }
                 assert.strictEqual(ids.length, NUM_CREEPS, 'K: создано 5 крипов');
@@ -308,27 +308,27 @@ async function run(opts = {}) {
 
             // Test L: spawn до run
             {
-                const preId = await world.spawn({
-                    roomName: ROOM,
-                    x: 5,
-                    y: 5,
-                    name: 'PreRun_Creep_L',
-                    body: [{ type: 'move', hits: 100 }],
-                    userId: botId,
-                });
+                const preId = await world.spawn(
+                    spec.creep(5, 5, {
+                        roomName: ROOM,
+                        name: 'PreRun_Creep_L',
+                        body: [{ type: 'move', hits: 100 }],
+                        userId: botId,
+                    }),
+                );
                 assert.ok(preId, 'L: spawn до run вернул _id');
             }
 
             // Test N: spawn в нейтральную комнату (W0N2)
             {
-                const creepId = await world.spawn({
-                    roomName: 'W0N2',
-                    x: 20,
-                    y: 20,
-                    name: 'NeutralRoom_N',
-                    body: [{ type: 'move', hits: 100 }],
-                    userId: botId,
-                });
+                const creepId = await world.spawn(
+                    spec.creep(20, 20, {
+                        roomName: 'W0N2',
+                        name: 'NeutralRoom_N',
+                        body: [{ type: 'move', hits: 100 }],
+                        userId: botId,
+                    }),
+                );
                 assert.ok(typeof creepId === 'string', 'N: spawn в нейтральную комнату');
                 const creep = await world.findOne({ _id: creepId });
                 assert.ok(creep, 'N: крип найден в нейтральной комнате');
@@ -360,14 +360,14 @@ async function run(opts = {}) {
             until: { maxTicks: 15 },
             onTick: async (w, tick) => {
                 if (tick === 5) {
-                    await w.spawn({
-                        roomName: ROOM,
-                        x: 15,
-                        y: 15,
-                        name: 'OnTick_Creep_M',
-                        body: [{ type: 'work', hits: 100 }],
-                        userId: w.botId(),
-                    });
+                    await w.spawn(
+                        spec.creep(15, 15, {
+                            roomName: ROOM,
+                            name: 'OnTick_Creep_M',
+                            body: [{ type: 'work', hits: 100 }],
+                            userId: w.botId(),
+                        }),
+                    );
                 }
             },
             profiling: opts.profiling,
