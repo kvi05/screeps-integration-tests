@@ -28,6 +28,9 @@ const { resolveConfig, printHelpAndExit } = require('../src/lib/config/config');
 const { saveCallgrind } = require('../src/lib/runtime/profile');
 const { pruneCache } = require('../src/lib/runtime/cleanup');
 
+/** @type {number} Maximum framework warnings to show in summary */
+const SUMMARY_WARNINGS_LIMIT = 6;
+
 /**
  * @typedef {import('../src/lib/types').WorkerMessage} WorkerMessage
  * @typedef {import('../src/lib/types').SummaryEntry} SummaryEntry
@@ -235,7 +238,7 @@ function printSummary(results) {
             console.log(`       ${error.split('\n')[0]}`);
         }
         if (result?.frameworkWarnings?.length > 0) {
-            const limit = 3;
+            const limit = SUMMARY_WARNINGS_LIMIT;
             const warnings = result.frameworkWarnings;
             const count = warnings.length;
             console.log(`       ⚠ framework warnings (${count}):`);
