@@ -10,6 +10,8 @@ const {
     road,
     wall,
     rampart,
+    link,
+    terminal,
     source,
     controller,
     creep,
@@ -26,6 +28,8 @@ const {
     STRUCTURE_ROAD,
     STRUCTURE_WALL,
     STRUCTURE_RAMPART,
+    STRUCTURE_LINK,
+    STRUCTURE_TERMINAL,
 } = require('../src/constants/screepsConstants');
 
 describe('spec constructors', () => {
@@ -332,6 +336,66 @@ describe('spec constructors', () => {
             expect(c.userId).toBe('u1');
             expect(c.name).toBe('Harvester1');
         });
+
+        it('default body (no CARRY) has store={energy:0} and storeCapacity=0', () => {
+            const c = creep(10, 20);
+            expect(c.store).toEqual({ energy: 0 });
+            expect(c.storeCapacity).toBe(0);
+            expect(c.storeCapacityResource).toBeUndefined();
+        });
+
+        it('1x CARRY gives store={energy:50}, storeCapacity=50, storeCapacityResource={energy:50}', () => {
+            const body = [
+                { type: 'carry', hits: 100 },
+                { type: 'move', hits: 100 },
+            ];
+            const c = creep(10, 20, { body });
+            expect(c.store).toEqual({ energy: 50 });
+            expect(c.storeCapacity).toBe(50);
+            expect(c.storeCapacityResource).toEqual({ energy: 50 });
+        });
+
+        it('2x CARRY gives store={energy:100}, storeCapacity=100', () => {
+            const body = [
+                { type: 'carry', hits: 100 },
+                { type: 'carry', hits: 100 },
+                { type: 'move', hits: 100 },
+            ];
+            const c = creep(10, 20, { body });
+            expect(c.store).toEqual({ energy: 100 });
+            expect(c.storeCapacity).toBe(100);
+            expect(c.storeCapacityResource).toEqual({ energy: 100 });
+        });
+
+        it('store can be overridden via opts', () => {
+            const body = [
+                { type: 'carry', hits: 100 },
+                { type: 'move', hits: 100 },
+            ];
+            const c = creep(10, 20, { body, store: { energy: 25 } });
+            expect(c.store).toEqual({ energy: 25 });
+            expect(c.storeCapacity).toBe(50);
+        });
+
+        it('storeCapacityResource can be overridden via opts', () => {
+            const body = [
+                { type: 'carry', hits: 100 },
+                { type: 'move', hits: 100 },
+            ];
+            const c = creep(10, 20, { body, storeCapacityResource: { energy: 100 } });
+            expect(c.storeCapacityResource).toEqual({ energy: 100 });
+        });
+
+        it('storeCapacity can be overridden via opts', () => {
+            const body = [
+                { type: 'carry', hits: 100 },
+                { type: 'move', hits: 100 },
+            ];
+            const c = creep(10, 20, { body, storeCapacity: 200 });
+            expect(c.storeCapacity).toBe(200);
+            expect(c.storeCapacityResource).toEqual({ energy: 200 });
+            expect(c.store.energy).toBe(200);
+        });
     });
 
     describe('invader()', () => {
@@ -361,6 +425,40 @@ describe('spec constructors', () => {
             const d = dummyTarget(10, 20, { name: 'Target', roomName: 'W0N1' });
             expect(d.name).toBe('Target');
             expect(d.roomName).toBe('W0N1');
+        });
+    });
+
+    describe('link()', () => {
+        it('creates link with type', () => {
+            const l = link(25, 25);
+            expect(l.type).toBe(STRUCTURE_LINK);
+            expect(l.store).toEqual({ energy: 800 });
+            expect(l.storeCapacityResource).toEqual({ energy: 800 });
+            expect(l.hits).toBe(1000);
+            expect(l.notifyWhenAttacked).toBe(true);
+        });
+
+        it('energy and storeCapacity can be overridden', () => {
+            const l = link(10, 20, { energy: 400, storeCapacity: 400 });
+            expect(l.store.energy).toBe(400);
+            expect(l.storeCapacityResource.energy).toBe(400);
+        });
+    });
+
+    describe('terminal()', () => {
+        it('creates terminal with type', () => {
+            const t = terminal(25, 25);
+            expect(t.type).toBe(STRUCTURE_TERMINAL);
+            expect(t.store).toEqual({ energy: 0 });
+            expect(t.storeCapacityResource).toEqual({ energy: 300000 });
+            expect(t.hits).toBe(3000);
+            expect(t.notifyWhenAttacked).toBe(true);
+        });
+
+        it('energy and storeCapacity can be overridden', () => {
+            const t = terminal(10, 20, { energy: 5000, storeCapacity: 5000 });
+            expect(t.store.energy).toBe(5000);
+            expect(t.storeCapacityResource.energy).toBe(5000);
         });
     });
 });

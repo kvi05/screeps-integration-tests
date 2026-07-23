@@ -305,9 +305,6 @@ async function materializeCreep(adapter, roomName, c) {
         );
     }
 
-    const body = c.body;
-    const hits = c.hits || body.reduce((sum, p) => sum + p.hits, 0);
-
     const doc = {
         room: roomName,
         type: 'creep',
@@ -315,13 +312,18 @@ async function materializeCreep(adapter, roomName, c) {
         y: c.y,
         user: c.userId,
         name: c.name || `Creep_${crypto.randomUUID()}`,
-        body,
-        hits,
-        hitsMax: c.hitsMax || hits,
+        store: c.store,
+        body: c.body,
+        hits: c.hits,
+        hitsMax: c.hitsMax,
+        storeCapacity: c.storeCapacity,
         spawning: null,
         fatigue: 0,
         notifyWhenAttacked: true,
     };
+    if (c.storeCapacityResource) {
+        doc.storeCapacityResource = c.storeCapacityResource;
+    }
     if (c.id) {
         doc._id = c.id;
     }
