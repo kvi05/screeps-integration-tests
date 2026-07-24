@@ -8,6 +8,7 @@ const { loadBotModules } = require('./loadBot');
 const { getFreePort } = require('./port');
 const { TestBot } = require('./testBot');
 const { createDispose } = require('./cleanup');
+const { computeAdjacentBorders } = require('./roomUtils');
 
 /**
  * @typedef {import('../types').ScreepsServer} ScreepsServer
@@ -47,6 +48,10 @@ const DEFAULT_BOT_BRANCH = 'default';
  * are added. `addBot` works with a prepared but not yet started server,
  * just like in the previous pipeline.
  *
+ * Terrain borders are exit-aware: walls are placed only on edges that do NOT
+ * face another declared room. Adjacent rooms in `opts.rooms` have open borders
+ * so `Game.map.describeExits` correctly reports exits between them.
+ *
  * @param {PrepareServerOpts} opts
  * @returns {Promise<PreparedServer>}
  */
@@ -69,8 +74,11 @@ async function prepareServer(opts) {
 
     const adapter = createStorageAdapter(server);
 
+    // Compute which borders face adjacent declared rooms
+    const adjacencyMap = computeAdjacentBorders(opts.rooms);
+
     for (const roomName of opts.rooms) {
-        await prepareRoom(adapter, roomName);
+        await prepareRoom(adapter, roomName, adjacencyMap[roomName]);
     }
 
     return { server, adapter, dispose: createDispose(server, adapter, cacheDir) };
@@ -210,11 +218,18 @@ async function createRuntime(opts) {
 /**
  * Creates a room and terrain without a controller.
  *
+ * Borders are closed (wall) by default unless they face another declared room.
+ * The `adjacentBorders` parameter specifies which borders should remain open
+ * to allow exits between adjacent rooms. This ensures `Game.map.describeExits`
+ * correctly reports exits only to rooms that actually exist in the test world.
+ *
  * @param {StorageAdapter} adapter
  * @param {string} roomName
+ * @param {{top: boolean, bottom: boolean, left: boolean, right: boolean}} adjacentBorders
+ *   — which borders face adjacent declared rooms (true = open, false = wall)
  * @returns {Promise<void>}
  */
-async function prepareRoom(adapter, roomName) {
+async function prepareRoom(adapter, roomName, adjacentBorders) {
     await adapter.world.addRoom(roomName);
 
     // addRoom() does not create terrain — add plain terrain so the processor
@@ -223,7 +238,35 @@ async function prepareRoom(adapter, roomName) {
         await adapter.world.getTerrain(roomName);
     } catch {
         const TerrainMatrix = require('screeps-server-mockup/dist/src/terrainMatrix').default;
-        await adapter.world.setTerrain(roomName, new TerrainMatrix());
+        const terrain = new TerrainMatrix();
+
+        // Close borders that do NOT face adjacent declared rooms
+        applyBorderWalls(terrain, adjacentBorders);
+
+        await adapter.world.setTerrain(roomName, terrain);
+    }
+}
+
+/**
+ * Applies wall tiles to terrain borders that are not open.
+ *
+ * @param {any} terrain — TerrainMatrix instance
+ * @param {{top: boolean, bottom: boolean, left: boolean, right: boolean}} adjacentBorders
+ *   — which borders face adjacent declared rooms (true = open, false = wall)
+ * @returns {void}
+ */
+function applyBorderWalls(terrain, adjacentBorders) {
+    if (!adjacentBorders.top) {
+        for (let i = 0; i < 50; i++) terrain.set(i, 0, 'wall'); // north
+    }
+    if (!adjacentBorders.bottom) {
+        for (let i = 0; i < 50; i++) terrain.set(i, 49, 'wall'); // south
+    }
+    if (!adjacentBorders.left) {
+        for (let i = 0; i < 50; i++) terrain.set(0, i, 'wall'); // west
+    }
+    if (!adjacentBorders.right) {
+        for (let i = 0; i < 50; i++) terrain.set(49, i, 'wall'); // east
     }
 }
 
