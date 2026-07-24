@@ -357,7 +357,7 @@ describe('spec constructors', () => {
             expect(c.storeCapacityResource).toBeUndefined();
         });
 
-        it('1x CARRY gives store={energy:0}, storeCapacity=50, storeCapacityResource={energy:50}', () => {
+        it('1x CARRY gives store={energy:0} and storeCapacity=50', () => {
             const body = [
                 { type: 'carry', hits: 100 },
                 { type: 'move', hits: 100 },
@@ -365,10 +365,10 @@ describe('spec constructors', () => {
             const c = creep(10, 20, { body });
             expect(c.store).toEqual({ energy: 0 });
             expect(c.storeCapacity).toBe(50);
-            expect(c.storeCapacityResource).toEqual({ energy: 50 });
+            expect(c.storeCapacityResource).toBeUndefined();
         });
 
-        it('2x CARRY gives store={energy:0}, storeCapacity=100', () => {
+        it('2x CARRY gives store={energy:0} and storeCapacity=100', () => {
             const body = [
                 { type: 'carry', hits: 100 },
                 { type: 'carry', hits: 100 },
@@ -377,7 +377,7 @@ describe('spec constructors', () => {
             const c = creep(10, 20, { body });
             expect(c.store).toEqual({ energy: 0 });
             expect(c.storeCapacity).toBe(100);
-            expect(c.storeCapacityResource).toEqual({ energy: 100 });
+            expect(c.storeCapacityResource).toBeUndefined();
         });
 
         it('store can be overridden via opts', () => {
@@ -399,6 +399,26 @@ describe('spec constructors', () => {
             expect(c.storeCapacityResource).toEqual({ energy: 100 });
         });
 
+        it('storeCapacityResource is not created automatically (only via opts)', () => {
+            const body = [
+                { type: 'carry', hits: 100 },
+                { type: 'carry', hits: 100 },
+                { type: 'move', hits: 100 },
+            ];
+            const c = creep(10, 20, { body });
+            expect(c.storeCapacity).toBe(100);
+            expect(c.storeCapacityResource).toBeUndefined();
+        });
+
+        it('storeCapacityResource can be set with multiple resources via opts', () => {
+            const body = [
+                { type: 'carry', hits: 100 },
+                { type: 'move', hits: 100 },
+            ];
+            const c = creep(10, 20, { body, storeCapacityResource: { energy: 50, mineral: 50 } });
+            expect(c.storeCapacityResource).toEqual({ energy: 50, mineral: 50 });
+        });
+
         it('storeCapacity can be overridden via opts', () => {
             const body = [
                 { type: 'carry', hits: 100 },
@@ -406,7 +426,7 @@ describe('spec constructors', () => {
             ];
             const c = creep(10, 20, { body, storeCapacity: 200 });
             expect(c.storeCapacity).toBe(200);
-            expect(c.storeCapacityResource).toEqual({ energy: 200 });
+            expect(c.storeCapacityResource).toBeUndefined();
             expect(c.store.energy).toBe(0);
         });
     });

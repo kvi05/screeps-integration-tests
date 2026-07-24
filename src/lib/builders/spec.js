@@ -503,14 +503,11 @@ function creep(x, y, opts = {}) {
         store: { energy: 0 },
         storeCapacity: effectiveCapacity,
     };
-    if (effectiveCapacity > 0) {
-        spec.storeCapacityResource = { energy: effectiveCapacity };
-    }
     if (opts.store) {
         spec.store = { ...spec.store, ...opts.store };
     }
     if (opts.storeCapacityResource) {
-        spec.storeCapacityResource = { ...(spec.storeCapacityResource || {}), ...opts.storeCapacityResource };
+        spec.storeCapacityResource = { ...opts.storeCapacityResource };
     }
     if (opts.id) {
         spec.id = opts.id;
