@@ -177,11 +177,10 @@ async function addBot(adapter, username, opts = {}) {
 }
 
 /**
- * Facade runtime API.
+ * Simplified runtime facade.
  *
- * Full world pipeline: prepareServer → addBots → buildCanonicalRoom →
- * materializeRoom → server.start. `createRuntime` simplifies this contract
- * for direct consumers.
+ * Pipeline: prepareServer → addBots → server.start.
+ * Skips materialization — use createWorld() for the full pipeline.
  *
  * @param {RuntimeOpts} opts
  * @returns {Promise<RuntimeResult>}

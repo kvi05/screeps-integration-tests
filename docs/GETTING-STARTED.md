@@ -43,13 +43,15 @@ module.exports = {
 Without a config, the same defaults are used. Full schema — in
 [CONFIG.md](./CONFIG.md).
 
-### 4. Build the bot
+### 4. Bot code format
 
-```bash
-npm run build
-```
+The framework expects bot code as a **flat directory of `.js` files** — one
+file per Screeps module (e.g. `main.js`, `role.harvester.js`). No
+subdirectories, no bundled output — exactly as the Screeps game loads them.
 
-Or run with the `--build` flag (if `buildCommand` is set in the config):
+Point `distDir` (default: `./dist`) to this directory. If your bot requires
+a build step (TypeScript compilation, bundling to flat structure, etc.), run
+it yourself or set `buildCommand` in the config and pass `--build`:
 
 ```bash
 npx screeps-integration-tests --build

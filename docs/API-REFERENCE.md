@@ -676,26 +676,24 @@ const towers = await db['rooms.objects'].find({ room: 'W0N1', type: 'tower' });
 const controller = await db['rooms.objects'].findOne({ room: 'W0N1', type: 'controller' });
 ```
 
-````
-
 Use when the public API is insufficient.
 
 ## 11. report
 
 `world.report` accumulates:
 
-| Field         | Type        | Contents                                                              |
-| ------------- | ----------- | --------------------------------------------------------------------- |
-| `ticksRun`    | `number`    | Number of ticks executed                                             |
-| `errors`      | `string[]`  | Lines with `[ERROR]` or matching `ERROR_PATTERNS` (ReferenceError etc.) |
-| `warnings`    | `string[]`  | Lines with `[WARN]`                                                  |
-| `logs`        | `string[]`  | Lines depending on `logLevel` (default `'all'`)                       |
-| `events`      | `Object[]`  | Accumulated event-log entries with `tick`                             |
-| `finalRcl`    | `Object`    | `{ [roomName]: number }`                                             |
-| `finalMemory` | `Object`    | `{ [username]: Memory }`                                             |
-| `metrics`     | `Object`    | `{ rooms, colonies, bots, world }`                                   |
-| `wallClockMs` | `number`    | Wall clock time of the run                                           |
-| `stopReason`  | `string`    | Stop reason (`maxTicks`, `predicate`, `signal`, ...)                  |
+| Field         | Type       | Contents                                                                |
+| ------------- | ---------- | ----------------------------------------------------------------------- |
+| `ticksRun`    | `number`   | Number of ticks executed                                                |
+| `errors`      | `string[]` | Lines with `[ERROR]` or matching `ERROR_PATTERNS` (ReferenceError etc.) |
+| `warnings`    | `string[]` | Lines with `[WARN]`                                                     |
+| `logs`        | `string[]` | Lines depending on `logLevel` (default `'all'`)                         |
+| `events`      | `Object[]` | Accumulated event-log entries with `tick`                               |
+| `finalRcl`    | `Object`   | `{ [roomName]: number }`                                                |
+| `finalMemory` | `Object`   | `{ [username]: Memory }`                                                |
+| `metrics`     | `Object`   | `{ rooms, colonies, bots, world }`                                      |
+| `wallClockMs` | `number`   | Wall clock time of the run                                              |
+| `stopReason`  | `string`   | Stop reason (`maxTicks`, `predicate`, `signal`, ...)                    |
 
 Parsing example:
 
@@ -705,7 +703,7 @@ for (const line of world.report.errors) {
     throw new Error('Bot crashed with TypeError');
   }
 }
-````
+```
 
 > `errors`/`warnings`/`logs` are raw strings without tick binding. If you need
 > per-tick information — use `report.events` or `onTick`.

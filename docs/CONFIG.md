@@ -18,7 +18,7 @@ Relative paths are resolved from the config file's directory; if there is no con
 
 ```js
 module.exports = {
-  distDir: './dist', // bot build; fallback: BOT_DIST_DIR, then ./dist
+  distDir: './dist', // bot modules; fallback: BOT_DIST_DIR, then ./dist
   scenariosDir: './scenarios', // *.scenario.js
   fixturesDir: './fixtures', // *.memory.json
   roomFixturesDir: null, // *.room.js; null = auto-load disabled
@@ -39,7 +39,7 @@ module.exports = {
 | ------------------------- | --------------------------------------------------------- |
 | `--config <path>`         | Path to config                                            |
 | `--scenariosDir <dir>`    | Directory with scenarios                                  |
-| `--distDir <dir>`         | Directory with bot build                                  |
+| `--distDir <dir>`         | Directory with bot modules                                |
 | `--fixturesDir <dir>`     | Directory with memory fixtures                            |
 | `--roomFixturesDir <dir>` | Directory with room fixtures                              |
 | `--profilesDir <dir>`     | Directory for profiles                                    |
