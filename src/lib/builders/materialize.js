@@ -92,6 +92,11 @@ async function materializeStructure(adapter, roomName, s) {
         doc.notifyWhenAttacked = s.notifyWhenAttacked;
     }
 
+    // nextDecayTime (road/container/rampart decay schedule)
+    if (s.nextDecayTime !== undefined) {
+        doc.nextDecayTime = s.nextDecayTime;
+    }
+
     // spawn-specific
     if (s.type === STRUCTURE_SPAWN) {
         doc.spawning = null;

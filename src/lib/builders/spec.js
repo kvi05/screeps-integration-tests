@@ -55,6 +55,7 @@ const CARRY_CAPACITY = 50;
  * @property {Object} [store]
  * @property {Object} [storeCapacityResource]
  * @property {boolean} [notifyWhenAttacked]
+ * @property {number} [nextDecayTime]
  * @property {Object} [overrides]
  *
  * @typedef {Object} SpawnSpecOpts
@@ -81,7 +82,7 @@ const CARRY_CAPACITY = 50;
 
 // ─── Defaults by structure type ─────────────────────────────────────────────
 
-/** @type {Object<string, {store: Object, storeCapacityResource: Object, hits: number, hitsMax: number, notifyWhenAttacked?: boolean}>} */
+/** @type {Object<string, {store: Object, storeCapacityResource: Object, hits: number, hitsMax: number, notifyWhenAttacked?: boolean, nextDecayTime?: number}>} */
 const STRUCTURE_DEFAULTS = {
     [STRUCTURE_SPAWN]: {
         store: { energy: 300 },
@@ -110,6 +111,7 @@ const STRUCTURE_DEFAULTS = {
         hits: 250000,
         hitsMax: 250000,
         notifyWhenAttacked: true,
+        nextDecayTime: 100,
     },
     [STRUCTURE_STORAGE]: {
         store: { energy: 10000 },
@@ -121,6 +123,7 @@ const STRUCTURE_DEFAULTS = {
     [STRUCTURE_ROAD]: {
         hits: 5000,
         hitsMax: 5000,
+        nextDecayTime: 1000,
     },
     [STRUCTURE_WALL]: {
         hits: 10000,
@@ -130,6 +133,7 @@ const STRUCTURE_DEFAULTS = {
         hits: 10000,
         hitsMax: 300000000,
         notifyWhenAttacked: true,
+        nextDecayTime: 100,
     },
     [STRUCTURE_LINK]: {
         store: { energy: 800 },
@@ -212,6 +216,11 @@ function structure(type, x, y, overrides = {}) {
     if (defaults.notifyWhenAttacked !== undefined) {
         spec.notifyWhenAttacked =
             overrides.notifyWhenAttacked !== undefined ? overrides.notifyWhenAttacked : defaults.notifyWhenAttacked;
+    }
+
+    // nextDecayTime (used by road/container/rampart)
+    if (defaults.nextDecayTime !== undefined || overrides.nextDecayTime !== undefined) {
+        spec.nextDecayTime = overrides.nextDecayTime !== undefined ? overrides.nextDecayTime : defaults.nextDecayTime;
     }
 
     // optional fields
