@@ -344,25 +344,25 @@ describe('spec constructors', () => {
             expect(c.storeCapacityResource).toBeUndefined();
         });
 
-        it('1x CARRY gives store={energy:50}, storeCapacity=50, storeCapacityResource={energy:50}', () => {
+        it('1x CARRY gives store={energy:0}, storeCapacity=50, storeCapacityResource={energy:50}', () => {
             const body = [
                 { type: 'carry', hits: 100 },
                 { type: 'move', hits: 100 },
             ];
             const c = creep(10, 20, { body });
-            expect(c.store).toEqual({ energy: 50 });
+            expect(c.store).toEqual({ energy: 0 });
             expect(c.storeCapacity).toBe(50);
             expect(c.storeCapacityResource).toEqual({ energy: 50 });
         });
 
-        it('2x CARRY gives store={energy:100}, storeCapacity=100', () => {
+        it('2x CARRY gives store={energy:0}, storeCapacity=100', () => {
             const body = [
                 { type: 'carry', hits: 100 },
                 { type: 'carry', hits: 100 },
                 { type: 'move', hits: 100 },
             ];
             const c = creep(10, 20, { body });
-            expect(c.store).toEqual({ energy: 100 });
+            expect(c.store).toEqual({ energy: 0 });
             expect(c.storeCapacity).toBe(100);
             expect(c.storeCapacityResource).toEqual({ energy: 100 });
         });
@@ -394,7 +394,7 @@ describe('spec constructors', () => {
             const c = creep(10, 20, { body, storeCapacity: 200 });
             expect(c.storeCapacity).toBe(200);
             expect(c.storeCapacityResource).toEqual({ energy: 200 });
-            expect(c.store.energy).toBe(200);
+            expect(c.store.energy).toBe(0);
         });
     });
 
