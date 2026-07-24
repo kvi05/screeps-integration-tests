@@ -236,8 +236,8 @@ async function initializeBots(bots, resolvedBots, adapter, opts, report, globalL
  * 1. prepareServer: ScreepsServer + N rooms + terrain, no objects
  * 2. addBots: create users, code, memory, console subscription
  * 3. materializeRoom for each room (including controller, spawn, etc.)
- * 4. setBotMemory per bot (resolved `memory` + `memoryOverrides`)
- * 5. server.start() and tick loop
+ * 4. server.start() — start the game engine
+ * 5. initializeBots: setBotMemory per bot (resolved `memory` + `memoryOverrides`) + console capture
  *
  * @param {WorldOpts} opts
  * @returns {Promise<WorldInstance>}

@@ -43,8 +43,8 @@ neighboring files:
 │  │  │  │  ├─ addBots()                              │  │  │  │
 │  │  │  │  │   └─ users + code + console handlers    │  │  │  │
 │  │  │  │  ├─ materializeRooms()                 │  │  │  │
-│  │  │  │  ├─ initializeBots()                   │  │  │  │
-│  │  │  │  └─ server.start()                     │  │  │  │
+│  │  │  │  ├─ server.start()                     │  │  │  │
+│  │  │  │  └─ initializeBots()                   │  │  │  │
 │  │  │  │                                            │  │  │  │
 │  │  │  │  world.run() / world.tick(n)               │  │  │  │
 │  │  │  │  ├─ doServerTick() + observeAllRooms()  │  │  │  │
@@ -117,9 +117,9 @@ the mockup server's global environment.
    ├─ addBots()                  ← users + code + memory + console
    ├─ buildCanonicalRoom()       ← spec + fixture + overrides
    ├─ materializeRoom per room   ← controller / sources / structures / creeps / hostiles
+   ├─ server.start()
    ├─ setBotMemory per bot       ← memory fixture (по username)
-   ├─ install console handlers   ← per bot
-   └─ server.start()
+   └─ install console handlers   ← per bot
 
 2. world.run() / world.tick(n)
    ├─ for each tick:

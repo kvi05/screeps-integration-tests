@@ -30,7 +30,7 @@ mechanics, same memory model. You get:
 | 🎮 **Full game server**       | Runs the official open-source Screeps server locally — real game mechanics.                                             |
 | 🏗️ **Declarative world**      | Build rooms, structures, creeps via `spec.*` — pure functions, clean and composable.                                    |
 | 📦 **Fixtures**               | Reusable room and memory templates with overrides. Don't copy-paste setup code.                                         |
-| ✅ **assertions**             | RCL progress, errors, destroyed objects, combat damage — by object ID and by user.                                      |
+| ✅ **assertions**             | Handy helpers to check bot behavior on the server: RCL progress, errors, destroyed objects, combat damage, and more.    |
 | 📊 **Metrics pipeline**       | Time-series collection, query helpers, CSV export, regression comparison.                                               |
 | ⚡ **Profiling**              | Built-in callgrind support via [screeps-profiler](https://github.com/screepers/screeps-profiler). Find CPU bottlenecks. |
 | 🌐 **Multi-room / multi-bot** | Multiple rooms, multiple bots, cross-room interactions — all in one scenario.                                           |
@@ -100,10 +100,10 @@ More ready-made recipes — in [EXAMPLES.md](./docs/EXAMPLES.md).
 
 1. **Config** — merges defaults, config file, environment variables, and
    CLI flags into a single configuration.
-2. **Runtime** — wraps `screeps-server-mockup`: prepares the server, loads
-   bot code, initializes memory, creates `TestBot` instances.
+2. **Runtime** — wraps `screeps-server-mockup`: server setup, port
+   management, bot code loading, `TestBot` instances, and lifecycle utilities.
 3. **World** — the main API (`createWorld`). Orchestrates the full pipeline:
-   prepare server → add bots → materialize rooms → set memory → start.
+   prepare server → add bots → materialize rooms → start → initialize bots.
    Returns a `WorldInstance` with methods for control, inspection, and cleanup.
 4. **Builders & Observers** — `spec.*` builders are pure functions that return
    plain objects (never touch the DB). `materialize*` is the only layer that
