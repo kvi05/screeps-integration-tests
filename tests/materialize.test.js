@@ -133,3 +133,54 @@ describe('materializeCreep', () => {
         await expect(materializeCreep(adapter, 'W0N1', { ...spec, body: [] })).rejects.toThrow(/spec.body is required/);
     });
 });
+
+describe('materializeStructure', () => {
+    const { materializeStructure } = require('../src/lib/builders/materialize');
+
+    /** @type {import('../src/lib/runtime/storageAdapter').StorageAdapter} */
+    let adapter;
+
+    beforeEach(() => {
+        adapter = {
+            db: {
+                'rooms.objects': {
+                    insert: jest.fn().mockResolvedValue({ _id: 'struct-1' }),
+                },
+            },
+        };
+    });
+
+    it('writes nextDecayTime when spec has it', async () => {
+        const spec = {
+            type: 'road',
+            x: 10,
+            y: 20,
+            nextDecayTime: 1000,
+        };
+
+        await materializeStructure(adapter, 'W0N1', spec);
+
+        expect(adapter.db['rooms.objects'].insert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                room: 'W0N1',
+                type: 'road',
+                x: 10,
+                y: 20,
+                nextDecayTime: 1000,
+            }),
+        );
+    });
+
+    it('does not set nextDecayTime when spec has none', async () => {
+        const spec = {
+            type: 'spawn',
+            x: 10,
+            y: 20,
+        };
+
+        await materializeStructure(adapter, 'W0N1', spec);
+
+        const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
+        expect(callArg.nextDecayTime).toBeUndefined();
+    });
+});

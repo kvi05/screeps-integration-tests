@@ -82,6 +82,7 @@
  * @property {number} [hits]
  * @property {number} [hitsMax]
  * @property {boolean} [notifyWhenAttacked]
+ * @property {number} [nextDecayTime]       — ticks until next decay (road/container/rampart only)
  * @property {Object} [overrides]           — arbitrary fields to merge into the DB document
  */
 

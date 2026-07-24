@@ -64,6 +64,7 @@ describe('spec constructors', () => {
             const s = structure(STRUCTURE_CONTAINER, 25, 25);
             expect(s.store).toEqual({ energy: 2000 });
             expect(s.hits).toBe(250000);
+            expect(s.nextDecayTime).toBe(100);
         });
 
         it('defaults for storage', () => {
@@ -78,6 +79,7 @@ describe('spec constructors', () => {
             expect(s.store).toBeUndefined();
             expect(s.hits).toBe(5000);
             expect(s.notifyWhenAttacked).toBeUndefined();
+            expect(s.nextDecayTime).toBe(1000);
         });
 
         it('defaults for wall', () => {
@@ -90,6 +92,7 @@ describe('spec constructors', () => {
             const s = structure(STRUCTURE_RAMPART, 25, 25);
             expect(s.hits).toBe(10000);
             expect(s.notifyWhenAttacked).toBe(true);
+            expect(s.nextDecayTime).toBe(100);
         });
 
         it('overrides.roomName is set', () => {
@@ -148,6 +151,16 @@ describe('spec constructors', () => {
         it('notifyWhenAttacked can be overridden', () => {
             const s = structure(STRUCTURE_SPAWN, 10, 20, { notifyWhenAttacked: false });
             expect(s.notifyWhenAttacked).toBe(false);
+        });
+
+        it('nextDecayTime is undefined for non-decaying structures', () => {
+            const s = structure(STRUCTURE_SPAWN, 10, 20);
+            expect(s.nextDecayTime).toBeUndefined();
+        });
+
+        it('nextDecayTime can be overridden', () => {
+            const s = structure(STRUCTURE_ROAD, 10, 20, { nextDecayTime: 500 });
+            expect(s.nextDecayTime).toBe(500);
         });
     });
 
