@@ -4,7 +4,7 @@ const assert = require('node:assert');
 const { createWorld, spec } = require('screeps-integration-tests');
 
 /**
- * Сценарий: room-exits-debug.
+ * Сценарий: room-exits.
  *
  * Эмпирический тест межкомнатных соединений для разных топологий:
  *  - вертикально-смежные (W0N1 ↔ W0N2)
@@ -85,6 +85,13 @@ async function run(opts = {}) {
             const ex = await readExits(world, ['W0N1', 'W0N2']);
             assert.strictEqual(ex['W0N1'][TOP], 'W0N2', 'W0N1.TOP -> W0N2');
             assert.strictEqual(ex['W0N2'][BOTTOM], 'W0N1', 'W0N2.BOTTOM -> W0N1');
+            // No phantom exits on other borders
+            assert.strictEqual(ex['W0N1'][BOTTOM], undefined, 'W0N1.BOTTOM should not exist');
+            assert.strictEqual(ex['W0N1'][LEFT], undefined, 'W0N1.LEFT should not exist');
+            assert.strictEqual(ex['W0N1'][RIGHT], undefined, 'W0N1.RIGHT should not exist');
+            assert.strictEqual(ex['W0N2'][TOP], undefined, 'W0N2.TOP should not exist');
+            assert.strictEqual(ex['W0N2'][LEFT], undefined, 'W0N2.LEFT should not exist');
+            assert.strictEqual(ex['W0N2'][RIGHT], undefined, 'W0N2.RIGHT should not exist');
         } finally {
             await world.dispose();
         }
@@ -109,6 +116,13 @@ async function run(opts = {}) {
             const ex = await readExits(world, ['W0N1', 'W1N1']);
             assert.strictEqual(ex['W0N1'][LEFT], 'W1N1', 'W0N1.LEFT -> W1N1');
             assert.strictEqual(ex['W1N1'][RIGHT], 'W0N1', 'W1N1.RIGHT -> W0N1');
+            // No phantom exits on other borders
+            assert.strictEqual(ex['W0N1'][TOP], undefined, 'W0N1.TOP should not exist');
+            assert.strictEqual(ex['W0N1'][BOTTOM], undefined, 'W0N1.BOTTOM should not exist');
+            assert.strictEqual(ex['W0N1'][RIGHT], undefined, 'W0N1.RIGHT should not exist');
+            assert.strictEqual(ex['W1N1'][TOP], undefined, 'W1N1.TOP should not exist');
+            assert.strictEqual(ex['W1N1'][BOTTOM], undefined, 'W1N1.BOTTOM should not exist');
+            assert.strictEqual(ex['W1N1'][LEFT], undefined, 'W1N1.LEFT should not exist');
         } finally {
             await world.dispose();
         }
@@ -131,10 +145,9 @@ async function run(opts = {}) {
         ]);
         try {
             const ex = await readExits(world, ['W0N1', 'W5N5']);
-            const e1Vals = Object.values(ex['W0N1'] || {});
-            assert.ok(!e1Vals.includes('W5N5'), 'W0N1 не должен иметь exit на W5N5');
-            const e5Vals = Object.values(ex['W5N5'] || {});
-            assert.ok(!e5Vals.includes('W0N1'), 'W5N5 не должен иметь exit на W0N1');
+            // Both rooms are isolated — no exits at all
+            assert.deepStrictEqual(ex['W0N1'], {}, 'W0N1 should have no exits');
+            assert.deepStrictEqual(ex['W5N5'], {}, 'W5N5 should have no exits');
         } finally {
             await world.dispose();
         }
@@ -172,7 +185,7 @@ async function run(opts = {}) {
         }
     }
 
-    console.log('PASS: room-exits-debug (all topologies)');
+    console.log('PASS: room-exits (all topologies)');
     return { ticksRun: ticks * 4 };
 }
 
