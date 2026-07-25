@@ -2,9 +2,20 @@
 
 const { createWorldHelpers } = require('../src/lib/orchestration/worldHelpers');
 
-// Mock materializeStructure to avoid touching the real DB.
+// Mock materialize to avoid touching the real DB.
 jest.mock('../src/lib/builders/materialize', () => ({
     materializeStructure: jest.fn(() => Promise.resolve('mocked_structure_id')),
+    materializeCreep: jest.fn(() => Promise.resolve('mocked_creep_id')),
+}));
+
+jest.mock('../src/lib/observers/eventLog', () => ({
+    readEventLog: jest.fn(),
+}));
+
+jest.mock('../src/lib/builders/memory', () => ({
+    getBotMemory: jest.fn(),
+    setBotMemory: jest.fn(),
+    deepMergeMemory: jest.fn(),
 }));
 
 // ─── Fake DB collection ──────────────────────────────────────────────────────
@@ -335,6 +346,178 @@ describe('createWorldHelpers', () => {
         it('returns null if nothing is found', async () => {
             const id = await helpers.findId({ room: 'W0N1', type: 'invalid' });
             expect(id).toBeNull();
+        });
+    });
+
+    // ─── spawn ───────────────────────────────────────────────────────────
+
+    describe('spawn', () => {
+        it('calls materializeCreep with spec and defaultBotUserId', async () => {
+            const { materializeCreep } = require('../src/lib/builders/materialize');
+            const spec = { roomName: 'W0N1', x: 20, y: 20, name: 'TestCreep' };
+            const id = await helpers.spawn(spec);
+            expect(id).toBe('mocked_creep_id');
+            expect(materializeCreep).toHaveBeenCalledWith(
+                adapter,
+                'W0N1',
+                expect.objectContaining({ userId: defaultBotUserId }),
+            );
+        });
+
+        it('does not override an explicit userId', async () => {
+            const { materializeCreep } = require('../src/lib/builders/materialize');
+            const spec = { roomName: 'W0N1', x: 20, y: 20, name: 'TestCreep', userId: 'custom' };
+            await helpers.spawn(spec);
+            expect(materializeCreep).toHaveBeenCalledWith(
+                adapter,
+                'W0N1',
+                expect.objectContaining({ userId: 'custom' }),
+            );
+        });
+
+        it('throws if roomName is not specified', async () => {
+            await expect(helpers.spawn({ x: 5, y: 5 })).rejects.toThrow('world.spawn: roomName is required');
+        });
+    });
+
+    // ─── getRcl ──────────────────────────────────────────────────────────
+
+    describe('getRcl', () => {
+        it('returns controller.level for a room with a controller', async () => {
+            const rcl = await helpers.getRcl('W0N1');
+            expect(rcl).toBe(3);
+        });
+
+        it('returns 0 if room has no controller', async () => {
+            const rcl = await helpers.getRcl('W0N2');
+            expect(rcl).toBe(0);
+        });
+    });
+
+    // ─── eventLog ────────────────────────────────────────────────────────
+
+    describe('eventLog', () => {
+        it('calls readEventLog with adapter and room', async () => {
+            const { readEventLog } = require('../src/lib/observers/eventLog');
+            readEventLog.mockResolvedValue([{ event: 1, objectId: 'obj_1', data: {} }]);
+            const events = await helpers.eventLog('W0N1');
+            expect(events).toEqual([{ event: 1, objectId: 'obj_1', data: {} }]);
+            expect(readEventLog).toHaveBeenCalledWith(adapter, 'W0N1');
+        });
+
+        it('throws if room is not specified', async () => {
+            await expect(helpers.eventLog()).rejects.toThrow('world.eventLog: room is required');
+        });
+    });
+});
+
+// ─── Bot-dependent helpers (require bots) ────────────────────────────────
+
+describe('createWorldHelpers with bots', () => {
+    let helpers;
+    let adapter;
+
+    const defaultBotUserId = 'bot_123';
+    const bots = {
+        myBot: { id: 'bot_123', username: 'myBot', console: jest.fn() },
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        adapter = createFakeAdapter([{ _id: 'ctrl_1', room: 'W0N1', type: 'controller', level: 3 }]);
+
+        const { getBotMemory, setBotMemory, deepMergeMemory } = require('../src/lib/builders/memory');
+        getBotMemory.mockResolvedValue({ creeps: {}, rooms: {} });
+        setBotMemory.mockResolvedValue(undefined);
+        deepMergeMemory.mockImplementation((current, patch) => ({ ...current, ...patch }));
+
+        helpers = createWorldHelpers(adapter, defaultBotUserId, {}, bots);
+    });
+
+    describe('readMemory', () => {
+        it('reads memory for the default bot', async () => {
+            const { getBotMemory } = require('../src/lib/builders/memory');
+            getBotMemory.mockResolvedValue({ creeps: { Harvester1: {} } });
+            const mem = await helpers.readMemory();
+            expect(mem).toEqual({ creeps: { Harvester1: {} } });
+            expect(getBotMemory).toHaveBeenCalledWith(adapter, 'bot_123');
+        });
+
+        it('reads memory for a specific bot by username', async () => {
+            const { getBotMemory } = require('../src/lib/builders/memory');
+            await helpers.readMemory('myBot');
+            expect(getBotMemory).toHaveBeenCalledWith(adapter, 'bot_123');
+        });
+
+        it('throws if bots not available', async () => {
+            const noBotHelpers = createWorldHelpers(adapter, defaultBotUserId);
+            await expect(noBotHelpers.readMemory()).rejects.toThrow('bots not available');
+        });
+    });
+
+    describe('writeMemory', () => {
+        it('deep-merges patch into current memory', async () => {
+            const { getBotMemory, setBotMemory, deepMergeMemory } = require('../src/lib/builders/memory');
+            getBotMemory.mockResolvedValue({ a: 1 });
+            deepMergeMemory.mockReturnValue({ a: 1, b: 2 });
+            await helpers.writeMemory('myBot', { b: 2 });
+            expect(deepMergeMemory).toHaveBeenCalledWith({ a: 1 }, { b: 2 });
+            expect(setBotMemory).toHaveBeenCalledWith(adapter, 'bot_123', { a: 1, b: 2 });
+        });
+
+        it('defaults to the only bot if no username given', async () => {
+            await helpers.writeMemory(undefined, { key: 'val' });
+            const { getBotMemory } = require('../src/lib/builders/memory');
+            expect(getBotMemory).toHaveBeenCalledWith(adapter, 'bot_123');
+        });
+    });
+
+    describe('exec', () => {
+        it('calls bot console with code', async () => {
+            await helpers.exec('Game.time', 'myBot');
+            expect(bots.myBot.console).toHaveBeenCalledWith('Game.time');
+        });
+
+        it('uses the only bot if username is omitted', async () => {
+            await helpers.exec('42');
+            expect(bots.myBot.console).toHaveBeenCalledWith('42');
+        });
+    });
+
+    describe('botId', () => {
+        const multiBots = {
+            botA: { id: 'id_a', username: 'botA' },
+            botB: { id: 'id_b', username: 'botB' },
+        };
+
+        it('returns _id of the only bot by default', () => {
+            expect(helpers.botId()).toBe('bot_123');
+        });
+
+        it('returns _id by username', () => {
+            const multiHelpers = createWorldHelpers(adapter, defaultBotUserId, {}, multiBots);
+            expect(multiHelpers.botId('botA')).toBe('id_a');
+            expect(multiHelpers.botId('botB')).toBe('id_b');
+        });
+
+        it('returns _id by index', () => {
+            const multiHelpers = createWorldHelpers(adapter, defaultBotUserId, {}, multiBots);
+            expect(multiHelpers.botId(0)).toBe('id_a');
+            expect(multiHelpers.botId(1)).toBe('id_b');
+        });
+
+        it('throws if index is out of range', () => {
+            const multiHelpers = createWorldHelpers(adapter, defaultBotUserId, {}, multiBots);
+            expect(() => multiHelpers.botId(5)).toThrow('index 5 is out of range');
+        });
+
+        it('throws if username is not found', () => {
+            expect(() => helpers.botId('nonexistent')).toThrow('not found');
+        });
+
+        it('throws if bots is not available', () => {
+            const noBotHelpers = createWorldHelpers(adapter, defaultBotUserId);
+            expect(() => noBotHelpers.botId()).toThrow('bots not available');
         });
     });
 });
