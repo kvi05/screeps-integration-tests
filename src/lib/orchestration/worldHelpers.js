@@ -21,6 +21,7 @@
  */
 
 const { materializeStructure } = require('../builders/materialize');
+const { resolveDefaultUserId } = require('./resolveDefaults');
 
 /**
  * @typedef {import('../runtime/storageAdapter').StorageAdapter} StorageAdapter
@@ -162,11 +163,15 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
     /** @type {import('./types').SpawnStructureFn} */
     async function createStructure(spec) {
         if (!spec.roomName) {
-            throw new Error('createStructure: spec.roomName is required in spec object');
+            throw new Error('createStructure: roomName is required');
         }
         const merged = { ...spec };
+        // default applied only if userId is not explicitly specified
         if (merged.userId === undefined) {
-            merged.userId = roomToBotUserId?.[spec.roomName] ?? defaultBotUserId;
+            merged.userId = resolveDefaultUserId(spec.roomName, roomToBotUserId, defaultBotUserId);
+        }
+        if (merged.userId === undefined) {
+            throw new Error('createStructure: userId is required (no default bot available)');
         }
         return materializeStructure(adapter, spec.roomName, merged);
     }

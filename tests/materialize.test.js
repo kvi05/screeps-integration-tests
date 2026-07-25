@@ -132,6 +132,23 @@ describe('materializeCreep', () => {
 
         await expect(materializeCreep(adapter, 'W0N1', { ...spec, body: [] })).rejects.toThrow(/spec.body is required/);
     });
+
+    it('writes user: null when userId = null', async () => {
+        const spec = {
+            x: 10,
+            y: 20,
+            userId: null,
+            body: [{ type: 'move', hits: 100 }],
+            hits: 100,
+            hitsMax: 100,
+            store: { energy: 0 },
+            storeCapacity: 0,
+        };
+
+        await materializeCreep(adapter, 'W0N1', spec);
+
+        expect(adapter.db['rooms.objects'].insert).toHaveBeenCalledWith(expect.objectContaining({ user: null }));
+    });
 });
 
 describe('materializeStructure', () => {
@@ -182,5 +199,44 @@ describe('materializeStructure', () => {
 
         const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
         expect(callArg.nextDecayTime).toBeUndefined();
+    });
+
+    it('writes user: null when userId = null', async () => {
+        const spec = {
+            type: 'tower',
+            x: 10,
+            y: 20,
+            userId: null,
+        };
+
+        await materializeStructure(adapter, 'W0N1', spec);
+
+        expect(adapter.db['rooms.objects'].insert).toHaveBeenCalledWith(expect.objectContaining({ user: null }));
+    });
+
+    it('does not set user when userId is undefined', async () => {
+        const spec = {
+            type: 'container',
+            x: 10,
+            y: 20,
+        };
+
+        await materializeStructure(adapter, 'W0N1', spec);
+
+        const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
+        expect(callArg).not.toHaveProperty('user');
+    });
+
+    it('does not set user on owner-dependent structure when userId is omitted', async () => {
+        const spec = {
+            type: 'spawn',
+            x: 25,
+            y: 25,
+        };
+
+        await materializeStructure(adapter, 'W0N1', spec);
+
+        const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
+        expect(callArg).not.toHaveProperty('user');
     });
 });

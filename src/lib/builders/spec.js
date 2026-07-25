@@ -234,7 +234,7 @@ function structure(type, x, y, overrides = {}) {
     }
 
     // explicit ownership
-    if (overrides.userId) {
+    if (overrides.userId !== undefined) {
         spec.userId = overrides.userId;
     }
 
@@ -507,7 +507,7 @@ function controller(opts = {}) {
     if (opts.id) {
         spec.id = opts.id;
     }
-    if (opts.userId) {
+    if (opts.userId !== undefined) {
         spec.userId = opts.userId;
     }
     if (opts.roomName) {

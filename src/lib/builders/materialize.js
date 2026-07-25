@@ -64,7 +64,7 @@ async function materializeStructure(adapter, roomName, s) {
     };
 
     // owner-dependent
-    if (s.userId) {
+    if (s.userId !== undefined) {
         doc.user = s.userId;
     }
     if (s.name) {
