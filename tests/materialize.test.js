@@ -224,6 +224,19 @@ describe('materializeStructure', () => {
         await materializeStructure(adapter, 'W0N1', spec);
 
         const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
-        expect(callArg.user).toBeUndefined();
+        expect(callArg).not.toHaveProperty('user');
+    });
+
+    it('does not set user on owner-dependent structure when userId is omitted', async () => {
+        const spec = {
+            type: 'spawn',
+            x: 25,
+            y: 25,
+        };
+
+        await materializeStructure(adapter, 'W0N1', spec);
+
+        const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
+        expect(callArg).not.toHaveProperty('user');
     });
 });

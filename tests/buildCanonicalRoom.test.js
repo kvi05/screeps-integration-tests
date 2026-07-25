@@ -344,7 +344,7 @@ describe('buildCanonicalRoom', () => {
                 { W0N1: 'roomOwnerBot' },
             );
 
-            expect(canonical.structures[0].userId).toBeNull;
+            expect(canonical.structures[0].userId).toBeNull();
         });
     });
 });

@@ -166,11 +166,8 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
             throw new Error('createStructure: roomName is required');
         }
         const merged = { ...spec };
-        // explicit userId: undefined is preserved; default applied only if userId is not specified
-        if (merged.userId !== undefined) {
-            // explicit userId (including undefined) — preserve as-is
-        } else {
-            // no userId specified — apply default
+        // default applied only if userId is not explicitly specified
+        if (merged.userId === undefined) {
             merged.userId = resolveDefaultUserId(spec.roomName, roomToBotUserId, defaultBotUserId);
         }
         if (merged.userId === undefined) {

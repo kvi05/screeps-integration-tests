@@ -652,7 +652,7 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUs
         if (userInvader) {
             resolvedUserId = INVADER_USER_ID;
         } else if (s.userId !== undefined) {
-            // explicit userId (including undefined) — preserve as-is
+            // explicit userId (including null/explicit falsy values) — preserve as-is
             resolvedUserId = s.userId;
         } else {
             // no userId specified — apply default
