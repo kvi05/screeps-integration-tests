@@ -376,7 +376,7 @@ describe('createWorldHelpers', () => {
         });
 
         it('throws if roomName is not specified', async () => {
-            await expect(helpers.spawn({ x: 5, y: 5 })).rejects.toThrow('world.spawn: roomName is required');
+            await expect(helpers.spawn({ x: 5, y: 5 })).rejects.toThrow('spawn: roomName is required');
         });
     });
 
@@ -406,7 +406,7 @@ describe('createWorldHelpers', () => {
         });
 
         it('throws if room is not specified', async () => {
-            await expect(helpers.eventLog()).rejects.toThrow('world.eventLog: room is required');
+            await expect(helpers.eventLog()).rejects.toThrow('eventLog: room is required');
         });
     });
 });

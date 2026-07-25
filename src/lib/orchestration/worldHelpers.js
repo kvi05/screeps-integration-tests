@@ -25,7 +25,7 @@
  * - `botId` — get bot _id by username, index, or first bot
  * - `find` / `findOne` / `findIds` / `findId` — search in `rooms.objects`
  *
- * @module helpers/world
+ * @module orchestration/worldHelpers
  */
 
 const { materializeStructure, materializeCreep } = require('../builders/materialize');
@@ -105,12 +105,12 @@ function addIdAlias(doc) {
  * @param {Object<string, import('../types').Bot>} [bots] — bots by username (for exec, readMemory, writeMemory, botId)
  * @returns {Object}
  */
-function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
+function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = undefined) {
     const { db } = adapter;
 
     // ─── Controller ────────────────────────────────────────────────────────
 
-    /** @type {import('./types').SetTicksToDowngradeFn} */
+    /** @type {import('../types').SetTicksToDowngradeFn} */
     async function setTicksToDowngrade(roomName, ticks) {
         const controller = await db['rooms.objects'].findOne({
             room: roomName,
@@ -133,7 +133,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
 
     // ─── Structures ─────────────────────────────────────────────────────────
 
-    /** @type {import('./types').SetHitsStructureFn} */
+    /** @type {import('../types').SetHitsStructureFn} */
     async function setHitsStructure(idOrObject, hits) {
         const _id = resolveId(idOrObject);
         if (typeof hits !== 'number' || !Number.isFinite(hits) || hits < 0) {
@@ -147,7 +147,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
         await db['rooms.objects'].update({ _id }, { $set: { hits: clamped } });
     }
 
-    /** @type {import('./types').DamageHitsStructureFn} */
+    /** @type {import('../types').DamageHitsStructureFn} */
     async function damageHitsStructure(idOrObject, amount) {
         const _id = resolveId(idOrObject);
         if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
@@ -161,7 +161,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
         await db['rooms.objects'].update({ _id }, { $set: { hits: newHits } });
     }
 
-    /** @type {import('./types').DeleteStructureFn} */
+    /** @type {import('../types').DeleteStructureFn} */
     async function deleteStructure(idOrObject) {
         const _id = resolveId(idOrObject);
         const obj = await db['rooms.objects'].findOne({ _id });
@@ -192,7 +192,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
     /** @type {import('../types').SpawnFn} */
     async function spawn(creepSpec) {
         if (!creepSpec.roomName) {
-            throw new Error('world.spawn: roomName is required');
+            throw new Error('spawn: roomName is required');
         }
         // explicit userId: undefined is preserved; default applied only if userId is not specified
         const userId =
@@ -200,7 +200,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
                 ? creepSpec.userId
                 : resolveDefaultUserId(creepSpec.roomName, roomToBotUserId, defaultBotUserId);
         if (userId === undefined) {
-            throw new Error('world.spawn: userId is required (no default bot available)');
+            throw new Error('spawn: userId is required (no default bot available)');
         }
         return materializeCreep(adapter, creepSpec.roomName, { ...creepSpec, userId });
     }
@@ -224,7 +224,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
     /** @type {import('../types').EventLogFn} */
     async function getEventLog(room) {
         if (!room) {
-            throw new Error('world.eventLog: room is required');
+            throw new Error('eventLog: room is required');
         }
         return readEventLog(adapter, room);
     }
@@ -314,14 +314,14 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
 
     // ─── Find ─────────────────────────────────────────────────────────────
 
-    /** @type {import('./types').WorldFindFn} */
+    /** @type {import('../types').WorldFindFn} */
     async function find(query, _opts = {}) {
         const q = normalizeQuery(query);
         const docs = await db['rooms.objects'].find(q);
         return docs.map(addIdAlias);
     }
 
-    /** @type {import('./types').WorldFindOneFn} */
+    /** @type {import('../types').WorldFindOneFn} */
     async function findOne(query, opts = {}) {
         if (opts.index !== undefined) {
             const docs = await find(query);
@@ -333,14 +333,14 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
         return doc ? addIdAlias(doc) : null;
     }
 
-    /** @type {import('./types').WorldFindIdsFn} */
+    /** @type {import('../types').WorldFindIdsFn} */
     async function findIds(query) {
         const q = normalizeQuery(query);
         const docs = await db['rooms.objects'].find(q);
         return docs.map((d) => d._id);
     }
 
-    /** @type {import('./types').WorldFindIdFn} */
+    /** @type {import('../types').WorldFindIdFn} */
     async function findId(query, opts = {}) {
         if (opts.index !== undefined) {
             const ids = await findIds(query);
