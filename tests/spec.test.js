@@ -226,6 +226,12 @@ describe('spec constructors', () => {
             const t = tower(10, 20, { storeCapacity: 500 });
             expect(t.storeCapacity).toBe(500);
         });
+
+        it('hits can be overridden', () => {
+            const t = tower(10, 20, { hits: 1500 });
+            expect(t.hits).toBe(1500);
+            expect(t.hitsMax).toBe(1500);
+        });
     });
 
     describe('extension()', () => {
@@ -235,11 +241,24 @@ describe('spec constructors', () => {
             expect(e.store).toEqual({ energy: 50 });
             expect(e.storeCapacity).toBe(50);
             expect(e.storeCapacityResource).toEqual({ energy: 50 });
+            expect(e.hits).toBe(1000);
+            expect(e.hitsMax).toBe(1000);
         });
 
         it('storeCapacity can be overridden', () => {
             const e = extension(10, 20, { storeCapacity: 100 });
             expect(e.storeCapacity).toBe(100);
+        });
+
+        it('hits can be overridden', () => {
+            const e = extension(10, 20, { hits: 500 });
+            expect(e.hits).toBe(500);
+            expect(e.hitsMax).toBe(500);
+        });
+
+        it('storeCapacityResource can be overridden', () => {
+            const e = extension(10, 20, { storeCapacityResource: { energy: 100 } });
+            expect(e.storeCapacityResource).toEqual({ energy: 100 });
         });
     });
 
@@ -256,12 +275,38 @@ describe('spec constructors', () => {
             const c = container(10, 20, { storeCapacity: 1000 });
             expect(c.storeCapacity).toBe(1000);
         });
+
+        it('hits can be overridden', () => {
+            const c = container(10, 20, { hits: 100000 });
+            expect(c.hits).toBe(100000);
+            expect(c.hitsMax).toBe(100000);
+        });
+
+        it('storeCapacityResource is ignored (simple mode)', () => {
+            const c = container(10, 20, { storeCapacityResource: { energy: 500 } });
+            expect(c.storeCapacityResource).toBeUndefined();
+        });
     });
 
     describe('storage()', () => {
         it('creates storage', () => {
             const s = storage(10, 20);
             expect(s.type).toBe(STRUCTURE_STORAGE);
+            expect(s.store).toEqual({ energy: 10000 });
+            expect(s.storeCapacity).toBe(1000000);
+            expect(s.hits).toBe(10000);
+            expect(s.hitsMax).toBe(10000);
+        });
+
+        it('hits can be overridden', () => {
+            const s = storage(10, 20, { hits: 5000 });
+            expect(s.hits).toBe(5000);
+            expect(s.hitsMax).toBe(5000);
+        });
+
+        it('storeCapacityResource is ignored (simple mode)', () => {
+            const s = storage(10, 20, { storeCapacityResource: { energy: 500000 } });
+            expect(s.storeCapacityResource).toBeUndefined();
         });
     });
 
@@ -269,6 +314,14 @@ describe('spec constructors', () => {
         it('creates road', () => {
             const r = road(10, 20);
             expect(r.type).toBe(STRUCTURE_ROAD);
+            expect(r.hits).toBe(5000);
+            expect(r.hitsMax).toBe(5000);
+        });
+
+        it('hits can be overridden', () => {
+            const r = road(10, 20, { hits: 2500 });
+            expect(r.hits).toBe(2500);
+            expect(r.hitsMax).toBe(2500);
         });
     });
 
@@ -288,6 +341,14 @@ describe('spec constructors', () => {
         it('creates rampart', () => {
             const r = rampart(10, 20);
             expect(r.type).toBe(STRUCTURE_RAMPART);
+            expect(r.hits).toBe(10000);
+            expect(r.hitsMax).toBe(300000000);
+        });
+
+        it('hits can be overridden (hitsMax stays default)', () => {
+            const r = rampart(10, 20, { hits: 50000 });
+            expect(r.hits).toBe(50000);
+            expect(r.hitsMax).toBe(300000000); // default from STRUCTURE_DEFAULTS
         });
     });
 
@@ -503,6 +564,17 @@ describe('spec constructors', () => {
             expect(l.store.energy).toBe(400);
             expect(l.storeCapacity).toBe(400);
         });
+
+        it('hits can be overridden', () => {
+            const l = link(10, 20, { hits: 500 });
+            expect(l.hits).toBe(500);
+            expect(l.hitsMax).toBe(500);
+        });
+
+        it('storeCapacityResource can be overridden', () => {
+            const l = link(10, 20, { storeCapacityResource: { energy: 400 } });
+            expect(l.storeCapacityResource).toEqual({ energy: 400 });
+        });
     });
 
     describe('terminal()', () => {
@@ -520,6 +592,17 @@ describe('spec constructors', () => {
             const t = terminal(10, 20, { energy: 5000, storeCapacity: 5000 });
             expect(t.store.energy).toBe(5000);
             expect(t.storeCapacity).toBe(5000);
+        });
+
+        it('hits can be overridden', () => {
+            const t = terminal(10, 20, { hits: 1500 });
+            expect(t.hits).toBe(1500);
+            expect(t.hitsMax).toBe(1500);
+        });
+
+        it('storeCapacityResource is ignored (simple mode)', () => {
+            const t = terminal(10, 20, { storeCapacityResource: { energy: 150000 } });
+            expect(t.storeCapacityResource).toBeUndefined();
         });
     });
 });
