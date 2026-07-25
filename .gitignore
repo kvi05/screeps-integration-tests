@@ -35,3 +35,6 @@ opencode.json
 # Environment
 .env
 .env.local
+
+# Husky
+.husky/_/
