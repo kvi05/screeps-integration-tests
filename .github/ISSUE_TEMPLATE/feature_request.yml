@@ -2,51 +2,45 @@ name: Feature Request
 description: Suggest a new feature or enhancement for screeps-integration-tests
 labels: [enhancement, triage]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for suggesting a feature! Please fill out the form below to help us understand your use case.
+    - type: textarea
+      id: problem
+      attributes:
+          label: Problem statement
+          description: |
+              What problem would this feature solve? Describe the pain point or use case that isn't currently covered.
+              If this is related to a specific scenario pattern, include a short code sketch.
+      validations:
+          required: true
 
-  - type: textarea
-    id: problem
-    attributes:
-      label: Problem statement
-      description: |
-        What problem would this feature solve? Describe the pain point or use case that isn't currently covered.
-        If this is related to a specific scenario pattern, include a short code sketch.
-    validations:
-      required: true
+    - type: textarea
+      id: proposed-solution
+      attributes:
+          label: Proposed solution
+          description: |
+              What would you like the API to look like? Include code snippets or example usage.
+              Refer to the architecture layers (Config / Runtime / Orchestration / Builders / Observers / Assertions)
+              if you know which layer the feature belongs to.
+      validations:
+          required: true
 
-  - type: textarea
-    id: proposed-solution
-    attributes:
-      label: Proposed solution
-      description: |
-        What would you like the API to look like? Include code snippets or example usage.
-        Refer to the architecture layers (Config / Runtime / Orchestration / Builders / Observers / Assertions)
-        if you know which layer the feature belongs to.
-    validations:
-      required: true
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternatives considered
+          description: Any workarounds or alternative approaches you've tried?
 
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives considered
-      description: Any workarounds or alternative approaches you've tried?
+    - type: checkboxes
+      id: api-impact
+      attributes:
+          label: Public API impact
+          description: |
+              Does this feature require changes to the public API (`src/public/` + `package.json` exports)?
+          options:
+              - label: This feature adds/modifies a public export (`src/public/` + `package.json`)
+              - label: This feature is internal only (no public API change)
 
-  - type: checkboxes
-    id: api-impact
-    attributes:
-      label: Public API impact
-      description: |
-        Does this feature require changes to the public API (`src/public/` + `package.json` exports)?
-        See [Sub-path exports](https://github.com/kvi05/screeps-integration-tests#readme) in the README.
-      options:
-        - label: This feature adds/modifies a public export (`src/public/` + `package.json`)
-        - label: This feature is internal only (no public API change)
-
-  - type: textarea
-    id: additional
-    attributes:
-      label: Additional context
-      description: Any other context, related issues, or references.
+    - type: textarea
+      id: additional
+      attributes:
+          label: Additional context
+          description: Any other context, related issues, or references.

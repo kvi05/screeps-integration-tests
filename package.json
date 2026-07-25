@@ -1,78 +1,84 @@
 {
-  "name": "screeps-integration-tests",
-  "version": "1.0.0",
-  "description": "Портативный интеграционный тестовый фреймворк для Screeps ботов на базе screeps-server-mockup.",
-  "main": "src/index.js",
-  "type": "commonjs",
-  "bin": {
-    "screeps-integration-tests": "bin/screeps-integration-tests.js",
-    "sit": "bin/screeps-integration-tests.js"
-  },
-  "exports": {
-    ".": "./src/index.js",
-    "./assertions": "./src/public/assertions.js",
-    "./metrics": "./src/public/metrics.js",
-    "./metric-assertions": "./src/public/metric-assertions.js",
-    "./memory-fixtures": "./src/public/memory-fixtures.js",
-    "./room-fixtures": "./src/public/room-fixtures.js",
-    "./world-helpers": "./src/public/worldHelpers.js",
-    "./events": "./src/public/events.js",
-    "./constants": "./src/public/constants.js",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "bin",
-    "src",
-    "examples"
-  ],
-  "scripts": {
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "check": "npm run lint && npm run format:check && npm test && npm run test:integration",
-    "test:integration": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js",
-    "test:integration:profiling": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --profiling",
-    "test:integration:smoke": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --only smoke-empty",
-    "test:integration:clean": "node src/tools/clean-cache.js --cacheDir examples/.cache",
-    "test:integration:capture": "node src/tools/capture-fixture.js",
-    "test": "jest --config jest.config.js",
-    "prepare": "husky"
-  },
-  "lint-staged": {
-    "*.js": ["eslint --fix", "prettier --write"]
-  },
-  "keywords": [
-    "screeps",
-    "screeps-bot",
-    "integration-tests",
-    "screeps-server-mockup",
-    "javascript"
-  ],
-  "author": "kvi05",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/kvi05/screeps-integration-tests.git"
-  },
-  "bugs": {
-    "url": "https://github.com/kvi05/screeps-integration-tests/issues"
-  },
-  "homepage": "https://github.com/kvi05/screeps-integration-tests#readme",
-  "engines": {
-    "node": ">=22.12.0"
-  },
-  "dependencies": {
-    "screeps-server-mockup": "screepers/screeps-server-mockup#703645f",
-    "tree-kill": "^1.2.2"
-  },
-  "devDependencies": {
-    "eslint": "^10.7.0",
-    "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.7.0",
-    "husky": "^9.1.7",
-    "jest": "^30.4.2",
-    "lint-staged": "^17.2.0",
-    "prettier": "^3.9.5"
-  }
+    "name": "screeps-integration-tests",
+    "version": "1.0.0",
+    "description": "Портативный интеграционный тестовый фреймворк для Screeps ботов на базе screeps-server-mockup.",
+    "main": "src/index.js",
+    "type": "commonjs",
+    "bin": {
+        "screeps-integration-tests": "bin/screeps-integration-tests.js",
+        "sit": "bin/screeps-integration-tests.js"
+    },
+    "exports": {
+        ".": "./src/index.js",
+        "./assertions": "./src/public/assertions.js",
+        "./metrics": "./src/public/metrics.js",
+        "./metric-assertions": "./src/public/metric-assertions.js",
+        "./memory-fixtures": "./src/public/memory-fixtures.js",
+        "./room-fixtures": "./src/public/room-fixtures.js",
+        "./world-helpers": "./src/public/worldHelpers.js",
+        "./events": "./src/public/events.js",
+        "./constants": "./src/public/constants.js",
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "bin",
+        "src",
+        "examples"
+    ],
+    "scripts": {
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "check": "npm run lint && npm run format:check && npm test && npm run test:integration",
+        "test:integration": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js",
+        "test:integration:profiling": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --profiling",
+        "test:integration:smoke": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --only smoke-empty",
+        "test:integration:clean": "node src/tools/clean-cache.js --cacheDir examples/.cache",
+        "test:integration:capture": "node src/tools/capture-fixture.js",
+        "test": "jest --config jest.config.js",
+        "prepare": "husky"
+    },
+    "lint-staged": {
+        "*.js": [
+            "eslint --fix",
+            "prettier --write"
+        ],
+        "*.{yml,yaml,md,markdown,json}": [
+            "prettier --write"
+        ]
+    },
+    "keywords": [
+        "screeps",
+        "screeps-bot",
+        "integration-tests",
+        "screeps-server-mockup",
+        "javascript"
+    ],
+    "author": "kvi05",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/kvi05/screeps-integration-tests.git"
+    },
+    "bugs": {
+        "url": "https://github.com/kvi05/screeps-integration-tests/issues"
+    },
+    "homepage": "https://github.com/kvi05/screeps-integration-tests#readme",
+    "engines": {
+        "node": ">=22.12.0"
+    },
+    "dependencies": {
+        "screeps-server-mockup": "screepers/screeps-server-mockup#703645f",
+        "tree-kill": "^1.2.2"
+    },
+    "devDependencies": {
+        "eslint": "^10.7.0",
+        "eslint-config-prettier": "^10.1.8",
+        "globals": "^17.7.0",
+        "husky": "^9.1.7",
+        "jest": "^30.4.2",
+        "lint-staged": "^17.2.0",
+        "prettier": "^3.9.5"
+    }
 }

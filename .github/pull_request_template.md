@@ -14,12 +14,10 @@
 
 - [ ] **Public API has NOT changed** — or changes are documented below
 - [ ] New public exports follow the trickle-down pattern (`src/lib/` → `src/public/` → `package.json` `"exports"`)
-- [ ] New public re-export files follow the JSDoc template (see `src/public/assertions.js` as reference)
 
 ### Code quality
 
 - [ ] New code has test coverage (unit test in `tests/` or scenario in `examples/scenarios/`)
-- [ ] New code comments are in English (existing Russian comments left untouched)
 - [ ] Breaking changes are described in the PR description below
 
 ### Public API changes

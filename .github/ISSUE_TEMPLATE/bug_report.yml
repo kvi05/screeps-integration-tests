@@ -2,72 +2,69 @@ name: Bug Report
 description: Report a bug in screeps-integration-tests
 labels: [bug, triage]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for taking the time to report a bug! Please fill out the form below.
+    - type: input
+      id: version-or-ref
+      attributes:
+          label: Version / revision
+          description: |
+              Which version of `screeps-integration-tests` are you using?
+              Provide an npm version, git commit hash, PR number, or branch name.
+          placeholder: e.g. 1.0.0, abc1234, PR #42, feat/my-branch
+      validations:
+          required: true
 
-  - type: input
-    id: package-version
-    attributes:
-      label: Package version
-      description: Which version of `screeps-integration-tests` are you using?
-      placeholder: e.g. 1.0.0
-    validations:
-      required: true
+    - type: input
+      id: node-version
+      attributes:
+          label: Node.js version
+          description: Which version of Node.js are you running?
+          placeholder: e.g. 22.12.0
+      validations:
+          required: true
 
-  - type: input
-    id: node-version
-    attributes:
-      label: Node.js version
-      description: Which version of Node.js are you running?
-      placeholder: e.g. 22.12.0
-    validations:
-      required: true
+    - type: input
+      id: os
+      attributes:
+          label: Operating system
+          description: Which OS are you on?
+          placeholder: e.g. Windows 11, Ubuntu 24.04, macOS 15
 
-  - type: input
-    id: os
-    attributes:
-      label: Operating system
-      description: Which OS are you on?
-      placeholder: e.g. Windows 11, Ubuntu 24.04, macOS 15
+    - type: textarea
+      id: description
+      attributes:
+          label: Bug description
+          description: A clear and concise description of what the bug is.
+      validations:
+          required: true
 
-  - type: textarea
-    id: description
-    attributes:
-      label: Bug description
-      description: A clear and concise description of what the bug is.
-    validations:
-      required: true
+    - type: textarea
+      id: steps
+      attributes:
+          label: Steps to reproduce
+          description: |
+              Provide a minimal reproduction — ideally a small `*.scenario.js` that triggers the issue.
+              If the bug is in the framework itself (not a scenario), describe the exact API calls.
+          placeholder: |
+              1. Create a scenario with ...
+              2. Run `npm run test:integration -- --only my-scenario`
+              3. Observe error ...
+      validations:
+          required: true
 
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to reproduce
-      description: |
-        Provide a minimal reproduction — ideally a small `*.scenario.js` that triggers the issue.
-        If the bug is in the framework itself (not a scenario), describe the exact API calls.
-      placeholder: |
-        1. Create a scenario with ...
-        2. Run `npm run test:integration -- --only my-scenario`
-        3. Observe error ...
-    validations:
-      required: true
+    - type: textarea
+      id: expected
+      attributes:
+          label: Expected behavior
+          description: What did you expect to happen?
 
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected behavior
-      description: What did you expect to happen?
+    - type: textarea
+      id: actual
+      attributes:
+          label: Actual behavior
+          description: What actually happened? Include error messages, stack traces, or logs.
 
-  - type: textarea
-    id: actual
-    attributes:
-      label: Actual behavior
-      description: What actually happened? Include error messages, stack traces, or logs.
-
-  - type: textarea
-    id: additional
-    attributes:
-      label: Additional context
-      description: Any other context, screenshots, or relevant information.
+    - type: textarea
+      id: additional
+      attributes:
+          label: Additional context
+          description: Any other context, screenshots, or relevant information.
