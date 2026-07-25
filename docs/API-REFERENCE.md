@@ -19,7 +19,7 @@ documents reference this one; duplication is kept to a minimum.
 - [12. Profiling](#12-profiling)
 - [13. Timeout](#13-timeout)
 - [14. Core types](#14-core-types)
-- [15. Object modification and search helpers](#15-object-modification-and-search-helpers)
+- [15. World helpers](#15-world-helpers)
 
 ## 1. Main entry point: createWorld
 
@@ -148,11 +148,13 @@ const world = await createWorld({
 | `world.eventLog(room)`                 | Event log for the room for the current tick                        |
 | `world.readMemory(username?)`          | Read bot Memory                                                    |
 | `world.writeMemory(username, patch)`   | Deep-merge patch into bot Memory                                   |
+| `world.botId(bot?)`                    | Bot `_id` by username, index, or the only bot                      |
 | `world.registerEvent(action, handler)` | Register a handler for `opts.events`                               |
 | `world.setTicksToDowngrade(room, n)`   | Set controller downgrade timer (see §Helpers)                      |
 | `world.setHitsStructure(id, hits)`     | Set structure HP (see §Helpers)                                    |
 | `world.damageHitsStructure(id, dmg)`   | Damage a structure (see §Helpers)                                  |
 | `world.deleteStructure(id)`            | Delete a structure from DB (see §Helpers)                          |
+| `world.getRcl(roomName)`               | Read RCL of a room from DB                                         |
 | `world.find(query)` / `findOne`/…      | Search objects in `rooms.objects` (see §Helpers)                   |
 | `world.dispose()`                      | Stop the server and remove the cache directory                     |
 
@@ -911,9 +913,10 @@ Room metrics sample fields (without `tick`):
 }
 ```
 
-## 15. Object modification and search helpers
+## 15. World helpers
 
-Methods available on `WorldInstance`. Work directly with Screeps DB `db['rooms.objects']`.
+Methods available on `WorldInstance`. Work directly with Screeps DB `db['rooms.objects']`
+and bot runtime. Provided by `createWorldHelpers()` factory; exposed on `world` via spread.
 
 ### Controller
 
@@ -948,6 +951,65 @@ await world.setHitsStructure(wallId, 2000);
 
 // direct deletion
 await world.deleteStructure(wallId);
+```
+
+### Creeps
+
+| Method              | Description                                                                                         |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `world.spawn(spec)` | Create a creep. `roomName` required (see `CreepSpecCanonical` §14). `userId` defaults to first bot. |
+
+```javascript
+const creepId = await world.spawn(spec.creep(25, 25, { roomName: 'W0N1', name: 'Harvester1' }));
+const invaderId = await world.spawn(spec.invader(40, 40, { roomName: 'W0N1' }));
+const dummyId = await world.spawn(spec.dummyTarget(10, 10, { roomName: 'W0N1' }));
+```
+
+### Room queries
+
+| Method                   | Description                                          |
+| ------------------------ | ---------------------------------------------------- |
+| `world.getRcl(roomName)` | Read the current RCL of a room (0 if no controller). |
+
+```javascript
+const rcl = await world.getRcl('W0N1');
+```
+
+### Event log
+
+| Method                 | Description                                  |
+| ---------------------- | -------------------------------------------- |
+| `world.eventLog(room)` | Event log for the room for the current tick. |
+
+See [Event log](#event-log) section for usage examples.
+
+### Bot memory & execution
+
+| Method                               | Description                                                       |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| `world.readMemory(username?)`        | Read bot Memory. If `username` omitted — the only bot.            |
+| `world.writeMemory(username, patch)` | Deep-merge `patch` into bot Memory.                               |
+| `world.exec(code, username?)`        | Execute JS code in bot context. If `username` omitted — only bot. |
+
+`writeMemory` merges patch over current memory: plain objects are merged recursively,
+arrays/primitives are replaced, `undefined` does not overwrite existing values.
+
+```javascript
+const memory = await world.readMemory('bot');
+await world.writeMemory('bot', { test: { enabled: true } });
+await world.exec('Game.spawns["Spawn1"].spawnCreep([WORK, CARRY, MOVE], "Harvester1");');
+```
+
+### Bot ID
+
+| Method              | Description                                                              |
+| ------------------- | ------------------------------------------------------------------------ |
+| `world.botId(bot?)` | Bot `_id` by username (string), index (number), or the only bot (unset). |
+
+```javascript
+const defaultId = world.botId(); // first (only) bot
+const byName = world.botId('botA'); // by username
+const byIndex = world.botId(0); // first bot by index
 ```
 
 ### Object search

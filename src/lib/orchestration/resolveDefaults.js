@@ -46,9 +46,7 @@ function defaultBot(bots) {
         throw new Error('defaultBot: no bots in opts.bots');
     }
     if (names.length > 1) {
-        throw new Error(
-            `defaultBot: more than 1 bot (${names.join(', ')}) — specify explicitly via world.readMemory(username)`,
-        );
+        throw new Error(`defaultBot: more than 1 bot (${names.join(', ')}) — specify username explicitly`);
     }
     return names[0];
 }

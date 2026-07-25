@@ -12,7 +12,7 @@ const { checkStopCondition } = require('../observers/predicate');
 const { snapshotOwners, mergeOwners } = require('../observers/ownership');
 const { createConsoleCapture } = require('../runtime/console');
 const { createEventRegistry, registerDefaultEvents } = require('./events');
-const { createWorldHelpers } = require('./worldHelpers');
+const { createWorldHelpers, getRoomRcl } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
 const { exportProfiles } = require('../runtime/profile');
 const { resolveDefaultUserId } = require('./resolveDefaults');
@@ -78,9 +78,7 @@ function resolveCacheBase(opts) {
  * @returns {Promise<number>}
  */
 async function getRcl(adapter, roomName) {
-    const { db } = adapter;
-    const controller = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
-    return controller ? controller.level : 0;
+    return getRoomRcl(adapter, roomName);
 }
 
 /**

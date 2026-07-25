@@ -60,15 +60,15 @@ neighboring files:
 
 Seven layers:
 
-| Layer             | Files                                                                                                               | Responsibility                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **Config**        | `lib/config/config.js`, `lib/config/cli.js`                                                                         | Config loading, CLI parsing                                  |
-| **Runtime**       | `lib/runtime/runtime.js`, `lib/runtime/port.js`, `lib/runtime/testBot.js`, `lib/runtime/cleanup.js`                 | Server wrapper, ports, bots, lifecycle                       |
-| **Orchestration** | `lib/orchestration/world.js`, `lib/orchestration/events.js`, `lib/orchestration/finalize.js`                        | `createWorld`, pipeline, event registry, report finalisation |
-| **Builders**      | `lib/builders/spec.js`, `lib/builders/materialize.js`, `lib/builders/memory.js`                                     | Spec constructors and DB materialisation                     |
-| **Observers**     | `lib/observers/eventLog.js`, `lib/observers/metrics.js`, `lib/observers/ownership.js`, `lib/observers/predicate.js` | Stateless DB readers                                         |
-| **Assertions**    | `lib/assertions/assertions.js`, `lib/assertions/metricAssertions.js`, `lib/assertions/metricRegression.js`          | Bot behaviour assertions                                     |
-| **Fixtures**      | `lib/fixtures/roomFixture.js`                                                                                       | Room fixture registry                                        |
+| Layer             | Files                                                                                                                                                                     | Responsibility                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Config**        | `lib/config/config.js`, `lib/config/cli.js`                                                                                                                               | Config loading, CLI parsing                                                                                         |
+| **Runtime**       | `lib/runtime/runtime.js`, `lib/runtime/port.js`, `lib/runtime/testBot.js`, `lib/runtime/cleanup.js`                                                                       | Server wrapper, ports, bots, lifecycle                                                                              |
+| **Orchestration** | `lib/orchestration/world.js`, `lib/orchestration/worldHelpers.js`, `lib/orchestration/events.js`, `lib/orchestration/finalize.js`, `lib/orchestration/resolveDefaults.js` | `createWorld`, pipeline, imperative DB/bot helpers, event registry, report finalisation, default-resolution helpers |
+| **Builders**      | `lib/builders/spec.js`, `lib/builders/materialize.js`, `lib/builders/memory.js`                                                                                           | Spec constructors and DB materialisation                                                                            |
+| **Observers**     | `lib/observers/eventLog.js`, `lib/observers/metrics.js`, `lib/observers/ownership.js`, `lib/observers/predicate.js`                                                       | Stateless DB readers                                                                                                |
+| **Assertions**    | `lib/assertions/assertions.js`, `lib/assertions/metricAssertions.js`, `lib/assertions/metricRegression.js`                                                                | Bot behaviour assertions                                                                                            |
+| **Fixtures**      | `lib/fixtures/roomFixture.js`                                                                                                                                             | Room fixture registry                                                                                               |
 
 ### Separation in builders
 
@@ -80,7 +80,7 @@ Seven layers:
 > **Important:** knowledge of the DB schema lives **only** in `materialize`. Scenarios and
 > `createWorld()` use it as the only channel for writing to the DB.
 >
-> **Default userId resolution:** centralized in `orchestration/resolveDefaults.js` (`resolveDefaultUserId`).
+> **Default resolution helpers:** centralized in `orchestration/resolveDefaults.js` (`resolveDefaultUserId`, `defaultBot`).
 > Spec constructors do **not** assign default userId — that is an orchestration-layer concern.
 
 ### Separation in observers
@@ -361,11 +361,11 @@ screeps-integration-tests/
 │   │   │   ├── profile.js             # saveCallgrind + exportProfiles
 │   │   │   └── storageAdapter.js      # DB facade over screeps-server-mockup
 │   │   ├── orchestration/
-│   │   │   ├── world.js               # createWorld — orchestration API
+│   │   │   ├── world.js               # createWorld — orchestration lifecycle
+│   │   │   ├── worldHelpers.js        # Imperative helpers (find, structures, controller, creeps, bots)
 │   │   │   ├── events.js              # Event registry (createEventRegistry, dispatchEvents)
 │   │   │   ├── finalize.js            # Report finalisation (finalizeReport)
-│   │   │   ├── resolveDefaults.js     # Default userId resolution helper (resolveDefaultUserId)
-│   │   │   └── worldHelpers.js        # Imperative world helpers (find, structures, controller)
+│   │   │   └── resolveDefaults.js     # Pure helpers for default userId/bot resolution
 │   │   ├── assertions/
 │   │   │   ├── assertions.js          # Bot behaviour assertions
 │   │   │   ├── metricAssertions.js    # Metrics assertions
