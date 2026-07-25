@@ -82,10 +82,11 @@ const CARRY_CAPACITY = 50;
 
 // ─── Defaults by structure type ─────────────────────────────────────────────
 
-/** @type {Object<string, {store: Object, storeCapacityResource: Object, hits: number, hitsMax: number, notifyWhenAttacked?: boolean, nextDecayTime?: number}>} */
+/** @type {Object<string, {store?: Object, storeCapacity?: number, storeCapacityResource?: Object, hits: number, hitsMax: number, notifyWhenAttacked?: boolean, nextDecayTime?: number}>} */
 const STRUCTURE_DEFAULTS = {
     [STRUCTURE_SPAWN]: {
         store: { energy: 300 },
+        storeCapacity: 300,
         storeCapacityResource: { energy: 300 },
         hits: 15000,
         hitsMax: 15000,
@@ -93,6 +94,7 @@ const STRUCTURE_DEFAULTS = {
     },
     [STRUCTURE_TOWER]: {
         store: { energy: 1000 },
+        storeCapacity: 1000,
         storeCapacityResource: { energy: 1000 },
         hits: 3000,
         hitsMax: 3000,
@@ -100,6 +102,7 @@ const STRUCTURE_DEFAULTS = {
     },
     [STRUCTURE_EXTENSION]: {
         store: { energy: 50 },
+        storeCapacity: 50,
         storeCapacityResource: { energy: 50 },
         hits: 1000,
         hitsMax: 1000,
@@ -107,7 +110,7 @@ const STRUCTURE_DEFAULTS = {
     },
     [STRUCTURE_CONTAINER]: {
         store: { energy: 2000 },
-        storeCapacityResource: { energy: 2000 },
+        storeCapacity: 2000,
         hits: 250000,
         hitsMax: 250000,
         notifyWhenAttacked: true,
@@ -115,7 +118,7 @@ const STRUCTURE_DEFAULTS = {
     },
     [STRUCTURE_STORAGE]: {
         store: { energy: 10000 },
-        storeCapacityResource: { energy: 1000000 },
+        storeCapacity: 1000000,
         hits: 10000,
         hitsMax: 10000,
         notifyWhenAttacked: true,
@@ -137,6 +140,7 @@ const STRUCTURE_DEFAULTS = {
     },
     [STRUCTURE_LINK]: {
         store: { energy: 800 },
+        storeCapacity: 800,
         storeCapacityResource: { energy: 800 },
         hits: 1000,
         hitsMax: 1000,
@@ -144,7 +148,7 @@ const STRUCTURE_DEFAULTS = {
     },
     [STRUCTURE_TERMINAL]: {
         store: { energy: 0 },
-        storeCapacityResource: { energy: 300000 },
+        storeCapacity: 300000,
         hits: 3000,
         hitsMax: 3000,
         notifyWhenAttacked: true,
@@ -197,10 +201,18 @@ function structure(type, x, y, overrides = {}) {
         spec.userId = overrides.userId;
     }
 
-    // store/storeCapacityResource — merge with defaults
+    // store — merge with defaults
     if (overrides.store || defaults.store) {
         spec.store = { ...(defaults.store || {}), ...(overrides.store || {}) };
     }
+    // storeCapacity — override or default
+    // Note: storeCapacity (number) and storeCapacityResource (object) are both legacy Screeps API fields.
+    // storeCapacity is the total capacity value, storeCapacityResource is used only for spawn/tower/extension/link
+    // to specify per-resource capacity limits in the old API format.
+    if (defaults.storeCapacity !== undefined) {
+        spec.storeCapacity = overrides.storeCapacity !== undefined ? overrides.storeCapacity : defaults.storeCapacity;
+    }
+    // storeCapacityResource — merge with defaults (only for spawn/tower/extension/link)
     if (overrides.storeCapacityResource || defaults.storeCapacityResource) {
         spec.storeCapacityResource = {
             ...(defaults.storeCapacityResource || {}),
@@ -252,11 +264,16 @@ function spawn(x, y, opts = {}) {
         userId: opts.userId,
         name: opts.name || `Spawn_${crypto.randomUUID()}`,
     };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
-        overrides.store = { energy: opts.energy || STRUCTURE_DEFAULTS.spawn.store.energy };
-        overrides.storeCapacityResource = {
-            energy: opts.storeCapacity || STRUCTURE_DEFAULTS.spawn.storeCapacityResource.energy,
-        };
+    if (opts.energy !== undefined || opts.storeCapacity !== undefined || opts.storeCapacityResource !== undefined) {
+        if (opts.energy !== undefined) {
+            overrides.store = { energy: opts.energy };
+        }
+        if (opts.storeCapacity !== undefined) {
+            overrides.storeCapacity = opts.storeCapacity;
+        }
+        if (opts.storeCapacityResource !== undefined) {
+            overrides.storeCapacityResource = opts.storeCapacityResource;
+        }
     }
     if (opts.hits !== undefined) {
         overrides.hits = opts.hits;
@@ -269,15 +286,20 @@ function spawn(x, y, opts = {}) {
  * Creates a tower spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, energyCapacity?, hits? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
  */
 function tower(x, y, opts = {}) {
     const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.energyCapacity !== undefined) {
-        overrides.store = { energy: opts.energy || STRUCTURE_DEFAULTS.tower.store.energy };
-        overrides.storeCapacityResource = {
-            energy: opts.energyCapacity || STRUCTURE_DEFAULTS.tower.storeCapacityResource.energy,
-        };
+    if (opts.energy !== undefined || opts.storeCapacity !== undefined || opts.storeCapacityResource !== undefined) {
+        if (opts.energy !== undefined) {
+            overrides.store = { energy: opts.energy };
+        }
+        if (opts.storeCapacity !== undefined) {
+            overrides.storeCapacity = opts.storeCapacity;
+        }
+        if (opts.storeCapacityResource !== undefined) {
+            overrides.storeCapacityResource = opts.storeCapacityResource;
+        }
     }
     if (opts.hits !== undefined) {
         overrides.hits = opts.hits;
@@ -290,15 +312,20 @@ function tower(x, y, opts = {}) {
  * Creates an extension spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, energyCapacity? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource? }
  */
 function extension(x, y, opts = {}) {
     const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.energyCapacity !== undefined) {
-        overrides.store = { energy: opts.energy || 0 };
-        overrides.storeCapacityResource = {
-            energy: opts.energyCapacity || STRUCTURE_DEFAULTS.extension.storeCapacityResource.energy,
-        };
+    if (opts.energy !== undefined || opts.storeCapacity !== undefined || opts.storeCapacityResource !== undefined) {
+        if (opts.energy !== undefined) {
+            overrides.store = { energy: opts.energy };
+        }
+        if (opts.storeCapacity !== undefined) {
+            overrides.storeCapacity = opts.storeCapacity;
+        }
+        if (opts.storeCapacityResource !== undefined) {
+            overrides.storeCapacityResource = opts.storeCapacityResource;
+        }
     }
     return structure(STRUCTURE_EXTENSION, x, y, overrides);
 }
@@ -307,15 +334,17 @@ function extension(x, y, opts = {}) {
  * Creates a container spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
  */
 function container(x, y, opts = {}) {
     const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
     if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
-        overrides.store = { energy: opts.energy || 0 };
-        overrides.storeCapacityResource = {
-            energy: opts.storeCapacity || STRUCTURE_DEFAULTS.container.storeCapacityResource.energy,
-        };
+        if (opts.energy !== undefined) {
+            overrides.store = { energy: opts.energy };
+        }
+        if (opts.storeCapacity !== undefined) {
+            overrides.storeCapacity = opts.storeCapacity;
+        }
     }
     if (opts.hits !== undefined) {
         overrides.hits = opts.hits;
@@ -333,10 +362,12 @@ function container(x, y, opts = {}) {
 function storage(x, y, opts = {}) {
     const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
     if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
-        overrides.store = { energy: opts.energy || 0 };
-        overrides.storeCapacityResource = {
-            energy: opts.storeCapacity || STRUCTURE_DEFAULTS.storage.storeCapacityResource.energy,
-        };
+        if (opts.energy !== undefined) {
+            overrides.store = { energy: opts.energy };
+        }
+        if (opts.storeCapacity !== undefined) {
+            overrides.storeCapacity = opts.storeCapacity;
+        }
     }
     return structure(STRUCTURE_STORAGE, x, y, overrides);
 }
@@ -384,15 +415,20 @@ function rampart(x, y, opts = {}) {
  * Creates a link spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
  */
 function link(x, y, opts = {}) {
     const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
-        overrides.store = { energy: opts.energy || 0 };
-        overrides.storeCapacityResource = {
-            energy: opts.storeCapacity || STRUCTURE_DEFAULTS.link.storeCapacityResource.energy,
-        };
+    if (opts.energy !== undefined || opts.storeCapacity !== undefined || opts.storeCapacityResource !== undefined) {
+        if (opts.energy !== undefined) {
+            overrides.store = { energy: opts.energy };
+        }
+        if (opts.storeCapacity !== undefined) {
+            overrides.storeCapacity = opts.storeCapacity;
+        }
+        if (opts.storeCapacityResource !== undefined) {
+            overrides.storeCapacityResource = opts.storeCapacityResource;
+        }
     }
     if (opts.hits !== undefined) {
         overrides.hits = opts.hits;
@@ -405,15 +441,17 @@ function link(x, y, opts = {}) {
  * Creates a terminal spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
  */
 function terminal(x, y, opts = {}) {
     const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
     if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
-        overrides.store = { energy: opts.energy || 0 };
-        overrides.storeCapacityResource = {
-            energy: opts.storeCapacity || STRUCTURE_DEFAULTS.terminal.storeCapacityResource.energy,
-        };
+        if (opts.energy !== undefined) {
+            overrides.store = { energy: opts.energy };
+        }
+        if (opts.storeCapacity !== undefined) {
+            overrides.storeCapacity = opts.storeCapacity;
+        }
     }
     if (opts.hits !== undefined) {
         overrides.hits = opts.hits;
@@ -503,14 +541,11 @@ function creep(x, y, opts = {}) {
         store: { energy: 0 },
         storeCapacity: effectiveCapacity,
     };
-    if (effectiveCapacity > 0) {
-        spec.storeCapacityResource = { energy: effectiveCapacity };
-    }
     if (opts.store) {
         spec.store = { ...spec.store, ...opts.store };
     }
     if (opts.storeCapacityResource) {
-        spec.storeCapacityResource = { ...(spec.storeCapacityResource || {}), ...opts.storeCapacityResource };
+        spec.storeCapacityResource = { ...opts.storeCapacityResource };
     }
     if (opts.id) {
         spec.id = opts.id;
