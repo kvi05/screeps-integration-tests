@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
@@ -35,3 +34,6 @@ opencode.json
 # Environment
 .env
 .env.local
+
+# Husky
+.husky/_/

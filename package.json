@@ -36,7 +36,17 @@
         "test:integration:smoke": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --only smoke-empty",
         "test:integration:clean": "node src/tools/clean-cache.js --cacheDir examples/.cache",
         "test:integration:capture": "node src/tools/capture-fixture.js",
-        "test": "jest --config jest.config.js"
+        "test": "jest --config jest.config.js",
+        "prepare": "husky"
+    },
+    "lint-staged": {
+        "*.js": [
+            "eslint --fix",
+            "prettier --write"
+        ],
+        "*.{yml,yaml,md,markdown,json}": [
+            "prettier --write"
+        ]
     },
     "keywords": [
         "screeps",
@@ -66,7 +76,9 @@
         "eslint": "^10.7.0",
         "eslint-config-prettier": "^10.1.8",
         "globals": "^17.7.0",
+        "husky": "^9.1.7",
         "jest": "^30.4.2",
+        "lint-staged": "^17.2.0",
         "prettier": "^3.9.5"
     }
 }
