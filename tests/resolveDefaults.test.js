@@ -1,6 +1,6 @@
 'use strict';
 
-const { resolveDefaultUserId } = require('../src/lib/orchestration/resolveDefaults');
+const { resolveDefaultUserId, defaultBot } = require('../src/lib/orchestration/resolveDefaults');
 
 describe('resolveDefaultUserId', () => {
     it('returns undefined when no defaults available', () => {
@@ -33,5 +33,21 @@ describe('resolveDefaultUserId', () => {
     it('returns undefined when only roomToBotUserId is provided but room is not in it', () => {
         const result = resolveDefaultUserId('W0N1', { W1N0: 'other_bot' });
         expect(result).toBeUndefined();
+    });
+});
+
+describe('defaultBot', () => {
+    it('single-bot returns the only bot name', () => {
+        const bots = { myBot: { id: 'u1' } };
+        expect(defaultBot(bots)).toBe('myBot');
+    });
+
+    it('no-bot throws an error', () => {
+        expect(() => defaultBot({})).toThrow('defaultBot: no bots');
+    });
+
+    it('multi-bot throws an error', () => {
+        const bots = { bot1: { id: 'u1' }, bot2: { id: 'u2' } };
+        expect(() => defaultBot(bots)).toThrow(/more than 1 bot/);
     });
 });

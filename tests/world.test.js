@@ -7,14 +7,12 @@
  * - buildCanonicalRoom: neutral structures,
  *   fixture + overrides pipeline, hostiles userId='2',
  *   inline fixture, creeps userId, controller edge cases.
- * - defaultBot (imported from resolveDefaults).
  * - resolveDistDir / resolveCacheBase (pure functions).
  *
  * @file Unit tests for world.js
  */
 
 const { buildCanonicalRoom, resolveDistDir, resolveCacheBase } = require('../src/lib/orchestration/world');
-const { defaultBot } = require('../src/lib/orchestration/resolveDefaults');
 
 describe('buildCanonicalRoom', () => {
     describe('neutral structures (W3 regression)', () => {
@@ -343,22 +341,6 @@ describe('buildCanonicalRoom', () => {
 
             expect(canonical.hostiles).toEqual([]);
         });
-    });
-});
-
-describe('defaultBot', () => {
-    it('single-bot returns the only bot name', () => {
-        const bots = { myBot: { id: 'u1' } };
-        expect(defaultBot(bots)).toBe('myBot');
-    });
-
-    it('no-bot throws an error', () => {
-        expect(() => defaultBot({})).toThrow('defaultBot: no bots in opts.bots');
-    });
-
-    it('multi-bot throws an error', () => {
-        const bots = { bot1: { id: 'u1' }, bot2: { id: 'u2' } };
-        expect(() => defaultBot(bots)).toThrow(/more than 1 bot/);
     });
 });
 
