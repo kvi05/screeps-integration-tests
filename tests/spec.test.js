@@ -106,6 +106,11 @@ describe('spec constructors', () => {
             expect(s.userId).toBe('u1');
         });
 
+        it('overrides.userId = null is preserved', () => {
+            const s = structure(STRUCTURE_SPAWN, 10, 20, { userId: null });
+            expect(s.userId).toBeNull();
+        });
+
         it('store merges with defaults', () => {
             const s = structure(STRUCTURE_SPAWN, 10, 20, { store: { energy: 500 } });
             expect(s.store).toEqual({ energy: 500 });
@@ -203,6 +208,11 @@ describe('spec constructors', () => {
             expect(s.id).toBe('s1');
             expect(s.userId).toBe('u1');
             expect(s.roomName).toBe('W0N1');
+        });
+
+        it('userId = null is preserved', () => {
+            const s = spawn(25, 25, { userId: null });
+            expect(s.userId).toBeNull();
         });
     });
 
