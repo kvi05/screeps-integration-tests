@@ -460,11 +460,15 @@ async function createWorld(opts) {
      */
     async function spawn(creepSpec) {
         if (!creepSpec.roomName) {
-            throw new Error('world.spawn: roomName is required (multi-room mode)');
+            throw new Error('world.spawn: roomName is required');
         }
-        const userId = creepSpec.userId ?? resolveDefaultUserId(creepSpec.roomName, roomToBotUserId, defaultBotUserId);
-        if (!userId) {
-            throw new Error('world.spawn: creepSpec.userId is required (bot username or "2" for Invader)');
+        // explicit userId: undefined is preserved; default applied only if userId is not specified
+        const userId =
+            creepSpec.userId !== undefined
+                ? creepSpec.userId
+                : resolveDefaultUserId(creepSpec.roomName, roomToBotUserId, defaultBotUserId);
+        if (userId === undefined) {
+            throw new Error('world.spawn: userId is required (no default bot available)');
         }
         return materializeCreep(adapter, creepSpec.roomName, { ...creepSpec, userId });
     }
@@ -641,11 +645,19 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUs
 
     // final canonicalRoom with fixed roomName and userId on each object
     // For hostiles - user - '2'
+    // Note: explicit userId: undefined is preserved (no default applied)
     /** @param {Object} s @param {boolean} [userInvader] */
     const applyDefaults = (s, userInvader) => {
-        const resolvedUserId = userInvader
-            ? INVADER_USER_ID
-            : (s.userId ?? resolveDefaultUserId(name, roomToBotUserId, defaultBotUserId));
+        let resolvedUserId;
+        if (userInvader) {
+            resolvedUserId = INVADER_USER_ID;
+        } else if (s.userId !== undefined) {
+            // explicit userId (including undefined) — preserve as-is
+            resolvedUserId = s.userId;
+        } else {
+            // no userId specified — apply default
+            resolvedUserId = resolveDefaultUserId(name, roomToBotUserId, defaultBotUserId);
+        }
         return {
             ...s,
             roomName: s.roomName || name,

@@ -66,7 +66,7 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.structures[0].userId).toBe('');
         });
 
-        it('structure with userId=null is considered neutral (not replaced with defaultBot)', async () => {
+        it('structure with userId=null preserves null (explicit neutral)', async () => {
             const canonical = await buildCanonicalRoom(
                 {
                     name: 'W0N1',
@@ -76,8 +76,8 @@ describe('buildCanonicalRoom', () => {
                 'defaultBot',
             );
 
-            // null ?? defaultBot = defaultBot (null is replaced by ??)
-            expect(canonical.structures[0].userId).toBe('defaultBot');
+            // null is preserved as explicit "no owner"
+            expect(canonical.structures[0].userId).toBeNull();
         });
     });
 

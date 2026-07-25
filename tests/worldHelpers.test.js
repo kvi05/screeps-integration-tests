@@ -247,10 +247,19 @@ describe('createWorldHelpers', () => {
             );
         });
 
-        it('throws if roomName is not specified', async () => {
-            await expect(helpers.createStructure({ type: 'wall', x: 5, y: 5 })).rejects.toThrow(
-                'spec.roomName is required',
+        it('preserves explicit userId: null (no default applied)', async () => {
+            const { materializeStructure } = require('../src/lib/builders/materialize');
+            const spec = { type: 'tower', x: 30, y: 30, roomName: 'W0N1', userId: null };
+            await helpers.createStructure(spec);
+            expect(materializeStructure).toHaveBeenCalledWith(
+                adapter,
+                'W0N1',
+                expect.objectContaining({ userId: null }),
             );
+        });
+
+        it('throws if roomName is not specified', async () => {
+            await expect(helpers.createStructure({ type: 'wall', x: 5, y: 5 })).rejects.toThrow('roomName is required');
         });
     });
 

@@ -79,6 +79,9 @@ Seven layers:
 
 > **Important:** knowledge of the DB schema lives **only** in `materialize`. Scenarios and
 > `createWorld()` use it as the only channel for writing to the DB.
+>
+> **Default userId resolution:** centralized in `orchestration/resolveDefaults.js` (`resolveDefaultUserId`).
+> Spec constructors do **not** assign default userId — that is an orchestration-layer concern.
 
 ### Separation in observers
 
@@ -361,6 +364,7 @@ screeps-integration-tests/
 │   │   │   ├── world.js               # createWorld — orchestration API
 │   │   │   ├── events.js              # Event registry (createEventRegistry, dispatchEvents)
 │   │   │   ├── finalize.js            # Report finalisation (finalizeReport)
+│   │   │   ├── resolveDefaults.js     # Default userId resolution helper (resolveDefaultUserId)
 │   │   │   └── worldHelpers.js        # Imperative world helpers (find, structures, controller)
 │   │   ├── assertions/
 │   │   │   ├── assertions.js          # Bot behaviour assertions

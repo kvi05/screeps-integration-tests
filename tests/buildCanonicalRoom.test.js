@@ -332,5 +332,19 @@ describe('buildCanonicalRoom', () => {
             expect(canonical.hostiles[0].userId).toBe('2');
             expect(canonical.structures[0].userId).toBe('roomOwnerBot');
         });
+
+        it('explicit userId: null preserves null (no default applied)', async () => {
+            const canonical = await buildCanonicalRoom(
+                {
+                    name: 'W0N1',
+                    structures: [spec.spawn(25, 25, { userId: null })],
+                },
+                'W0N1',
+                'fallbackBot',
+                { W0N1: 'roomOwnerBot' },
+            );
+
+            expect(canonical.structures[0].userId).toBeNull;
+        });
     });
 });
