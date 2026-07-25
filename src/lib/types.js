@@ -78,7 +78,8 @@
  * @property {string} [id]                  — explicit _id (for memory fixtures)
  * @property {string} [name]                — name (for spawn)
  * @property {Object} [store]               — { energy: N } (defaults by type)
- * @property {Object} [storeCapacityResource] — { energy: N }
+ * @property {number} [storeCapacity]       — total capacity (defaults by type, used for all structures with store)
+ * @property {Object} [storeCapacityResource] — { energy: N } (only for spawn/tower/extension/link)
  * @property {number} [hits]
  * @property {number} [hitsMax]
  * @property {boolean} [notifyWhenAttacked]

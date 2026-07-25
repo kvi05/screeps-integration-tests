@@ -70,7 +70,8 @@ describe('spec constructors', () => {
         it('defaults for storage', () => {
             const s = structure(STRUCTURE_STORAGE, 25, 25);
             expect(s.store).toEqual({ energy: 10000 });
-            expect(s.storeCapacityResource).toEqual({ energy: 1000000 });
+            expect(s.storeCapacity).toBe(1000000);
+            expect(s.storeCapacityResource).toBeUndefined();
             expect(s.hits).toBe(10000);
         });
 
@@ -188,7 +189,7 @@ describe('spec constructors', () => {
 
         it('storeCapacity can be overridden', () => {
             const s = spawn(25, 25, { storeCapacity: 1000 });
-            expect(s.storeCapacityResource.energy).toBe(1000);
+            expect(s.storeCapacity).toBe(1000);
         });
 
         it('hits can be overridden', () => {
@@ -209,12 +210,21 @@ describe('spec constructors', () => {
         it('creates tower with type', () => {
             const t = tower(10, 20);
             expect(t.type).toBe(STRUCTURE_TOWER);
+            expect(t.store).toEqual({ energy: 1000 });
+            expect(t.storeCapacity).toBe(1000);
+            expect(t.storeCapacityResource).toEqual({ energy: 1000 });
+            expect(t.hits).toBe(3000);
         });
 
-        it('energy and energyCapacity can be overridden', () => {
-            const t = tower(10, 20, { energy: 500, energyCapacity: 500 });
+        it('energy and storeCapacityResource can be overridden', () => {
+            const t = tower(10, 20, { energy: 500, storeCapacityResource: { energy: 500 } });
             expect(t.store.energy).toBe(500);
             expect(t.storeCapacityResource.energy).toBe(500);
+        });
+
+        it('storeCapacity can be overridden', () => {
+            const t = tower(10, 20, { storeCapacity: 500 });
+            expect(t.storeCapacity).toBe(500);
         });
     });
 
@@ -222,6 +232,14 @@ describe('spec constructors', () => {
         it('creates extension', () => {
             const e = extension(10, 20);
             expect(e.type).toBe(STRUCTURE_EXTENSION);
+            expect(e.store).toEqual({ energy: 50 });
+            expect(e.storeCapacity).toBe(50);
+            expect(e.storeCapacityResource).toEqual({ energy: 50 });
+        });
+
+        it('storeCapacity can be overridden', () => {
+            const e = extension(10, 20, { storeCapacity: 100 });
+            expect(e.storeCapacity).toBe(100);
         });
     });
 
@@ -229,6 +247,14 @@ describe('spec constructors', () => {
         it('creates container', () => {
             const c = container(10, 20);
             expect(c.type).toBe(STRUCTURE_CONTAINER);
+            expect(c.store).toEqual({ energy: 2000 });
+            expect(c.storeCapacity).toBe(2000);
+            expect(c.hits).toBe(250000);
+        });
+
+        it('storeCapacity can be overridden', () => {
+            const c = container(10, 20, { storeCapacity: 1000 });
+            expect(c.storeCapacity).toBe(1000);
         });
     });
 
@@ -466,6 +492,7 @@ describe('spec constructors', () => {
             const l = link(25, 25);
             expect(l.type).toBe(STRUCTURE_LINK);
             expect(l.store).toEqual({ energy: 800 });
+            expect(l.storeCapacity).toBe(800);
             expect(l.storeCapacityResource).toEqual({ energy: 800 });
             expect(l.hits).toBe(1000);
             expect(l.notifyWhenAttacked).toBe(true);
@@ -474,7 +501,7 @@ describe('spec constructors', () => {
         it('energy and storeCapacity can be overridden', () => {
             const l = link(10, 20, { energy: 400, storeCapacity: 400 });
             expect(l.store.energy).toBe(400);
-            expect(l.storeCapacityResource.energy).toBe(400);
+            expect(l.storeCapacity).toBe(400);
         });
     });
 
@@ -483,7 +510,8 @@ describe('spec constructors', () => {
             const t = terminal(25, 25);
             expect(t.type).toBe(STRUCTURE_TERMINAL);
             expect(t.store).toEqual({ energy: 0 });
-            expect(t.storeCapacityResource).toEqual({ energy: 300000 });
+            expect(t.storeCapacity).toBe(300000);
+            expect(t.storeCapacityResource).toBeUndefined();
             expect(t.hits).toBe(3000);
             expect(t.notifyWhenAttacked).toBe(true);
         });
@@ -491,7 +519,7 @@ describe('spec constructors', () => {
         it('energy and storeCapacity can be overridden', () => {
             const t = terminal(10, 20, { energy: 5000, storeCapacity: 5000 });
             expect(t.store.energy).toBe(5000);
-            expect(t.storeCapacityResource.energy).toBe(5000);
+            expect(t.storeCapacity).toBe(5000);
         });
     });
 });

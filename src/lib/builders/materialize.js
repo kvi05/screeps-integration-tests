@@ -75,6 +75,9 @@ async function materializeStructure(adapter, roomName, s) {
     if (s.store) {
         doc.store = s.store;
     }
+    if (s.storeCapacity !== undefined) {
+        doc.storeCapacity = s.storeCapacity;
+    }
     if (s.storeCapacityResource) {
         doc.storeCapacityResource = s.storeCapacityResource;
     }
