@@ -235,11 +235,19 @@ describe('spec constructors', () => {
             expect(e.store).toEqual({ energy: 50 });
             expect(e.storeCapacity).toBe(50);
             expect(e.storeCapacityResource).toEqual({ energy: 50 });
+            expect(e.hits).toBe(1000);
+            expect(e.hitsMax).toBe(1000);
         });
 
         it('storeCapacity can be overridden', () => {
             const e = extension(10, 20, { storeCapacity: 100 });
             expect(e.storeCapacity).toBe(100);
+        });
+
+        it('hits can be overridden', () => {
+            const e = extension(10, 20, { hits: 500 });
+            expect(e.hits).toBe(500);
+            expect(e.hitsMax).toBe(500);
         });
     });
 
@@ -262,6 +270,16 @@ describe('spec constructors', () => {
         it('creates storage', () => {
             const s = storage(10, 20);
             expect(s.type).toBe(STRUCTURE_STORAGE);
+            expect(s.store).toEqual({ energy: 10000 });
+            expect(s.storeCapacity).toBe(1000000);
+            expect(s.hits).toBe(10000);
+            expect(s.hitsMax).toBe(10000);
+        });
+
+        it('hits can be overridden', () => {
+            const s = storage(10, 20, { hits: 5000 });
+            expect(s.hits).toBe(5000);
+            expect(s.hitsMax).toBe(5000);
         });
     });
 
@@ -269,6 +287,14 @@ describe('spec constructors', () => {
         it('creates road', () => {
             const r = road(10, 20);
             expect(r.type).toBe(STRUCTURE_ROAD);
+            expect(r.hits).toBe(5000);
+            expect(r.hitsMax).toBe(5000);
+        });
+
+        it('hits can be overridden', () => {
+            const r = road(10, 20, { hits: 2500 });
+            expect(r.hits).toBe(2500);
+            expect(r.hitsMax).toBe(2500);
         });
     });
 

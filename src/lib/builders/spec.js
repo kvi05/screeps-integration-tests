@@ -175,6 +175,43 @@ const DEFAULT_INVADER_BODY = [
     { type: MOVE, hits: 150 },
 ];
 
+// ─── Internal helpers ───────────────────────────────────────────────────────
+
+/**
+ * Builds overrides object for structure specs.
+ * Centralizes common logic for spawn/tower/extension/etc.
+ *
+ * @param {Object} opts — user-provided options
+ * @param {Object} cfg — configuration flags
+ * @param {boolean} [cfg.withUserId] — include userId
+ * @param {string|Function} [cfg.name] — static name or factory function
+ * @param {boolean|'simple'} [cfg.withStore] — true (full store), 'simple' (no storeCapacityResource)
+ * @param {boolean|'noMax'} [cfg.withHits] — true (hits+hitsMax), 'noMax' (hits only)
+ * @returns {Object}
+ */
+function buildOverrides(opts, cfg = {}) {
+    const o = { roomName: opts.roomName, id: opts.id };
+    if (cfg.withUserId) o.userId = opts.userId;
+    if (cfg.name) o.name = typeof cfg.name === 'function' ? cfg.name(opts) : opts.name || cfg.name;
+
+    if (cfg.withStore) {
+        const hasEnergy = opts.energy !== undefined;
+        const hasCap = opts.storeCapacity !== undefined;
+        const hasCapRes = cfg.withStore !== 'simple' && opts.storeCapacityResource !== undefined;
+        if (hasEnergy || hasCap || hasCapRes) {
+            if (hasEnergy) o.store = { energy: opts.energy };
+            if (hasCap) o.storeCapacity = opts.storeCapacity;
+            if (hasCapRes) o.storeCapacityResource = opts.storeCapacityResource;
+        }
+    }
+
+    if (cfg.withHits && opts.hits !== undefined) {
+        o.hits = opts.hits;
+        if (cfg.withHits !== 'noMax') o.hitsMax = opts.hits;
+    }
+    return o;
+}
+
 // ─── Spec constructors ──────────────────────────────────────────────────────
 
 /**
@@ -258,28 +295,17 @@ function structure(type, x, y, overrides = {}) {
  * @returns {StructureSpec}
  */
 function spawn(x, y, opts = {}) {
-    const overrides = {
-        roomName: opts.roomName,
-        id: opts.id,
-        userId: opts.userId,
-        name: opts.name || `Spawn_${crypto.randomUUID()}`,
-    };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined || opts.storeCapacityResource !== undefined) {
-        if (opts.energy !== undefined) {
-            overrides.store = { energy: opts.energy };
-        }
-        if (opts.storeCapacity !== undefined) {
-            overrides.storeCapacity = opts.storeCapacity;
-        }
-        if (opts.storeCapacityResource !== undefined) {
-            overrides.storeCapacityResource = opts.storeCapacityResource;
-        }
-    }
-    if (opts.hits !== undefined) {
-        overrides.hits = opts.hits;
-        overrides.hitsMax = opts.hits;
-    }
-    return structure(STRUCTURE_SPAWN, x, y, overrides);
+    return structure(
+        STRUCTURE_SPAWN,
+        x,
+        y,
+        buildOverrides(opts, {
+            withUserId: true,
+            name: (o) => o.name || `Spawn_${crypto.randomUUID()}`,
+            withStore: true,
+            withHits: true,
+        }),
+    );
 }
 
 /**
@@ -289,97 +315,83 @@ function spawn(x, y, opts = {}) {
  * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
  */
 function tower(x, y, opts = {}) {
-    const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined || opts.storeCapacityResource !== undefined) {
-        if (opts.energy !== undefined) {
-            overrides.store = { energy: opts.energy };
-        }
-        if (opts.storeCapacity !== undefined) {
-            overrides.storeCapacity = opts.storeCapacity;
-        }
-        if (opts.storeCapacityResource !== undefined) {
-            overrides.storeCapacityResource = opts.storeCapacityResource;
-        }
-    }
-    if (opts.hits !== undefined) {
-        overrides.hits = opts.hits;
-        overrides.hitsMax = opts.hits;
-    }
-    return structure(STRUCTURE_TOWER, x, y, overrides);
+    return structure(
+        STRUCTURE_TOWER,
+        x,
+        y,
+        buildOverrides(opts, {
+            withUserId: true,
+            withStore: true,
+            withHits: true,
+        }),
+    );
 }
 
 /**
  * Creates an extension spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
  */
 function extension(x, y, opts = {}) {
-    const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined || opts.storeCapacityResource !== undefined) {
-        if (opts.energy !== undefined) {
-            overrides.store = { energy: opts.energy };
-        }
-        if (opts.storeCapacity !== undefined) {
-            overrides.storeCapacity = opts.storeCapacity;
-        }
-        if (opts.storeCapacityResource !== undefined) {
-            overrides.storeCapacityResource = opts.storeCapacityResource;
-        }
-    }
-    return structure(STRUCTURE_EXTENSION, x, y, overrides);
+    return structure(
+        STRUCTURE_EXTENSION,
+        x,
+        y,
+        buildOverrides(opts, {
+            withUserId: true,
+            withStore: true,
+            withHits: true,
+        }),
+    );
 }
 
 /**
  * Creates a container spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
  */
 function container(x, y, opts = {}) {
-    const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
-        if (opts.energy !== undefined) {
-            overrides.store = { energy: opts.energy };
-        }
-        if (opts.storeCapacity !== undefined) {
-            overrides.storeCapacity = opts.storeCapacity;
-        }
-    }
-    if (opts.hits !== undefined) {
-        overrides.hits = opts.hits;
-        overrides.hitsMax = opts.hits;
-    }
-    return structure(STRUCTURE_CONTAINER, x, y, overrides);
+    return structure(
+        STRUCTURE_CONTAINER,
+        x,
+        y,
+        buildOverrides(opts, {
+            withUserId: true,
+            withStore: 'simple',
+            withHits: true,
+        }),
+    );
 }
 
 /**
  * Creates a storage spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
  */
 function storage(x, y, opts = {}) {
-    const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
-        if (opts.energy !== undefined) {
-            overrides.store = { energy: opts.energy };
-        }
-        if (opts.storeCapacity !== undefined) {
-            overrides.storeCapacity = opts.storeCapacity;
-        }
-    }
-    return structure(STRUCTURE_STORAGE, x, y, overrides);
+    return structure(
+        STRUCTURE_STORAGE,
+        x,
+        y,
+        buildOverrides(opts, {
+            withUserId: true,
+            withStore: 'simple',
+            withHits: true,
+        }),
+    );
 }
 
 /**
  * Creates a road spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, hits? }
  */
 function road(x, y, opts = {}) {
-    return structure(STRUCTURE_ROAD, x, y, { roomName: opts.roomName, id: opts.id, userId: opts.userId });
+    return structure(STRUCTURE_ROAD, x, y, buildOverrides(opts, { withUserId: true, withHits: true }));
 }
 
 /**
@@ -389,11 +401,7 @@ function road(x, y, opts = {}) {
  * @param {Object} [opts] — { roomName?, id?, hits? }
  */
 function wall(x, y, opts = {}) {
-    const overrides = { roomName: opts.roomName, id: opts.id };
-    if (opts.hits !== undefined) {
-        overrides.hits = opts.hits;
-    }
-    return structure(STRUCTURE_WALL, x, y, overrides);
+    return structure(STRUCTURE_WALL, x, y, buildOverrides(opts, { withHits: 'noMax' }));
 }
 
 /**
@@ -403,12 +411,15 @@ function wall(x, y, opts = {}) {
  * @param {Object} [opts] — { roomName?, id?, userId?, hits? }
  */
 function rampart(x, y, opts = {}) {
-    return structure(STRUCTURE_RAMPART, x, y, {
-        roomName: opts.roomName,
-        id: opts.id,
-        userId: opts.userId,
-        hits: opts.hits,
-    });
+    return structure(
+        STRUCTURE_RAMPART,
+        x,
+        y,
+        buildOverrides(opts, {
+            withUserId: true,
+            withHits: 'noMax',
+        }),
+    );
 }
 
 /**
@@ -418,46 +429,35 @@ function rampart(x, y, opts = {}) {
  * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
  */
 function link(x, y, opts = {}) {
-    const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined || opts.storeCapacityResource !== undefined) {
-        if (opts.energy !== undefined) {
-            overrides.store = { energy: opts.energy };
-        }
-        if (opts.storeCapacity !== undefined) {
-            overrides.storeCapacity = opts.storeCapacity;
-        }
-        if (opts.storeCapacityResource !== undefined) {
-            overrides.storeCapacityResource = opts.storeCapacityResource;
-        }
-    }
-    if (opts.hits !== undefined) {
-        overrides.hits = opts.hits;
-        overrides.hitsMax = opts.hits;
-    }
-    return structure(STRUCTURE_LINK, x, y, overrides);
+    return structure(
+        STRUCTURE_LINK,
+        x,
+        y,
+        buildOverrides(opts, {
+            withUserId: true,
+            withStore: true,
+            withHits: true,
+        }),
+    );
 }
 
 /**
  * Creates a terminal spec.
  * @param {number} x
  * @param {number} y
- * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, storeCapacityResource?, hits? }
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, hits? }
  */
 function terminal(x, y, opts = {}) {
-    const overrides = { roomName: opts.roomName, id: opts.id, userId: opts.userId };
-    if (opts.energy !== undefined || opts.storeCapacity !== undefined) {
-        if (opts.energy !== undefined) {
-            overrides.store = { energy: opts.energy };
-        }
-        if (opts.storeCapacity !== undefined) {
-            overrides.storeCapacity = opts.storeCapacity;
-        }
-    }
-    if (opts.hits !== undefined) {
-        overrides.hits = opts.hits;
-        overrides.hitsMax = opts.hits;
-    }
-    return structure(STRUCTURE_TERMINAL, x, y, overrides);
+    return structure(
+        STRUCTURE_TERMINAL,
+        x,
+        y,
+        buildOverrides(opts, {
+            withUserId: true,
+            withStore: 'simple',
+            withHits: true,
+        }),
+    );
 }
 
 /**
