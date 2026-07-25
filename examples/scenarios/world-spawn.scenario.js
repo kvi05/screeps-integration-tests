@@ -196,6 +196,36 @@ async function run(opts = {}) {
         }
     }
 
+    // ─── W2.5: explicit userId: null (S) ────────────────────────────
+    {
+        const world = await createWorld({
+            rooms: [BASE_ROOM_WITH_SPAWN],
+            bots: BOT_SPEC,
+            ticks: 5,
+            profiling: opts.profiling,
+            logLevel: 'error',
+        });
+
+        try {
+            // Test S: spawn с явным userId: null не получает default
+            const creepId = await world.spawn(
+                spec.creep(5, 5, {
+                    roomName: ROOM,
+                    name: 'NoUser_Creep',
+                    body: [{ type: 'move', hits: 100 }],
+                    userId: null,
+                }),
+            );
+            const creep = await world.findOne({ _id: creepId });
+            assert.strictEqual(creep.user, null, 'S: explicit userId: null preserved');
+
+            await world.run();
+            assertBotWorked(world.report);
+        } finally {
+            await world.dispose();
+        }
+    }
+
     // ─── W3: Error-пути spawn (G, I) ─────────────────────────────────────
     {
         const world = await createWorld({
