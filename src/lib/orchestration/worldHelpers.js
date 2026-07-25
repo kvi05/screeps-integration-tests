@@ -97,6 +97,21 @@ function addIdAlias(doc) {
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
 /**
+ * Reads the RCL of a room directly from the adapter's DB.
+ * Sole RCL implementation — used by world.js's thin wrapper and
+ * by the bound `getRcl` helper on WorldInstance.
+ *
+ * @param {StorageAdapter} adapter
+ * @param {string} roomName
+ * @returns {Promise<number>}
+ */
+async function getRoomRcl(adapter, roomName) {
+    const { db } = adapter;
+    const controller = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
+    return controller ? controller.level : 0;
+}
+
+/**
  * Creates a set of helpers bound to the adapter, bot user IDs, and bots.
  *
  * @param {StorageAdapter} adapter
@@ -203,20 +218,6 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
             throw new Error('spawn: userId is required (no default bot available)');
         }
         return materializeCreep(adapter, creepSpec.roomName, { ...creepSpec, userId });
-    }
-
-    // ─── Room queries ──────────────────────────────────────────────────────
-
-    /**
-     * Determines the RCL of a room from its controller in `rooms.objects`.
-     * Returns 0 if the room has no controller.
-     *
-     * @param {string} roomName
-     * @returns {Promise<number>}
-     */
-    async function getRcl(roomName) {
-        const controller = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
-        return controller ? controller.level : 0;
     }
 
     // ─── Event log ─────────────────────────────────────────────────────────
@@ -363,7 +364,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         // Creeps
         spawn,
         // Room queries
-        getRcl,
+        getRcl: (roomName) => getRoomRcl(adapter, roomName),
         // Event log
         eventLog: getEventLog,
         // Bot memory & execution
@@ -379,4 +380,4 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
     };
 }
 
-module.exports = { createWorldHelpers };
+module.exports = { createWorldHelpers, getRoomRcl };
