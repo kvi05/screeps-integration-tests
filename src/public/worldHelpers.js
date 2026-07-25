@@ -1,13 +1,12 @@
 'use strict';
 
 /**
- * @file Low-level world manipulation helpers for direct DB access.
+ * @file Low-level world manipulation helpers for direct DB access and bot operations.
  *
  * Responsibility:
- *   Provides a `createWorldHelpers(db, defaultBotUserId)` factory that returns
- *   utility functions for querying and mutating the server database during a
- *   scenario: finding objects, modifying hits, deleting/spawning structures,
- *   setting controller downgrade timers, etc.
+ *   Provides a `createWorldHelpers(db, defaultBotUserId, roomToBotUserId, bots)` factory
+ *   that returns utility functions for querying and mutating the server database,
+ *   as well as bot memory/execution operations during a scenario.
  *
  * **Available functions:**
  *
@@ -20,7 +19,14 @@
  * - `setHitsStructure(id, hits)` — set structure hits (clamped to hitsMax)
  * - `damageHitsStructure(id, amount)` — subtract hits (clamped to 0)
  * - `deleteStructure(id)` — remove a structure from the DB
- * - `createStructure(spec, roomName)` — create a structure from a spec
+ * - `createStructure(spec)` — create a structure from a spec
+ * - `spawn(spec)` — create a creep via materialize (spec object)
+ * - `getRcl(roomName)` — read RCL of a room from DB
+ * - `eventLog(room)` — read event log for a room
+ * - `readMemory(botUsername?)` — read bot memory
+ * - `writeMemory(botUsername?, patch)` — deep-merge patch into bot memory
+ * - `exec(code, botUsername?)` — execute JS code in a bot's context
+ * - `botId(bot?)` — get bot _id by username, index, or first bot
  * - `find(query)` — query `rooms.objects` collection (returns mapped objects)
  * - `findOne(query, opts)` — find first matching object
  * - `findIds(query)` — return array of _id values
@@ -30,8 +36,9 @@
  * const { createWorldHelpers } = require('screeps-integration-tests/world-helpers');
  * const { createWorld, spec } = require('screeps-integration-tests');
  * const world = await createWorld({ ... });
- * const helpers = createWorldHelpers(world.db, world.defaultBotUserId);
- * const [spawn] = helpers.find({ type: 'spawn' });
+ * // helpers are already exposed on world via ...helpers spread
+ * const [spawn] = world.find({ type: 'spawn' });
+ * const rcl = await world.getRcl('W0N1');
  *
  * @module screeps-integration-tests/world-helpers
  */

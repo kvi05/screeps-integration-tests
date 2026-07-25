@@ -33,6 +33,25 @@ function resolveDefaultUserId(roomName, roomToBotUserId, defaultBotUserId) {
     return undefined;
 }
 
+/**
+ * Returns the username of the only bot (for single-bot scenarios).
+ *
+ * @param {Object<string,{id:string}>} bots — bots by username
+ * @returns {string} username
+ * @throws {Error} if no bots or more than 1 bot
+ */
+function defaultBot(bots) {
+    const names = Object.keys(bots);
+    if (names.length === 0) {
+        throw new Error('defaultBot: no bots in opts.bots');
+    }
+    if (names.length > 1) {
+        throw new Error(`defaultBot: more than 1 bot (${names.join(', ')}) — specify username explicitly`);
+    }
+    return names[0];
+}
+
 module.exports = {
     resolveDefaultUserId,
+    defaultBot,
 };

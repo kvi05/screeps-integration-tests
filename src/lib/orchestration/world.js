@@ -2,8 +2,8 @@
 
 const path = require('path');
 const { prepareServer, addBots } = require('../runtime/runtime');
-const { materializeRoom, materializeCreep } = require('../builders');
-const { setBotMemory, getBotMemory, deepMergeMemory, resolveInitialMemoryByBot } = require('../builders/memory');
+const { materializeRoom } = require('../builders');
+const { setBotMemory, getBotMemory, resolveInitialMemoryByBot } = require('../builders/memory');
 const { loadRoomFixture, applyRoomOverrides } = require('../fixtures/roomFixture');
 const { readEventLog, accumulateEvents } = require('../observers/eventLog');
 const { collectMetrics, sampleMetrics } = require('../observers/metrics');
@@ -12,7 +12,7 @@ const { checkStopCondition } = require('../observers/predicate');
 const { snapshotOwners, mergeOwners } = require('../observers/ownership');
 const { createConsoleCapture } = require('../runtime/console');
 const { createEventRegistry, registerDefaultEvents } = require('./events');
-const { createWorldHelpers } = require('./worldHelpers');
+const { createWorldHelpers, getRoomRcl } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
 const { exportProfiles } = require('../runtime/profile');
 const { resolveDefaultUserId } = require('./resolveDefaults');
@@ -78,9 +78,7 @@ function resolveCacheBase(opts) {
  * @returns {Promise<number>}
  */
 async function getRcl(adapter, roomName) {
-    const { db } = adapter;
-    const controller = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
-    return controller ? controller.level : 0;
+    return getRoomRcl(adapter, roomName);
 }
 
 /**
@@ -359,7 +357,14 @@ async function createWorld(opts) {
         }
 
         // Predicate check
-        const { shouldStop } = await checkStopCondition(opts, report, server, bots, readMemory, getEventLog);
+        const { shouldStop } = await checkStopCondition(
+            opts,
+            report,
+            server,
+            bots,
+            worldInstance.readMemory,
+            worldInstance.eventLog,
+        );
         return shouldStop;
     }
 
@@ -393,7 +398,7 @@ async function createWorld(opts) {
             runError = e;
         }
 
-        await exportProfiles(resolvedBots, writeMemory, server, report);
+        await exportProfiles(resolvedBots, world.writeMemory, server, report);
         const result = await finalizeReport(
             report,
             startTime,
@@ -435,81 +440,6 @@ async function createWorld(opts) {
     }
 
     /**
-     * Executes JS code in the bot's context via console.
-     * @param {string} code
-     * @param {string} [botUsername] — if omitted, uses the only bot (single-bot scenario)
-     * @type {ExecFn}
-     */
-    async function exec(code, botUsername = defaultBot(bots)) {
-        await bots[botUsername].console(code);
-    }
-
-    /**
-     * Creates a new creep in the room.
-     *
-     * Accepts a complete creep spec — use `spec.creep()`, `spec.invader()`
-     * or `spec.dummyTarget()` to build one.
-     *
-     * If `userId` is not set, resolves it from the bot's room claim
-     * or falls back to the first bot. This is the only field that
-     * `world.spawn` may add — all other fields (hits, store, etc.)
-     * must be pre-computed by the spec constructor.
-     *
-     * @param {CreepSpecCanonical} creepSpec
-     * @type {SpawnFn}
-     */
-    async function spawn(creepSpec) {
-        if (!creepSpec.roomName) {
-            throw new Error('world.spawn: roomName is required');
-        }
-        // explicit userId: undefined is preserved; default applied only if userId is not specified
-        const userId =
-            creepSpec.userId !== undefined
-                ? creepSpec.userId
-                : resolveDefaultUserId(creepSpec.roomName, roomToBotUserId, defaultBotUserId);
-        if (userId === undefined) {
-            throw new Error('world.spawn: userId is required (no default bot available)');
-        }
-        return materializeCreep(adapter, creepSpec.roomName, { ...creepSpec, userId });
-    }
-
-    /**
-     * Reads event log for a room.
-     * @type {EventLogFn}
-     */
-    async function getEventLog(room) {
-        if (!room) {
-            throw new Error('world.eventLog: room is required');
-        }
-        return readEventLog(adapter, room);
-    }
-
-    /**
-     * Reads bot memory.
-     * @type {ReadMemoryFn}
-     */
-    async function readMemory(botUsername) {
-        const username = botUsername || defaultBot(bots);
-        return getBotMemory(adapter, bots[username].id);
-    }
-
-    /**
-     * Updates bot Memory via canonical deep merge.
-     *
-     * patch is merged over current memory: plain objects are recursively
-     * merged, arrays/primitives are replaced, `undefined` does not
-     * overwrite anything. This is symmetric to initial load via explicit memory pipeline.
-     *
-     * @type {WriteMemoryFn}
-     */
-    async function writeMemory(botUsername, patch) {
-        const username = botUsername || defaultBot(bots);
-        const current = await getBotMemory(adapter, bots[username].id);
-        const next = deepMergeMemory(current, patch || {});
-        await setBotMemory(adapter, bots[username].id, next);
-    }
-
-    /**
      * Stops the server and releases resources.
      * @type {DisposeFn}
      */
@@ -517,53 +447,14 @@ async function createWorld(opts) {
         await runtime.dispose();
     }
 
-    // ─── botId ────────────────────────────────────────────────────────────
-
-    /**
-     * Returns bot _id by username, index, or the first bot.
-     *
-     * @param {string|number} [bot] — bot username (string) or index (number, 0-based)
-     *   If omitted — returns _id of the only bot (single-bot scenario).
-     * @returns {string} bot _id
-     * @throws {Error} if bot not found or (with empty argument) bots ≠ 1
-     * @type {BotIdFn}
-     */
-    function botId(bot) {
-        if (bot === undefined) {
-            return bots[defaultBot(bots)].id;
-        }
-        if (typeof bot === 'number') {
-            const entries = Object.values(bots);
-            if (bot < 0 || bot >= entries.length) {
-                throw new Error(
-                    `botId: index ${bot} is out of range (0..${entries.length - 1}). Available bots: ${Object.keys(bots).join(', ')}`,
-                );
-            }
-            return entries[bot].id;
-        }
-        if (typeof bot === 'string') {
-            if (!bots[bot]) {
-                throw new Error(`botId: bot "${bot}" not found. Available bots: ${Object.keys(bots).join(', ')}`);
-            }
-            return bots[bot].id;
-        }
-        throw new Error('botId: argument must be username (string), index (number), or undefined');
-    }
-
     // ─── Helpers ─────────────────────────────────────────────────────────
-    const helpers = createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId);
+    const helpers = createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots);
 
     // ─── Return API ──────────────────────────────────────────────────────
     /** @type {WorldInstance} */
     const world = {
         run,
         tick,
-        exec,
-        spawn,
-        botId,
-        eventLog: getEventLog,
-        readMemory,
-        writeMemory,
         registerEvent,
         report,
         server,
@@ -574,25 +465,6 @@ async function createWorld(opts) {
     };
 
     return world;
-}
-
-/**
- * Returns the username of the only bot (for single-bot scenarios).
- *
- * @param {Object<string,Bot>} bots
- * @returns {string}
- */
-function defaultBot(bots) {
-    const names = Object.keys(bots);
-    if (names.length === 0) {
-        throw new Error('defaultBot: no bots in opts.bots');
-    }
-    if (names.length > 1) {
-        throw new Error(
-            `defaultBot: more than 1 bot (${names.join(', ')}) — specify explicitly via world.readMemory(username)`,
-        );
-    }
-    return names[0];
 }
 
 /**
@@ -680,7 +552,6 @@ module.exports = {
     createWorld,
     buildCanonicalRoom,
     // For unit tests
-    defaultBot,
     resolveDistDir,
     resolveCacheBase,
 };
