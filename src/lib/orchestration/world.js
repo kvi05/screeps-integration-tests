@@ -15,6 +15,7 @@ const { createEventRegistry, registerDefaultEvents } = require('./events');
 const { createWorldHelpers } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
 const { exportProfiles } = require('../runtime/profile');
+const { resolveDefaultUserId } = require('./resolveDefaults');
 const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
@@ -461,7 +462,7 @@ async function createWorld(opts) {
         if (!creepSpec.roomName) {
             throw new Error('world.spawn: roomName is required (multi-room mode)');
         }
-        const userId = creepSpec.userId ?? roomToBotUserId[creepSpec.roomName] ?? defaultBotUserId;
+        const userId = creepSpec.userId ?? resolveDefaultUserId(creepSpec.roomName, roomToBotUserId, defaultBotUserId);
         if (!userId) {
             throw new Error('world.spawn: creepSpec.userId is required (bot username or "2" for Invader)');
         }
@@ -638,17 +639,17 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUs
         base = applyRoomOverrides(base, roomInput.roomOverrides);
     }
 
-    // Determine the per-room default userId: explicit room claim → first bot fallback
-    const roomDefaultUserId = roomToBotUserId?.[name] ?? defaultBotUserId;
-
     // final canonicalRoom with fixed roomName and userId on each object
     // For hostiles - user - '2'
     /** @param {Object} s @param {boolean} [userInvader] */
     const applyDefaults = (s, userInvader) => {
+        const resolvedUserId = userInvader
+            ? INVADER_USER_ID
+            : (s.userId ?? resolveDefaultUserId(name, roomToBotUserId, defaultBotUserId));
         return {
             ...s,
             roomName: s.roomName || name,
-            userId: userInvader ? INVADER_USER_ID : (s.userId ?? roomDefaultUserId),
+            userId: resolvedUserId,
         };
     };
 

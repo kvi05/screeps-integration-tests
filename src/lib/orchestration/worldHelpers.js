@@ -21,6 +21,7 @@
  */
 
 const { materializeStructure } = require('../builders/materialize');
+const { resolveDefaultUserId } = require('./resolveDefaults');
 
 /**
  * @typedef {import('../runtime/storageAdapter').StorageAdapter} StorageAdapter
@@ -166,7 +167,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
         }
         const merged = { ...spec };
         if (merged.userId === undefined) {
-            merged.userId = roomToBotUserId?.[spec.roomName] ?? defaultBotUserId;
+            merged.userId = resolveDefaultUserId(spec.roomName, roomToBotUserId, defaultBotUserId);
         }
         return materializeStructure(adapter, spec.roomName, merged);
     }
