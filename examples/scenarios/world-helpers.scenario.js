@@ -6,18 +6,18 @@ const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/a
 const { STRUCTURE_TOWER } = require('screeps-integration-tests/constants');
 
 /**
- * Сценарий: world-helpers.
+ * Scenario: world-helpers.
  *
- * Демонстрирует работу хелперов: setTicksToDowngrade, setHitsStructure,
+ * Demonstrates helper methods: setTicksToDowngrade, setHitsStructure,
  * damageHitsStructure, deleteStructure, createStructure, find.
  *
- * Запуск: npm run test:integration -- --only world-helpers
+ * Run: npm run test:integration -- --only world-helpers
  *
  * @param {Object} [opts]
  * @returns {Promise<Object>} report
  */
 async function run(opts = {}) {
-    // ─── Создание мира ──────────────────────────────────────────────────────
+    // ─── World creation ───────────────────────────────────────────────────
     const world = await createWorld({
         rooms: [
             {
@@ -37,51 +37,51 @@ async function run(opts = {}) {
         const { report } = world;
 
         // ─── setTicksToDowngrade ──────────────────────────────────────────
-        // Устанавливаем downgradeTime = gameTime + 5000
+        // Set downgradeTime = gameTime + 5000
         await world.setTicksToDowngrade('W0N1', 5000);
 
         // ─── createStructure ───────────────────────────────────────────────
-        // Создаём башню и стену через spec
+        // Create a tower and a wall via spec
         const towerId = await world.createStructure(spec.tower(26, 24, { roomName: 'W0N1' }));
         const wallId = await world.createStructure(spec.wall(30, 30, { roomName: 'W0N1', hits: 500000 }));
 
-        assert.ok(typeof towerId === 'string', 'towerId должен быть строкой');
-        assert.ok(typeof wallId === 'string', 'wallId должен быть строкой');
+        assert.ok(typeof towerId === 'string', 'towerId should be a string');
+        assert.ok(typeof wallId === 'string', 'wallId should be a string');
 
         // ─── find ─────────────────────────────────────────────────────────
-        // Ищем все towers
+        // Find all towers
         const towers = await world.find({ room: 'W0N1', type: STRUCTURE_TOWER });
-        assert.strictEqual(towers.length, 1, 'должна быть 1 башня');
-        assert.strictEqual(towers[0].id, towerId, 'id башни из find совпадает с id из createStructure');
+        assert.strictEqual(towers.length, 1, 'should be 1 tower');
+        assert.strictEqual(towers[0].id, towerId, 'tower id from find matches id from createStructure');
 
-        // Ищем по userId + type (мапится в user)
+        // Find by userId + type (maps to user)
         const myTower = await world.findOne({ type: STRUCTURE_TOWER, userId: world.botId() });
-        assert.ok(myTower, 'должна найтись башня');
+        assert.ok(myTower, 'should find the tower');
         assert.strictEqual(myTower.type, STRUCTURE_TOWER);
 
-        // findId с index=0 для источника
+        // findId with index=0 for a source
         const sourceId = await world.findId({ room: 'W0N1', type: 'source' }, { index: 0 });
-        assert.ok(typeof sourceId === 'string', 'sourceId должен быть строкой');
+        assert.ok(typeof sourceId === 'string', 'sourceId should be a string');
 
         // ─── damageHitsStructure ──────────────────────────────────────────
-        // Наносим урон стене
+        // Deal damage to the wall
         await world.damageHitsStructure(wallId, 10000);
         const wallAfterDamage = await world.findOne({ _id: wallId });
-        assert.strictEqual(wallAfterDamage.hits, 490000, 'hits стены должен уменьшиться на 10000');
+        assert.strictEqual(wallAfterDamage.hits, 490000, 'wall hits should decrease by 10000');
 
         // ─── setHitsStructure ─────────────────────────────────────────────
-        // Восстанавливаем hits и проверяем clamp по hitsMax
+        // Restore hits and verify clamp to hitsMax
         await world.setHitsStructure(wallId, 999999999);
         const wallAfterRepair = await world.findOne({ _id: wallId });
-        assert.strictEqual(wallAfterRepair.hits, 300000000, 'hits не должен превышать hitsMax (300M)');
+        assert.strictEqual(wallAfterRepair.hits, 300000000, 'hits should not exceed hitsMax (300M)');
 
         // ─── deleteStructure ──────────────────────────────────────────────
-        // Удаляем башню
+        // Remove the tower
         await world.deleteStructure(towerId);
         const deletedTower = await world.findOne({ _id: towerId });
-        assert.strictEqual(deletedTower, null, 'башня должна быть удалена из БД');
+        assert.strictEqual(deletedTower, null, 'tower should be removed from DB');
 
-        // ─── Прогон ───────────────────────────────────────────────────────
+        // ─── Run ──────────────────────────────────────────────────────────
         await world.run();
 
         // ─── Assertions ───────────────────────────────────────────────────

@@ -10,14 +10,14 @@ const ROOM_1 = 'W0N1';
 const ROOM_2 = 'W0N2';
 
 /**
- * Сценарий: metrics-multi-room.
+ * Scenario: metrics-multi-room.
  *
- * Проверяет, что метрики двух комнат хранятся в разных time-series
- * и не смешиваются. Использует короткий прогон.
+ * Verifies that metrics of two rooms are stored in separate time-series
+ * and do not interleave. Uses a short run.
  *
- * Запуск: npm run test:integration -- --only metrics-multi-room
+ * Run: npm run test:integration -- --only metrics-multi-room
  *
- * @param {Object} [opts] — опции из runScenario.js (profiling, ...)
+ * @param {Object} [opts] — options from runScenario.js (profiling, ...)
  * @returns {Promise<Object>} report
  */
 async function run(opts = {}) {
@@ -50,31 +50,31 @@ async function run(opts = {}) {
         assertBotWorked(report);
         assertNoErrors(report);
 
-        // MetricsReport — report.metrics содержит data + методы.
+        // MetricsReport — report.metrics contains data + methods.
         const m = report.metrics;
 
-        // Series комнат независимы.
+        // Room series are independent.
         const r1 = m.room(ROOM_1);
         const r2 = m.room(ROOM_2);
 
-        assert.strictEqual(r1.length, ticks, `${ROOM_1}: ожидали ${ticks} сэмплов`);
-        assert.strictEqual(r2.length, ticks, `${ROOM_2}: ожидали ${ticks} сэмплов`);
+        assert.strictEqual(r1.length, ticks, `${ROOM_1}: expected ${ticks} samples`);
+        assert.strictEqual(r2.length, ticks, `${ROOM_2}: expected ${ticks} samples`);
 
-        // Разные начальные RCL.
+        // Different initial RCLs.
         const ma = new MetricsAssert(m);
         ma.latestAtLeast('rooms', ROOM_1, 'rcl', 2);
         ma.reached('rooms', ROOM_2, 'rcl', 1);
-        assert.strictEqual(r2[r2.length - 1].rcl, 1, `${ROOM_2}: RCL должен оставаться 1`);
+        assert.strictEqual(r2[r2.length - 1].rcl, 1, `${ROOM_2}: RCL should stay 1`);
 
-        // Снимок обеих комнат на тике 5.
+        // Snapshot of both rooms at tick 5.
         const snapshot = m.snapshotAtTick('rooms', 5);
-        assert.ok(snapshot[ROOM_1], `снимок на tick 5 должен включать ${ROOM_1}`);
-        assert.ok(snapshot[ROOM_2], `снимок на tick 5 должен включать ${ROOM_2}`);
+        assert.ok(snapshot[ROOM_1], `snapshot at tick 5 should include ${ROOM_1}`);
+        assert.ok(snapshot[ROOM_2], `snapshot at tick 5 should include ${ROOM_2}`);
 
-        // Структура отчёта стабильна (геттеры MetricsReport).
-        assert.deepStrictEqual(m.colonies, {}, 'colonies должен быть пустым объектом');
-        assert.deepStrictEqual(m.bots, {}, 'bots должен быть пустым объектом');
-        assert.ok(Array.isArray(m.world), 'world должен быть массивом');
+        // Report structure is stable (MetricsReport getters).
+        assert.deepStrictEqual(m.colonies, {}, 'colonies should be an empty object');
+        assert.deepStrictEqual(m.bots, {}, 'bots should be an empty object');
+        assert.ok(Array.isArray(m.world), 'world should be an array');
 
         console.log(`PASS: metrics-multi-room (${report.ticksRun} ticks)`);
         return report;

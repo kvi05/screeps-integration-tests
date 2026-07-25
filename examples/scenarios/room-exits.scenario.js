@@ -4,16 +4,16 @@ const assert = require('node:assert');
 const { createWorld, spec } = require('screeps-integration-tests');
 
 /**
- * Сценарий: room-exits.
+ * Scenario: room-exits.
  *
- * Эмпирический тест межкомнатных соединений для разных топологий:
- *  - вертикально-смежные (W0N1 ↔ W0N2)
- *  - горизонтально-смежные (W0N1 ↔ W1N1)
- *  - не-смежные (W0N1 и W5N5 не имеют прямого exit-соседа)
+ * Empirical test of inter-room connections for different topologies:
+ *  - vertically adjacent (W0N1 ↔ W0N2)
+ *  - horizontally adjacent (W0N1 ↔ W1N1)
+ *  - non-adjacent (W0N1 and W5N5 have no direct exit neighbor)
  *
- * Запуск: npm run test:integration -- --only room-exits
+ * Run: npm run test:integration -- --only room-exits
  *
- * @param {Object} [opts] — опции из runScenario.js
+ * @param {Object} [opts] — options from runScenario.js
  * @returns {Promise<Object>} report
  */
 async function run(opts = {}) {
@@ -35,8 +35,8 @@ async function run(opts = {}) {
         });
     }
 
-    // Шлёт все запросы describeExits одним батчем, затем один run().
-    // Возвращает map { roomName -> parsed exits | null | '<NOT_FOUND>' }.
+    // Sends all describeExits requests in one batch, then one run().
+    // Returns map { roomName -> parsed exits | null | '<NOT_FOUND>' }.
     async function readExits(world, roomNames) {
         const code = roomNames
             .map((r) => `console.log('__EX_${r}__=' + JSON.stringify(Game.map.describeExits('${r}')));`)
@@ -66,7 +66,7 @@ async function run(opts = {}) {
     const LEFT = 7;
     const RIGHT = 3;
 
-    // ─── Кейс 1: вертикально-смежные W0N1 (снизу) ↔ W0N2 (сверху) ─────────
+    // ─── Case 1: vertically adjacent W0N1 (bottom) ↔ W0N2 (top) ───────
     {
         const world = await buildWorld([
             {
@@ -97,7 +97,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── Кейс 2: горизонтально-смежные W0N1 ↔ W1N1 ───────────────────────
+    // ─── Case 2: horizontally adjacent W0N1 ↔ W1N1 ───────────────────
     {
         const world = await buildWorld([
             {
@@ -128,7 +128,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── Кейс 3: не-смежные W0N1 и W5N5 — нет прямого exit между ними ──────
+    // ─── Case 3: non-adjacent W0N1 and W5N5 — no direct exit between them ─
     {
         const world = await buildWorld([
             {
@@ -153,7 +153,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── Кейс 4: findRoute между смежными комнатами (для expansion-to-source) ──
+    // ─── Case 4: findRoute between adjacent rooms (for expansion-to-source) ─
     {
         const world = await buildWorld([
             {
@@ -178,8 +178,8 @@ async function run(opts = {}) {
             const joined = logs.replace(/&#x22;/g, '"');
             const mRoute = joined.match(/__ROUTE_V__=(\[.*?\]|null|-?\d+|undefined)/);
             const route = mRoute ? mRoute[1] : '<NOT_FOUND>';
-            // findRoute возвращает массив ходов [{exit, room}] или ERR_NO_PATH (-2)
-            assert.ok(route.startsWith('['), `findRoute должен вернуть array ходов, получил: ${route}`);
+            // findRoute returns an array of moves [{exit, room}] or ERR_NO_PATH (-2)
+            assert.ok(route.startsWith('['), `findRoute should return an array of moves, got: ${route}`);
         } finally {
             await world.dispose();
         }
