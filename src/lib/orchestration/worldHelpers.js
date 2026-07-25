@@ -1,13 +1,15 @@
 'use strict';
 
 /**
- * @file Imperative helpers for WorldInstance: mutating DB objects and searching.
+ * @file Imperative helpers for WorldInstance: mutating DB objects, searching,
+ * bot memory, and bot operations.
  *
  * Responsibility:
- *   A set of functions that work directly with adapter.db
- *   and `builders/materialize` (only for createStructure). Each helper
+ *   A set of functions that work directly with adapter.db,
+ *   `builders/materialize`, and bot runtime. Each helper
  *   performs one atomic operation: set/damage HP, delete
- *   a structure, spawn, find objects.
+ *   a structure, spawn creeps, find objects, read/write bot memory,
+ *   execute bot code.
  *
  * **Available functions:**
  * - `setTicksToDowngrade` — set controller downgrade time
@@ -15,13 +17,21 @@
  * - `damageHitsStructure` — subtract damage from hits (not below 0)
  * - `deleteStructure` — delete a structure from `rooms.objects`
  * - `createStructure` — create a structure via materialize (spec object)
+ * - `spawn` — create a creep via materialize (spec object)
+ * - `getRcl` — read RCL of a room from DB
+ * - `eventLog` — read event log for a room
+ * - `readMemory` / `writeMemory` — bot memory operations
+ * - `exec` — execute JS code in a bot's context
+ * - `botId` — get bot _id by username, index, or first bot
  * - `find` / `findOne` / `findIds` / `findId` — search in `rooms.objects`
  *
  * @module helpers/world
  */
 
-const { materializeStructure } = require('../builders/materialize');
-const { resolveDefaultUserId } = require('./resolveDefaults');
+const { materializeStructure, materializeCreep } = require('../builders/materialize');
+const { getBotMemory, setBotMemory, deepMergeMemory } = require('../builders/memory');
+const { readEventLog } = require('../observers/eventLog');
+const { resolveDefaultUserId, defaultBot } = require('./resolveDefaults');
 
 /**
  * @typedef {import('../runtime/storageAdapter').StorageAdapter} StorageAdapter
@@ -87,14 +97,15 @@ function addIdAlias(doc) {
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
 /**
- * Creates a set of helpers bound to the adapter and bot user IDs.
+ * Creates a set of helpers bound to the adapter, bot user IDs, and bots.
  *
  * @param {StorageAdapter} adapter
  * @param {string} [defaultBotUserId] — _id of the first bot (fallback)
  * @param {Object<string, string>} [roomToBotUserId] — per-room bot user id lookup
+ * @param {Object<string, import('../types').Bot>} [bots] — bots by username (for exec, readMemory, writeMemory, botId)
  * @returns {Object}
  */
-function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
+function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots) {
     const { db } = adapter;
 
     // ─── Controller ────────────────────────────────────────────────────────
@@ -160,7 +171,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
         await db['rooms.objects'].removeWhere({ _id });
     }
 
-    /** @type {import('./types').SpawnStructureFn} */
+    /** @type {import('../types').CreateStructureFn} */
     async function createStructure(spec) {
         if (!spec.roomName) {
             throw new Error('createStructure: roomName is required');
@@ -174,6 +185,131 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
             throw new Error('createStructure: userId is required (no default bot available)');
         }
         return materializeStructure(adapter, spec.roomName, merged);
+    }
+
+    // ─── Creeps ────────────────────────────────────────────────────────────
+
+    /** @type {import('../types').SpawnFn} */
+    async function spawn(creepSpec) {
+        if (!creepSpec.roomName) {
+            throw new Error('world.spawn: roomName is required');
+        }
+        // explicit userId: undefined is preserved; default applied only if userId is not specified
+        const userId =
+            creepSpec.userId !== undefined
+                ? creepSpec.userId
+                : resolveDefaultUserId(creepSpec.roomName, roomToBotUserId, defaultBotUserId);
+        if (userId === undefined) {
+            throw new Error('world.spawn: userId is required (no default bot available)');
+        }
+        return materializeCreep(adapter, creepSpec.roomName, { ...creepSpec, userId });
+    }
+
+    // ─── Room queries ──────────────────────────────────────────────────────
+
+    /**
+     * Determines the RCL of a room from its controller in `rooms.objects`.
+     * Returns 0 if the room has no controller.
+     *
+     * @param {string} roomName
+     * @returns {Promise<number>}
+     */
+    async function getRcl(roomName) {
+        const controller = await db['rooms.objects'].findOne({ room: roomName, type: 'controller' });
+        return controller ? controller.level : 0;
+    }
+
+    // ─── Event log ─────────────────────────────────────────────────────────
+
+    /** @type {import('../types').EventLogFn} */
+    async function getEventLog(room) {
+        if (!room) {
+            throw new Error('world.eventLog: room is required');
+        }
+        return readEventLog(adapter, room);
+    }
+
+    // ─── Bot memory & execution ─────────────────────────────────────────────
+
+    /**
+     * Reads bot memory.
+     * @param {string} [botUsername]
+     * @returns {Promise<Object>}
+     */
+    async function readMemory(botUsername) {
+        if (!bots) {
+            throw new Error('readMemory: bots not available (pass bots to createWorldHelpers)');
+        }
+        const username = botUsername || defaultBot(bots);
+        return getBotMemory(adapter, bots[username].id);
+    }
+
+    /**
+     * Updates bot Memory via canonical deep merge.
+     *
+     * patch is merged over current memory: plain objects are recursively
+     * merged, arrays/primitives are replaced, `undefined` does not
+     * overwrite anything. This is symmetric to initial load via explicit memory pipeline.
+     *
+     * @param {string} [botUsername]
+     * @param {Object} patch
+     * @returns {Promise<void>}
+     */
+    async function writeMemory(botUsername, patch) {
+        if (!bots) {
+            throw new Error('writeMemory: bots not available (pass bots to createWorldHelpers)');
+        }
+        const username = botUsername || defaultBot(bots);
+        const current = await getBotMemory(adapter, bots[username].id);
+        const next = deepMergeMemory(current, patch || {});
+        await setBotMemory(adapter, bots[username].id, next);
+    }
+
+    /**
+     * Executes JS code in the bot's context via console.
+     * @param {string} code
+     * @param {string} [botUsername] — if omitted, uses the only bot (single-bot scenario)
+     * @returns {Promise<void>}
+     */
+    async function exec(code, botUsername) {
+        if (!bots) {
+            throw new Error('exec: bots not available (pass bots to createWorldHelpers)');
+        }
+        const username = botUsername || defaultBot(bots);
+        await bots[username].console(code);
+    }
+
+    /**
+     * Returns bot _id by username, index, or the first bot.
+     *
+     * @param {string|number} [bot] — bot username (string) or index (number, 0-based)
+     *   If omitted — returns _id of the only bot (single-bot scenario).
+     * @returns {string} bot _id
+     * @throws {Error} if bot not found or (with empty argument) bots ≠ 1
+     */
+    function botId(bot) {
+        if (!bots) {
+            throw new Error('botId: bots not available (pass bots to createWorldHelpers)');
+        }
+        if (bot === undefined) {
+            return bots[defaultBot(bots)].id;
+        }
+        if (typeof bot === 'number') {
+            const entries = Object.values(bots);
+            if (bot < 0 || bot >= entries.length) {
+                throw new Error(
+                    `botId: index ${bot} is out of range (0..${entries.length - 1}). Available bots: ${Object.keys(bots).join(', ')}`,
+                );
+            }
+            return entries[bot].id;
+        }
+        if (typeof bot === 'string') {
+            if (!bots[bot]) {
+                throw new Error(`botId: bot "${bot}" not found. Available bots: ${Object.keys(bots).join(', ')}`);
+            }
+            return bots[bot].id;
+        }
+        throw new Error('botId: argument must be username (string), index (number), or undefined');
     }
 
     // ─── Find ─────────────────────────────────────────────────────────────
@@ -224,6 +360,17 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId) {
         damageHitsStructure,
         deleteStructure,
         createStructure,
+        // Creeps
+        spawn,
+        // Room queries
+        getRcl,
+        // Event log
+        eventLog: getEventLog,
+        // Bot memory & execution
+        readMemory,
+        writeMemory,
+        exec,
+        botId,
         // find
         find,
         findOne,
