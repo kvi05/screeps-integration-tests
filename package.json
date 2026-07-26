@@ -59,7 +59,7 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/kvi05/screeps-integration-tests.git"
+        "url": "git+https://github.com/kvi05/screeps-integration-tests.git"
     },
     "bugs": {
         "url": "https://github.com/kvi05/screeps-integration-tests/issues"
@@ -69,7 +69,7 @@
         "node": ">=22.12.0"
     },
     "dependencies": {
-        "screeps-server-mockup": "screepers/screeps-server-mockup#703645f",
+        "screeps-server-mockup": "github:screepers/screeps-server-mockup#703645f",
         "tree-kill": "^1.2.2"
     },
     "devDependencies": {
