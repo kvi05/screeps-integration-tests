@@ -191,7 +191,7 @@ const world = await createWorld({
 
 await world.run();
 
-const m = report.metrics; // MetricsReport — все методы на одном объекте
+const m = report.metrics; // MetricsReport — all methods on a single object
 
 // Rooms are independent — each has its own time-series
 const ma = new MetricsAssert(m);
