@@ -383,14 +383,14 @@ await world.run();
 
 const m = report.metrics; // MetricsReport
 
-// Запросы (entityType = 'rooms' | 'colonies' | 'bots' | 'world')
-const series = m.series('rooms', 'W0N1'); // универсальный доступ
-const latest = m.latest('rooms', 'W0N1'); // последний сэмпл
-// Краткие обёртки:
+// Queries (entityType = 'rooms' | 'colonies' | 'bots' | 'world')
+const series = m.series('rooms', 'W0N1'); // generic access
+const latest = m.latest('rooms', 'W0N1'); // latest sample
+// Short wrappers:
 const same = m.room('W0N1'); // ≡ series('rooms', …)
 const last = m.latestRoom('W0N1'); // ≡ latest('rooms', …)
 
-// Агрегация (работает с любым числовым полем любой сущности)
+// Aggregation (works with any numeric field of any entity)
 m.average(series, 'rcl');
 m.sum(series, 'energyAvailable');
 m.delta(series, 'rclProgress');

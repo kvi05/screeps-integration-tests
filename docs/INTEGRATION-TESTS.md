@@ -30,10 +30,10 @@ neighboring files:
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  bin/screeps-integration-tests.js                            │
-│  CLI runner: разбор флагов, пул воркеров, отчёт              │
+│  CLI runner: flag parsing, worker pool, report               │
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │  src/runScenario.js (child_process.fork)               │  │
-│  │  Воркер: подготовить сервер → выполнить scenario.run   │  │
+│  │  Worker: prepare server → execute scenario.run         │  │
 │  │  ┌──────────────────────────────────────────────────┐  │  │
 │  │  │  scenario.run(opts)                              │  │  │
 │  │  │  ┌────────────────────────────────────────────┐  │  │  │
@@ -42,15 +42,15 @@ neighboring files:
 │  │  │  │  │   └─ ScreepsServer + rooms + terrain    │  │  │  │
 │  │  │  │  ├─ addBots()                              │  │  │  │
 │  │  │  │  │   └─ users + code + console handlers    │  │  │  │
-│  │  │  │  ├─ materializeRooms()                 │  │  │  │
-│  │  │  │  ├─ server.start()                     │  │  │  │
-│  │  │  │  └─ initializeBots()                   │  │  │  │
+│  │  │  │  ├─ materializeRooms()                     │  │  │  │
+│  │  │  │  ├─ server.start()                         │  │  │  │
+│  │  │  │  └─ initializeBots()                       │  │  │  │
 │  │  │  │                                            │  │  │  │
 │  │  │  │  world.run() / world.tick(n)               │  │  │  │
-│  │  │  │  ├─ doServerTick() + observeAllRooms()  │  │  │  │
-│  │  │  │  ├─ dispatchEvents() (declarative)      │  │  │  │
+│  │  │  │  ├─ doServerTick() + observeAllRooms()     │  │  │  │
+│  │  │  │  ├─ dispatchEvents() (declarative)         │  │  │  │
 │  │  │  │  ├─ onTick callback                        │  │  │  │
-│  │  │  │  └─ checkStopCondition() → stop?        │  │  │  │
+│  │  │  │  └─ checkStopCondition() → stop?           │  │  │  │
 │  │  │  └────────────────────────────────────────────┘  │  │  │
 │  │  │  assert*() → pass/fail                           │  │  │
 │  │  └──────────────────────────────────────────────────┘  │  │
@@ -121,7 +121,7 @@ the mockup server's global environment.
    ├─ buildCanonicalRoom()       ← spec + fixture + overrides
    ├─ materializeRoom per room   ← controller / sources / structures / creeps / hostiles
    ├─ server.start()
-   ├─ setBotMemory per bot       ← memory fixture (по username)
+   ├─ setBotMemory per bot       ← memory fixture (per username)
    └─ install console handlers   ← per bot
 
 2. world.run() / world.tick(n)
