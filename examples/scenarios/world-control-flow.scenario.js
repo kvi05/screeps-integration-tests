@@ -8,21 +8,21 @@ const ROOM = 'W0N1';
 const BOT = 'bot';
 
 /**
- * Сценарий: world-control-flow.
+ * Scenario: world-control-flow.
  *
- * Проверяет: until predicate/signal, readMemory/writeMemory, world.exec,
+ * Verifies: until predicate/signal, readMemory/writeMemory, world.exec,
  * opts.events + registerEvent, world.spawn, world.eventLog, onTick,
- * корректную очистку dispose.
+ * proper dispose cleanup.
  *
- * Все тесты короткие (10-15 тиков).
+ * All tests are short (10-15 ticks).
  *
- * Запуск: npm run test:integration -- --only world-control-flow
+ * Run: npm run test:integration -- --only world-control-flow
  *
  * @param {Object} [opts]
  * @returns {Promise<Object>}
  */
 async function run(opts = {}) {
-    // ─── Test A: until.predicate (остановка по условию) ─────────────
+    // ─── Test A: until.predicate (stop on condition) ────────────────
     {
         const world = await createWorld({
             rooms: [
@@ -47,16 +47,16 @@ async function run(opts = {}) {
 
         try {
             await world.run();
-            assert.ok(world.report.stopReason, 'должен быть stopReason');
-            assert.ok(world.report.ticksRun >= 5, `predicate остановил на ${world.report.ticksRun} тике`);
-            assert.ok(world.report.ticksRun <= 15, `не превысил maxTicks: ${world.report.ticksRun}`);
+            assert.ok(world.report.stopReason, 'should have stopReason');
+            assert.ok(world.report.ticksRun >= 5, `predicate stopped at tick ${world.report.ticksRun}`);
+            assert.ok(world.report.ticksRun <= 15, `did not exceed maxTicks: ${world.report.ticksRun}`);
             assertBotWorked(world.report);
         } finally {
             await world.dispose();
         }
     }
 
-    // ─── Test B: until.signal (остановка по Memory-сигналу) ─────────
+    // ─── Test B: until.signal (stop on Memory signal) ───────────────
     {
         const world = await createWorld({
             rooms: [
@@ -80,9 +80,9 @@ async function run(opts = {}) {
 
         try {
             await world.run();
-            assert.ok(world.report.stopReason, 'signal должен был остановить');
-            assert.ok(world.report.stopReason.includes('stopFlag'), `stopReason содержит stopFlag`);
-            assert.ok(world.report.ticksRun >= 4, `остановился на ${world.report.ticksRun} (ожидали >=4)`);
+            assert.ok(world.report.stopReason, 'signal should have stopped');
+            assert.ok(world.report.stopReason.includes('stopFlag'), `stopReason contains stopFlag`);
+            assert.ok(world.report.ticksRun >= 4, `stopped at ${world.report.ticksRun} (expected >=4)`);
         } finally {
             await world.dispose();
         }
@@ -109,7 +109,7 @@ async function run(opts = {}) {
 
             // readMemory
             const mem = await world.readMemory(BOT);
-            assert.ok(mem && typeof mem === 'object', 'Memory бота читается');
+            assert.ok(mem && typeof mem === 'object', 'bot Memory is readable');
 
             // writeMemory + readMemory roundtrip
             await world.writeMemory(BOT, { customKey: 'value' });
@@ -120,14 +120,14 @@ async function run(opts = {}) {
             await world.writeMemory(BOT, { nested: { inner: 1 } });
             await world.writeMemory(BOT, { nested: { inner2: 2 } });
             const merged = await world.readMemory(BOT);
-            assert.strictEqual(merged.nested.inner, 1, 'writeMemory deep-merge сохраняет существующие поля');
-            assert.strictEqual(merged.nested.inner2, 2, 'writeMemory deep-merge добавляет новые поля');
+            assert.strictEqual(merged.nested.inner, 1, 'writeMemory deep-merge preserves existing fields');
+            assert.strictEqual(merged.nested.inner2, 2, 'writeMemory deep-merge adds new fields');
 
-            // exec (исполняется на следующем тике)
+            // exec (runs on the next tick)
             await world.exec('Memory.execKey = 42;', BOT);
             await world.tick(1);
             const execMem = await world.readMemory(BOT);
-            assert.strictEqual(execMem.execKey, 42, 'world.exec исполняет JS');
+            assert.strictEqual(execMem.execKey, 42, 'world.exec runs JS');
 
             assertBotWorked(world.report);
         } finally {
@@ -152,7 +152,7 @@ async function run(opts = {}) {
         });
 
         try {
-            // Спавним крипа до run через метод spawn
+            // Spawn a creep before run via the spawn method
             const botId = world.bots[BOT].id;
             const creepId = await world.spawn(
                 spec.creep(10, 10, {
@@ -162,21 +162,21 @@ async function run(opts = {}) {
                     userId: botId,
                 }),
             );
-            assert.ok(creepId, 'spawn вернул _id');
+            assert.ok(creepId, 'spawn returned _id');
 
             await world.tick(2);
 
             // eventLog
             const roomEvents = await world.eventLog(ROOM);
-            assert.ok(Array.isArray(roomEvents), 'world.eventLog возвращает массив');
+            assert.ok(Array.isArray(roomEvents), 'world.eventLog returns an array');
 
-            // Проверяем что бот работает
+            // Verify the bot is running
             const mem = await world.readMemory(BOT);
-            assert.ok(mem && Object.keys(mem).length > 0, 'бот работает');
+            assert.ok(mem && Object.keys(mem).length > 0, 'bot is running');
 
             await world.dispose();
 
-            // ─── Повторный dispose не бросает ──────────────────────
+            // ─── Repeated dispose does not throw ─────────────────
             await world.dispose();
         } catch (e) {
             await world.dispose().catch(() => {});
@@ -226,7 +226,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── Test F: onTick callback работает ───────────────────────────
+    // ─── Test F: onTick callback works ─────────────────────────────
     {
         let onTickCalled = 0;
         const world = await createWorld({
@@ -244,7 +244,7 @@ async function run(opts = {}) {
                 onTickCalled++;
                 if (tick === 2) {
                     const mem = await w.readMemory(BOT);
-                    assert.ok(mem, 'onTick может читать world');
+                    assert.ok(mem, 'onTick can read world');
                 }
             },
             profiling: opts.profiling,
@@ -252,7 +252,7 @@ async function run(opts = {}) {
 
         try {
             await world.run();
-            assert.strictEqual(onTickCalled, 5, 'onTick вызван на каждом тике');
+            assert.strictEqual(onTickCalled, 5, 'onTick called on every tick');
             assertBotWorked(world.report);
         } finally {
             await world.dispose();

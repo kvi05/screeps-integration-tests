@@ -5,14 +5,14 @@ const { createWorld, spec } = require('screeps-integration-tests');
 const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/assertions');
 
 /**
- * Сценарий: smoke-empty.
+ * Scenario: smoke-empty.
  *
- * Минимальный smoke-тест: одна комната (RCL1, 2 source, без крипов), один бот.
- * Проверяет: framework стартует, бот делает N тиков, не падает, нет ошибок.
+ * Minimal smoke test: one room (RCL1, 2 sources, no creeps), one bot.
+ * Verifies: framework starts, bot runs N ticks, no crashes, no errors.
  *
- * Запуск: npm run test:integration -- --only smoke-empty
+ * Run: npm run test:integration -- --only smoke-empty
  *
- * @param {Object} [opts] — опции из runScenario.js (profiling, ...)
+ * @param {Object} [opts] — options from runScenario.js (profiling, ...)
  * @returns {Promise<Object>} report
  */
 async function run(opts = {}) {
@@ -36,7 +36,7 @@ async function run(opts = {}) {
 
         assertBotWorked(world.report);
         assertNoErrors(world.report);
-        assert.strictEqual(world.report.ticksRun, ticks, `ожидали ${ticks} тиков, получили ${world.report.ticksRun}`);
+        assert.strictEqual(world.report.ticksRun, ticks, `expected ${ticks} ticks, got ${world.report.ticksRun}`);
 
         console.log(`PASS: smoke-empty (${world.report.ticksRun} ticks, ${world.report.wallClockMs}ms)`);
         return world.report;

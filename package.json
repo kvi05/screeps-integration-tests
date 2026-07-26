@@ -1,7 +1,7 @@
 {
     "name": "screeps-integration-tests",
     "version": "1.0.0",
-    "description": "Портативный интеграционный тестовый фреймворк для Screeps ботов на базе screeps-server-mockup.",
+    "description": "Portable integration test framework for Screeps bots. Run your bot against a full local game server — verify behavior, collect metrics, no game subscription needed.",
     "main": "src/index.js",
     "type": "commonjs",
     "bin": {

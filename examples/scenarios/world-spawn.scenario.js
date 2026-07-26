@@ -7,7 +7,7 @@ const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/a
 const ROOM = 'W0N1';
 
 /**
- * Базовые комнаты и боты для spawn-тестов.
+ * Base rooms and bots for spawn tests.
  */
 const BASE_ROOM_WITH_SPAWN = {
     name: ROOM,
@@ -17,26 +17,26 @@ const BASE_ROOM_WITH_SPAWN = {
 };
 
 /**
- * Единый бот для большинства тестов.
+ * Single bot for most tests.
  */
 const BOT_SPEC = [{ username: 'bot', rooms: ROOM }];
 
 /**
- * Сценарий: world-spawn.
+ * Scenario: world-spawn.
  *
- * Проверяет метод `world.spawn()`: создание крипов в разных режимах,
- * обработку ошибок, работу с spec-конструкторами, множественный spawn,
- * spawn до/во время run, верификацию через find.
+ * Verifies the `world.spawn()` method: creating creeps in different modes,
+ * error handling, working with spec constructors, multiple spawns,
+ * spawn before/during run, verification via find.
  *
- * Каждый тест использует отдельный createWorld + try/finally dispose.
+ * Each test uses a separate createWorld + try/finally dispose.
  *
- * Запуск: npm run test:integration -- --only world-spawn
+ * Run: npm run test:integration -- --only world-spawn
  *
  * @param {Object} [opts]
  * @returns {Promise<Object>} report
  */
 async function run(opts = {}) {
-    // ─── W1: Базовые spawn-режимы (A, B, C, D, E, F, O) ────────────────
+    // ─── W1: Basic spawn modes (A, B, C, D, E, F, O) ───────────────
     {
         const world = await createWorld({
             rooms: [BASE_ROOM_WITH_SPAWN],
@@ -49,7 +49,7 @@ async function run(opts = {}) {
         try {
             const botId = world.botId();
 
-            // Test A: spawn с явным userId
+            // Test A: spawn with explicit userId
             {
                 const creepId = await world.spawn(
                     spec.creep(10, 10, {
@@ -59,18 +59,18 @@ async function run(opts = {}) {
                         userId: botId,
                     }),
                 );
-                assert.ok(typeof creepId === 'string', 'A: spawn возвращает строку _id');
+                assert.ok(typeof creepId === 'string', 'A: spawn returns a string _id');
                 const creep = await world.findOne({ _id: creepId });
-                assert.ok(creep, 'A: крип найден в БД');
+                assert.ok(creep, 'A: creep found in DB');
                 assert.strictEqual(creep.name, 'TestCreep_A');
                 assert.strictEqual(creep.room, ROOM);
                 assert.strictEqual(creep.x, 10);
                 assert.strictEqual(creep.y, 10);
-                assert.strictEqual(creep.user, botId, 'A: userId совпадает с bot.id');
+                assert.strictEqual(creep.user, botId, 'A: userId matches bot.id');
                 assert.strictEqual(creep.type, 'creep');
             }
 
-            // Test B: spawn без userId (single bot — fallback)
+            // Test B: spawn without userId (single bot — fallback)
             {
                 const creepId = await world.spawn(
                     spec.creep(12, 12, {
@@ -79,13 +79,13 @@ async function run(opts = {}) {
                         body: [{ type: 'work', hits: 100 }],
                     }),
                 );
-                assert.ok(typeof creepId === 'string', 'B: spawn без userId возвращает _id');
+                assert.ok(typeof creepId === 'string', 'B: spawn without userId returns _id');
                 const creep = await world.findOne({ _id: creepId });
-                assert.ok(creep, 'B: крип найден в БД');
+                assert.ok(creep, 'B: creep found in DB');
                 assert.strictEqual(creep.user, botId, 'B: userId = defaultBotUserId');
             }
 
-            // Test C: spawn с userId='2' (invader)
+            // Test C: spawn with userId='2' (invader)
             {
                 const creepId = await world.spawn(
                     spec.creep(30, 30, {
@@ -95,12 +95,12 @@ async function run(opts = {}) {
                         userId: '2',
                     }),
                 );
-                assert.ok(typeof creepId === 'string', 'C: spawn с userId="2"');
+                assert.ok(typeof creepId === 'string', 'C: spawn with userId="2"');
                 const creep = await world.findOne({ _id: creepId });
-                assert.strictEqual(creep.user, '2', 'C: invader имеет userId="2"');
+                assert.strictEqual(creep.user, '2', 'C: invader has userId="2"');
             }
 
-            // Test D: spawn через spec.creep()
+            // Test D: spawn via spec.creep()
             {
                 const creepSpec = spec.creep(15, 20, {
                     roomName: ROOM,
@@ -114,14 +114,14 @@ async function run(opts = {}) {
                 assert.strictEqual(creep.x, 15);
                 assert.strictEqual(creep.y, 20);
                 assert.strictEqual(creep.user, botId);
-                assert.strictEqual(creep.body.length, 6, 'D: body по умолчанию = 6');
+                assert.strictEqual(creep.body.length, 6, 'D: default body = 6');
                 assert.strictEqual(creep.body[0].type, 'work');
                 assert.strictEqual(creep.body[3].type, 'move');
                 const expectedHits = creep.body.reduce((s, p) => s + p.hits, 0);
-                assert.strictEqual(creep.hits, expectedHits, 'D: hits = сумма body');
+                assert.strictEqual(creep.hits, expectedHits, 'D: hits = sum of body');
             }
 
-            // Test E: spawn через spec.invader()
+            // Test E: spawn via spec.invader()
             {
                 const creepId = await world.spawn(spec.invader(40, 40, { roomName: ROOM, name: 'Invader_E' }));
                 assert.ok(typeof creepId === 'string', 'E: spawn(spec.invader())');
@@ -131,16 +131,16 @@ async function run(opts = {}) {
                 assert.strictEqual(creep.body[0].type, 'attack');
             }
 
-            // Test F: spawn через spec.dummyTarget()
+            // Test F: spawn via spec.dummyTarget()
             {
                 const creepId = await world.spawn(spec.dummyTarget(10, 10, { roomName: ROOM, name: 'Dummy_F' }));
                 assert.ok(typeof creepId === 'string', 'F: spawn(spec.dummyTarget())');
                 const creep = await world.findOne({ _id: creepId });
                 assert.strictEqual(creep.name, 'Dummy_F');
-                assert.strictEqual(creep.user, botId, 'F: dummyTarget получает defaultBotUserId');
+                assert.strictEqual(creep.user, botId, 'F: dummyTarget gets defaultBotUserId');
             }
 
-            // Test O: spawn возвращает уникальные _id при каждом вызове
+            // Test O: spawn returns unique _id on each call
             {
                 const id1 = await world.spawn(
                     spec.creep(1, 1, {
@@ -158,7 +158,7 @@ async function run(opts = {}) {
                         userId: botId,
                     }),
                 );
-                assert.notStrictEqual(id1, id2, 'O: каждый spawn возвращает уникальный _id');
+                assert.notStrictEqual(id1, id2, 'O: each spawn returns a unique _id');
             }
 
             await world.run();
@@ -169,7 +169,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── W2: botId в single-bot (P, Q, R) ────────────────────────────────
+    // ─── W2: botId in single-bot (P, Q, R) ──────────────────────────
     {
         const world = await createWorld({
             rooms: [BASE_ROOM_WITH_SPAWN],
@@ -180,14 +180,14 @@ async function run(opts = {}) {
         });
 
         try {
-            // Test P: botId() без аргументов
-            assert.strictEqual(world.botId(), world.botId(), 'P: botId() возвращает _id единственного бота');
+            // Test P: botId() with no arguments
+            assert.strictEqual(world.botId(), world.botId(), 'P: botId() returns _id of the only bot');
 
-            // Test Q: botId('bot') по username
-            assert.strictEqual(world.botId('bot'), world.botId(), 'Q: botId("bot") возвращает _id');
+            // Test Q: botId('bot') by username
+            assert.strictEqual(world.botId('bot'), world.botId(), 'Q: botId("bot") returns _id');
 
-            // Test R: botId(0) по индексу
-            assert.strictEqual(world.botId(0), world.botId(), 'R: botId(0) возвращает _id первого бота');
+            // Test R: botId(0) by index
+            assert.strictEqual(world.botId(0), world.botId(), 'R: botId(0) returns _id of the first bot');
 
             await world.run();
             assertBotWorked(world.report);
@@ -207,7 +207,7 @@ async function run(opts = {}) {
         });
 
         try {
-            // Test S: spawn с явным userId: null не получает default
+            // Test S: spawn with explicit userId: null does not get default
             const creepId = await world.spawn(
                 spec.creep(5, 5, {
                     roomName: ROOM,
@@ -226,7 +226,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── W3: Error-пути spawn (G, I) ─────────────────────────────────────
+    // ─── W3: Error paths of spawn (G, I) ─────────────────────────────
     {
         const world = await createWorld({
             rooms: [BASE_ROOM_WITH_SPAWN],
@@ -239,7 +239,7 @@ async function run(opts = {}) {
         try {
             const botId = world.botId();
 
-            // Test G: spawn без roomName → ошибка
+            // Test G: spawn without roomName → error
             await assert.rejects(
                 world.spawn({
                     x: 10,
@@ -252,7 +252,7 @@ async function run(opts = {}) {
                 'G: spawn without roomName throws an error',
             );
 
-            // Test I: spawn без body → ошибка
+            // Test I: spawn without body → error
             await assert.rejects(
                 world.spawn({
                     roomName: ROOM,
@@ -292,7 +292,7 @@ async function run(opts = {}) {
         try {
             const botId = world.botId();
 
-            // Test J: spawn с кастомным body
+            // Test J: spawn with custom body
             {
                 const customBody = [
                     { type: 'work', hits: 150 },
@@ -312,12 +312,12 @@ async function run(opts = {}) {
                 );
                 const creep = await world.findOne({ _id: creepId });
                 assert.strictEqual(creep.body.length, 4, 'J: 4 body parts');
-                assert.deepStrictEqual(creep.body, customBody, 'J: body совпадает');
-                assert.strictEqual(creep.hits, 600, 'J: кастомные hits');
-                assert.strictEqual(creep.hitsMax, 800, 'J: кастомные hitsMax');
+                assert.deepStrictEqual(creep.body, customBody, 'J: body matches');
+                assert.strictEqual(creep.hits, 600, 'J: custom hits');
+                assert.strictEqual(creep.hitsMax, 800, 'J: custom hitsMax');
             }
 
-            // Test K: множественный spawn
+            // Test K: multiple spawn
             {
                 const NUM_CREEPS = 5;
                 const ids = [];
@@ -332,11 +332,11 @@ async function run(opts = {}) {
                     );
                     ids.push(id);
                 }
-                assert.strictEqual(ids.length, NUM_CREEPS, 'K: создано 5 крипов');
-                assert.strictEqual(new Set(ids).size, NUM_CREEPS, 'K: все _id уникальны');
+                assert.strictEqual(ids.length, NUM_CREEPS, 'K: created 5 creeps');
+                assert.strictEqual(new Set(ids).size, NUM_CREEPS, 'K: all _id are unique');
             }
 
-            // Test L: spawn до run
+            // Test L: spawn before run
             {
                 const preId = await world.spawn(
                     spec.creep(5, 5, {
@@ -346,10 +346,10 @@ async function run(opts = {}) {
                         userId: botId,
                     }),
                 );
-                assert.ok(preId, 'L: spawn до run вернул _id');
+                assert.ok(preId, 'L: spawn before run returned _id');
             }
 
-            // Test N: spawn в нейтральную комнату (W0N2)
+            // Test N: spawn in a neutral room (W0N2)
             {
                 const creepId = await world.spawn(
                     spec.creep(20, 20, {
@@ -359,19 +359,19 @@ async function run(opts = {}) {
                         userId: botId,
                     }),
                 );
-                assert.ok(typeof creepId === 'string', 'N: spawn в нейтральную комнату');
+                assert.ok(typeof creepId === 'string', 'N: spawn in neutral room');
                 const creep = await world.findOne({ _id: creepId });
-                assert.ok(creep, 'N: крип найден в нейтральной комнате');
+                assert.ok(creep, 'N: creep found in neutral room');
                 assert.strictEqual(creep.room, 'W0N2');
             }
 
             await world.run();
 
-            // L: верификация выживания после run
+            // L: verify survival after run
             {
                 const preCreep = await world.findOne({ name: 'PreRun_Creep_L' });
-                assert.ok(preCreep, 'L: крип выжил после run');
-                assert.strictEqual(preCreep.hits, 100, 'L: hits не изменились');
+                assert.ok(preCreep, 'L: creep survived after run');
+                assert.strictEqual(preCreep.hits, 100, 'L: hits unchanged');
             }
 
             assertBotWorked(world.report);
@@ -408,8 +408,8 @@ async function run(opts = {}) {
             await world.run();
 
             const creeps = await world.find({ room: ROOM, name: 'OnTick_Creep_M' });
-            assert.strictEqual(creeps.length, 1, 'M: крип выжил после run');
-            assert.strictEqual(creeps[0].hits, 100, 'M: hits не изменились');
+            assert.strictEqual(creeps.length, 1, 'M: creep survived after run');
+            assert.strictEqual(creeps[0].hits, 100, 'M: hits unchanged');
 
             assertBotWorked(world.report);
             assertNoErrors(world.report);
@@ -418,7 +418,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── W6a: botId в multi-bot (S, T, U) ────────────────────────────────
+    // ─── W6a: botId in multi-bot (S, T, U) ────────────────────────────
     {
         const world = await createWorld({
             rooms: [
@@ -438,11 +438,11 @@ async function run(opts = {}) {
         });
 
         try {
-            // Test S: botId(0) возвращает _id первого бота
-            assert.strictEqual(world.botId(0), world.botId(0), 'S: botId(0) = _id первого бота');
+            // Test S: botId(0) returns _id of the first bot
+            assert.strictEqual(world.botId(0), world.botId(0), 'S: botId(0) = _id of the first bot');
 
-            // Test T: botId(1) возвращает _id второго бота
-            assert.strictEqual(world.botId(1), world.botId(1), 'T: botId(1) = _id второго бота');
+            // Test T: botId(1) returns _id of the second bot
+            assert.strictEqual(world.botId(1), world.botId(1), 'T: botId(1) = _id of the second bot');
 
             // Test U: botId('unknown') → throws
             assert.throws(() => world.botId('unknown_username'), /not found/, 'U: botId("unknown") throws an error');
@@ -471,7 +471,7 @@ async function run(opts = {}) {
         });
 
         try {
-            // Test H: spawn без userId и без ботов → ошибка
+            // Test H: spawn without userId and without bots → error
             await assert.rejects(
                 world.spawn({
                     roomName: ROOM,
@@ -484,7 +484,7 @@ async function run(opts = {}) {
                 'H: spawn without userId and no bots throws an error',
             );
 
-            // Test V: botId() без ботов → throws
+            // Test V: botId() without bots → throws
             assert.throws(() => world.botId(), /defaultBot/, 'V: botId() without bots throws an error');
 
             await world.run();

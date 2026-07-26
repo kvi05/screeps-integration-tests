@@ -8,18 +8,18 @@ const ROOM = 'W0N1';
 const BOT = 'bot';
 
 /**
- * Сценарий: runtime-isolation.
+ * Scenario: runtime-isolation.
  *
- * Проверяет изоляцию runtime: последовательное создание двух миров,
- * корректная очистка dispose, отсутствие конфликтов портов.
+ * Verifies runtime isolation: sequential creation of two worlds,
+ * proper dispose cleanup, no port conflicts.
  *
- * Запуск: npm run test:integration -- --only runtime-isolation
+ * Run: npm run test:integration -- --only runtime-isolation
  *
  * @param {Object} [opts]
  * @returns {Promise<Object>}
  */
 async function run(opts = {}) {
-    // ─── Test A: два последовательных мира не конфликтуют ──────────
+    // ─── Test A: two sequential worlds do not conflict ─────────────
     {
         const world1 = await createWorld({
             rooms: [
@@ -42,7 +42,7 @@ async function run(opts = {}) {
             await world1.dispose();
         }
 
-        // Второй мир после dispose первого
+        // Second world after disposing the first
         const world2 = await createWorld({
             rooms: [
                 {
@@ -65,7 +65,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── Test B: createWorld без ботов (source + spawn только) ────
+    // ─── Test B: createWorld without bots (source + spawn only) ───
     {
         const world = await createWorld({
             rooms: [
@@ -83,13 +83,13 @@ async function run(opts = {}) {
 
         try {
             await world.run();
-            assert.strictEqual(world.report.ticksRun, 3, 'ровно 3 тика');
+            assert.strictEqual(world.report.ticksRun, 3, 'exactly 3 ticks');
         } finally {
             await world.dispose();
         }
     }
 
-    // ─── Test C: readMemory возвращает {} для пустой памяти ─────────
+    // ─── Test C: readMemory returns {} for empty memory ────────────
     {
         const world = await createWorld({
             rooms: [
@@ -108,8 +108,8 @@ async function run(opts = {}) {
         try {
             await world.run();
             const mem = await world.readMemory(BOT);
-            assert.ok(mem, 'Memory не null');
-            assert.ok(typeof mem === 'object', 'Memory - объект');
+            assert.ok(mem, 'Memory not null');
+            assert.ok(typeof mem === 'object', 'Memory is an object');
         } finally {
             await world.dispose();
         }

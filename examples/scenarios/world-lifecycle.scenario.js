@@ -5,24 +5,24 @@ const { createWorld, spec } = require('screeps-integration-tests');
 const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/assertions');
 
 /**
- * Сценарий: world-lifecycle.
+ * Scenario: world-lifecycle.
  *
- * Проверяет корректное взаимодействие `world.run()` и `world.tick()`.
+ * Verifies correct interaction between `world.run()` and `world.tick()`.
  *
- * Покрытые проверки:
- * - tick() перед run() учитывается в общем лимите ticks
- * - run() не превышает opts.ticks
- * - повторный run() не добавляет тиков
- * - tick() после run() без until продолжает тикать
- * - run()/tick(N) уважают until (maxTicks)
+ * Covered checks:
+ * - tick() before run() counts toward the total tick limit
+ * - run() does not exceed opts.ticks
+ * - repeated run() adds no ticks
+ * - tick() after run() without until continues ticking
+ * - run()/tick(N) respect until (maxTicks)
  *
- * Запуск: npm run test:integration -- --only world-lifecycle
+ * Run: npm run test:integration -- --only world-lifecycle
  *
- * @param {Object} [opts] — опции из runScenario.js (profiling, ...)
+ * @param {Object} [opts] — options from runScenario.js (profiling, ...)
  * @returns {Promise<Object>} report
  */
 async function run(opts = {}) {
-    // ─── Test A: поведение без until ───────────────────────────────────────
+    // ─── Test A: behavior without until ──────────────────────────────────
     {
         const world = await createWorld({
             rooms: [
@@ -39,29 +39,29 @@ async function run(opts = {}) {
         });
 
         try {
-            // tick() перед run() — run() учитывает уже сделанные тики
+            // tick() before run() — run() counts already-completed ticks
             await world.tick(3);
-            assert.strictEqual(world.report.ticksRun, 3, 'tick(3) должен сделать 3 тика');
+            assert.strictEqual(world.report.ticksRun, 3, 'tick(3) should complete 3 ticks');
 
-            // последовательные tick()
+            // sequential tick()
             await world.tick(2);
-            assert.strictEqual(world.report.ticksRun, 5, 'tick(2) после tick(3) должен дать 5');
+            assert.strictEqual(world.report.ticksRun, 5, 'tick(2) after tick(3) should give 5');
 
-            // run() добирает до opts.ticks и не превышает лимит
+            // run() catches up to opts.ticks without exceeding the limit
             await world.run();
-            assert.strictEqual(world.report.ticksRun, 10, 'run() должен добрать до 10 тиков');
+            assert.strictEqual(world.report.ticksRun, 10, 'run() should catch up to 10 ticks');
 
-            // повторный run() не добавляет тиков
+            // repeated run() adds no ticks
             await world.run();
-            assert.strictEqual(world.report.ticksRun, 10, 'повторный run() не должен добавлять тиков');
+            assert.strictEqual(world.report.ticksRun, 10, 'repeated run() should add no ticks');
 
-            // tick() после run() без until продолжает тикать
+            // tick() after run() without until continues ticking
             await world.tick(2);
-            assert.strictEqual(world.report.ticksRun, 12, 'tick(2) после run() должен дать 12');
+            assert.strictEqual(world.report.ticksRun, 12, 'tick(2) after run() should give 12');
 
-            // run() снова не тикает — ticksRun >= opts.ticks
+            // run() again does not tick — ticksRun >= opts.ticks
             await world.run();
-            assert.strictEqual(world.report.ticksRun, 12, 'run() после tick(2) не должен добавлять тиков');
+            assert.strictEqual(world.report.ticksRun, 12, 'run() after tick(2) should not add ticks');
 
             assertBotWorked(world.report);
             assertNoErrors(world.report);
@@ -70,7 +70,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── Test B: поведение с until.maxTicks ────────────────────────────────
+    // ─── Test B: behavior with until.maxTicks ───────────────────────────
     {
         const world = await createWorld({
             rooms: [
@@ -87,30 +87,30 @@ async function run(opts = {}) {
         });
 
         try {
-            // run() останавливается на maxTicks
+            // run() stops at maxTicks
             await world.run();
-            assert.strictEqual(world.report.ticksRun, 10, 'run() должен остановиться на maxTicks=10');
-            assert.ok(world.report.stopReason, 'должен быть stopReason');
+            assert.strictEqual(world.report.ticksRun, 10, 'run() should stop at maxTicks=10');
+            assert.ok(world.report.stopReason, 'should have stopReason');
 
-            // повторный run() не добавляет тиков
+            // repeated run() adds no ticks
             await world.run();
             assert.strictEqual(
                 world.report.ticksRun,
                 10,
-                'повторный run() не должен добавлять тиков при наличии stopReason',
+                'repeated run() should add no ticks when stopReason is present',
             );
 
-            // tick(N) в пределах N тиков уважает until
+            // tick(N) respects until even within N ticks
             await world.tick(15);
             assert.strictEqual(
                 world.report.ticksRun,
                 10,
-                `tick(15) с until.maxTicks=10 должен дать 10, а вернул ${world.report.ticksRun}`,
+                `tick(15) with until.maxTicks=10 should give 10, got ${world.report.ticksRun}`,
             );
 
-            // run() после остановки не добавляет тиков
+            // run() after stop adds no ticks
             await world.run();
-            assert.strictEqual(world.report.ticksRun, 10, 'run() после остановки не добавляет тиков');
+            assert.strictEqual(world.report.ticksRun, 10, 'run() after stop does not add ticks');
         } finally {
             await world.dispose();
         }
