@@ -15,6 +15,7 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    # ── Lint & Format ──────────────────────────────────────────────────────
     lint:
         name: Lint & Format (Node ${{ matrix.node-version }})
         runs-on: ubuntu-latest
@@ -28,9 +29,12 @@ jobs:
                   node-version: ${{ matrix.node-version }}
                   cache: npm
             - run: npm ci
+              env:
+                  HUSKY: 0
             - run: npm run lint
             - run: npm run format:check
 
+    # ── Unit tests ─────────────────────────────────────────────────────────
     unit-tests:
         name: Unit Tests (Node ${{ matrix.node-version }})
         runs-on: ubuntu-latest
@@ -44,8 +48,11 @@ jobs:
                   node-version: ${{ matrix.node-version }}
                   cache: npm
             - run: npm ci
+              env:
+                  HUSKY: 0
             - run: npm test
 
+    # ── Integration tests (gated behind lint + unit) ───────────────────────
     integration-tests:
         name: Integration Tests (Node ${{ matrix.node-version }})
         runs-on: ubuntu-latest
@@ -61,4 +68,6 @@ jobs:
                   node-version: ${{ matrix.node-version }}
                   cache: npm
             - run: npm ci
+              env:
+                  HUSKY: 0
             - run: npm run test:integration

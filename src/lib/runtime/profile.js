@@ -3,6 +3,9 @@
 const fs = require('fs');
 const path = require('path');
 
+/** @type {number} Sequence counter to guarantee unique filenames within the same millisecond. */
+let _callgrindSeq = 0;
+
 /**
  * Triggers profiler finalisation for all profiled bots.
  *
@@ -50,7 +53,8 @@ async function exportProfiles(resolvedBots, writeMemoryFn, server, report) {
  */
 function saveCallgrind(callgrindData, scenarioName, profilesDir) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${scenarioName}-${timestamp}.callgrind`;
+    const seq = String(++_callgrindSeq).padStart(3, '0');
+    const filename = `${scenarioName}-${timestamp}-${seq}.callgrind`;
     const filePath = path.join(profilesDir, filename);
     fs.mkdirSync(profilesDir, { recursive: true });
     fs.writeFileSync(filePath, callgrindData, 'utf8');
