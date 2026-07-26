@@ -147,7 +147,7 @@ const world = await createWorld({
       name: 'W0N2',
       controller: spec.controller({ level: 4 }),
       sources: [spec.source(20, 20)],
-      // userId явно — иначе defaultBotUserId (первый бот)
+      // userId explicit - otherwise defaultBotUserId
       structures: [spec.container(5, 5, { userId: 'reserveBot' }), spec.spawn(25, 25, { userId: 'reserveBot' })],
     },
   ],
