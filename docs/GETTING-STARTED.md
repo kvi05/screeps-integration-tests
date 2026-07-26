@@ -57,6 +57,16 @@ it yourself or set `buildCommand` in the config and pass `--build`:
 npx screeps-integration-tests --build
 ```
 
+> **No bot yet?** Create a minimal `dist/main.js` so the sanity check below
+> passes — it keeps `Memory` non-empty, which is all `assertBotWorked` needs:
+>
+> ```js
+> 'use strict';
+> module.exports.loop = function () {
+>   Memory.tick = Game.time;
+> };
+> ```
+
 ### 5. Sanity check
 
 Copy the smoke scenario from the package examples:

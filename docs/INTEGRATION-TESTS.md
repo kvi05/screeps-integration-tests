@@ -189,7 +189,7 @@ await server.start();
 ### Contract
 
 - `rooms` — array of `RoomSpecInput[]` (name + spec/fixture + overrides);
-- `bots` — array of `{ username, room, modules?, profiling? }`;
+- `bots` — array of `{ username, rooms, modules?, profiling? }`;
 - per-bot profiling: `b.profiling ?? opts.profiling ?? false`.
 
 More about multi-room modeling — [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md).
@@ -278,6 +278,19 @@ waits for them to finish, and removes the cache directory. On timeout,
 `pruneCache` is an internal function, not exported to the public API.
 Called automatically when CLI starts. It cleans up the `cacheDir`, keeping
 the last `cacheKeep` directories (configurable in `screeps-integration.config.js`, default `./.cache`).
+
+### Storage-singleton race
+
+`@screeps/common/lib/storage.js` holds one TCP socket per process. When
+multiple `createWorld` calls happen in a row in one scenario (e.g.,
+`world-spawn` with 15 worlds), there is a narrow window between `dispose()`
+and the next `server.start()` where the old socket is not yet closed and the
+new storage process is not yet listening.
+
+In practice it doesn't manifest: the 1-second reconnect in `storage.js`
+(Screeps) + the duration of the `createWorld` pipeline cover the race.
+Symptom — `Storage connection lost` in stderr (filtered in
+`pipeChildStreams`). It does not affect results.
 
 ## 8. Profiling
 
