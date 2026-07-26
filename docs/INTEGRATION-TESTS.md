@@ -447,34 +447,11 @@ screeps-integration-tests/
 
 ## 11. Extending the framework
 
-### How to add a new scenario
-
-See [GETTING-STARTED.md](./GETTING-STARTED.md#writing-a-scenario).
-
-### How to add a new assertion (`assert`)
-
-```js
-// lib/assertions/assertions.js
-function assertMyCondition(report, opts) {
-    // ... specific logic
-    assert.ok(condition, 'description if test fails');
-}
-
-module.exports = { ..., assertMyCondition };
-```
-
-### How to add a new metric
-
-1. Add a field to `collectMetrics()` (`observers/metrics.js`).
-2. If the metric is scalar, it automatically appears in CSV export.
-3. For non-scalar fields (e.g., `creepsByRole`), handle the format in
-   `metricsReport.js`.
-4. Add unit tests to `tests/`.
-
-### How to add a new room fixture
-
-See [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#7-how-to-create-a-room-fixture).
-
-### How to update a memory fixture
-
-See [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#8-how-to-create-or-update-a-memory-fixture).
+| Task                      | Guide                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------- |
+| Add a new scenario        | [GETTING-STARTED.md](./GETTING-STARTED.md#writing-a-scenario)                       |
+| Add a new assertion       | [CONTRIBUTING.md](../CONTRIBUTING.md#new-assertion)                                 |
+| Add a new metric          | [CONTRIBUTING.md](../CONTRIBUTING.md#new-metric)                                    |
+| Add a new sub-path export | [CONTRIBUTING.md](../CONTRIBUTING.md#sub-path-exports-trickle-down-pattern)         |
+| Add a new room fixture    | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#7-how-to-create-a-room-fixture)             |
+| Update a memory fixture   | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#8-how-to-create-or-update-a-memory-fixture) |

@@ -228,3 +228,10 @@ a community-maintained test harness that runs the official open-source Screeps s
   (Screeps) + the duration of the `createWorld` pipeline cover the race.
   Symptom — `Storage connection lost` in stderr (filtered in
   `pipeChildStreams`).
+
+## Contributing
+
+Found a bug? Have an idea? Want to improve something?  
+Pull requests and issues are always welcome.
+
+For the technical details (setup, conventions, how to run tests), see [CONTRIBUTING.md](./CONTRIBUTING.md).
