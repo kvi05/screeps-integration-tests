@@ -20,7 +20,7 @@ Reference scenarios and typical usage patterns for the framework.
 - [8. memoryOverrides and direct DB access](#8-memoryoverrides-and-direct-db-access)
 - [9. Profiling](#9-profiling)
 - [10. Patterns](#10-patterns)
-- [11. Multiple worlds in one scenario](#11-multiple-worlds-in-one-scenario)
+- [10. Multiple worlds in one scenario](#10-multiple-worlds-in-one-scenario)
 
 ## 1. Smoke: minimal startup check
 
@@ -327,16 +327,7 @@ if (callgrind) {
 > `loop` is wrapped via `profiler.wrap()`. See details in
 > [API-REFERENCE.md](./API-REFERENCE.md#12-profiling).
 
-## 10. Patterns
-
-- `createWorld()` — single setup point.
-- `try { ... } finally { await world.dispose(); }` — mandatory.
-- `roomFixture` + `roomOverrides` — reuse rooms locally.
-- `world.bots[username]` — access to a bot; singular `world.bot` does
-  not exist.
-- `world.eventLog(room)` requires an explicit room name.
-
-## 11. Multiple worlds in one scenario
+## 10. Multiple worlds in one scenario
 
 **Introduces:** block-scoped subtests in one file, reuse of room
 and bot constants, subtest isolation (each has its own `createWorld` +
