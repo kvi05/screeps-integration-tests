@@ -1,6 +1,7 @@
 # Configuration
 
-The framework looks for a `screeps-integration.config` file with extensions `.js`, `.json`, `.cjs`, `.mjs` in the current directory. The path can be set explicitly: `--config <path>`.
+The framework looks for a `screeps-integration.config` file with extensions `.js`, `.json`, `.cjs`, `.mjs` in the current directory. \
+The path can be set explicitly: `--config <path>`.
 
 ## Setting priority
 
@@ -12,7 +13,7 @@ From lowest to highest:
 4. CLI arguments
 5. Explicit overrides from code
 
-Relative paths are resolved from the config file's directory; if there is no config — from `cwd`.
+Relative paths are resolved **from the config file's directory**; if there is no config — from `cwd`.
 
 ## Schema
 
@@ -27,11 +28,60 @@ module.exports = {
   cacheKeep: 5, // how many recent caches to keep
   timeout: 30 * 60 * 1000, // timeout per scenario, ms
   jobs: Math.min(4, require('os').cpus().length), // parallel scenarios
-  buildCommand: null, // only runs with --build
+  buildCommand: null, // executable shell command; runs only with --build
   require: [], // modules to require before scenarios
   env: {}, // env for worker processes
 };
 ```
+
+### `distDir`
+
+Path to a **flat directory of compiled bot modules**. The framework reads every
+`*.js` file from this directory and uploads each one as a separate Screeps
+module, exactly as the game loads them.
+
+**No subdirectories** are supported inside `distDir`; the expected layout is:
+
+```
+dist/
+  main.js
+  role.harvester.js
+  utils.js
+  ...
+```
+
+### `buildCommand`
+
+You can insert **your** **executable shell command** here, which will be executed once before run tests scenarios. \
+It was designed to run **your** own bot **build scripts**, but you can use it however you like.
+
+Typical values:
+
+- `npm run build`
+- `grunt`
+- `node build.js`
+
+#### Working directory
+
+`buildCommand` runs from the directory where you run the CLI command, not from
+the directory where the config file is located.
+
+If your config file is in a subdirectory, either run the CLI from that
+subdirectory or add a directory change to the command:
+
+```js
+buildCommand: 'cd ./my-bot && npm run build',
+```
+
+Example workflow:
+
+```bash
+# buildCommand is set in the config
+npx screeps-integration-tests --build
+```
+
+> If you already have a ready `dist/` directory, leave `buildCommand` as
+> `null` and run the framework without `--build`.
 
 ## CLI flags
 
@@ -39,7 +89,7 @@ module.exports = {
 | ------------------------- | --------------------------------------------------------- |
 | `--config <path>`         | Path to config                                            |
 | `--scenariosDir <dir>`    | Directory with scenarios                                  |
-| `--distDir <dir>`         | Directory with bot modules                                |
+| `--distDir <dir>`         | Bot `dist/` directory (flat compiled `.js` modules)       |
 | `--fixturesDir <dir>`     | Directory with memory fixtures                            |
 | `--roomFixturesDir <dir>` | Directory with room fixtures                              |
 | `--profilesDir <dir>`     | Directory for profiles                                    |
@@ -49,7 +99,7 @@ module.exports = {
 | `--bail`                  | Stop on first error                                       |
 | `--timeout <int>`         | Timeout per scenario, ms                                  |
 | `--jobs <int>`            | Number of parallel workers                                |
-| `--build`                 | Execute `buildCommand` before running                     |
+| `--build`                 | Run the configured `buildCommand` before scenarios        |
 
 The timeout applies to each scenario individually; there is no global timeout.
 
@@ -65,7 +115,7 @@ module.exports = {
   roomFixturesDir: './inter_tests/room-fixtures',
   cacheDir: './inter_tests/.cache',
   profilesDir: './inter_tests/profiles',
-  buildCommand: 'npm run build',
+  buildCommand: 'npm run build', // must produce the flat ./dist directory
 };
 ```
 

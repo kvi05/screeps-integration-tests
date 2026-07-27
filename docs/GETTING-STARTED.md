@@ -57,6 +57,9 @@ it yourself or set `buildCommand` in the config and pass `--build`:
 npx screeps-integration-tests --build
 ```
 
+> **Working directory:** `buildCommand` runs from the directory where you run
+> the CLI, not from the config file's directory.
+
 > **No bot yet?** Create a minimal `dist/main.js` so the sanity check below
 > passes — it keeps `Memory` non-empty, which is all `assertBotWorked` needs:
 >
