@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Centralized user-friendly error layer (`src/lib/errors.js`):
+  - `FrameworkError` base class with structured output (WHAT → WHY → HOW → docs link)
+  - Subclasses: `MissingDirectoryError`, `MissingFileError`, `ConfigError`, `FixtureError`, `BotError`
+  - Safe wrappers: `assertDir`, `assertFile`, `safeReaddir`, `safeReadFile`, `safeRequire`
+  - 12 predefined error contexts with actionable fix instructions
+  - 33 unit tests (`tests/errors.test.js`)
+
+### Changed
+
+- **`loadBot.js`:** replaced raw `fs.readdirSync(distDir)` with `safeReaddir` —
+  missing `dist/` now produces a friendly message explaining what the dist
+  directory is, why it's needed, and how to build the bot (was: `ENOENT: no
+such file or directory, scandir`)
+- **`bin/screeps-integration-tests.js`:** `findScenarios()` uses `assertDir`
+  with context about what scenarios are; `--only` not found now lists all
+  available scenarios in the error output; summary shows up to 6 error lines
+- **`config.js`:** `loadConfigFile()` uses `safeRequire`/`safeReadFile` with
+  friendly errors for missing config and malformed JSON
+- **`builders/memory.js`:** `loadFixture()` and `saveFixture()` use
+  `FixtureError` for consistent error formatting
+- **`orchestration/world.js`:** `buildCanonicalRoom()` lists available room
+  fixtures when a referenced fixture is not found; `createWorld()` validation
+  errors (empty rooms, old `room` field) use `FrameworkError`/`BotError`
+- **`orchestration/worldHelpers.js`:** `botId()`, `setTicksToDowngrade()`,
+  `setHitsStructure()`, `damageHitsStructure()`, `deleteStructure()` all use
+  structured error classes with contextual fix suggestions
+- **`runScenario.js`:** worker preserves `FrameworkError.toString()`
+  formatting when serialising errors across IPC
+- Updated test assertions in `worldHelpers.test.js`, `world.test.js`,
+  `config.test.js`, and `world-spawn.scenario.js` for new error messages
+
 ## [1.0.0] — 2026-07-26
 
 ### Added
