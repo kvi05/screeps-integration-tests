@@ -13,8 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `FrameworkError` base class with structured output (WHAT → WHY → HOW → docs link)
   - Subclasses: `MissingDirectoryError`, `MissingFileError`, `ConfigError`, `FixtureError`, `BotError`
   - Safe wrappers: `assertDir`, `assertFile`, `safeReaddir`, `safeReadFile`, `safeRequire`
-  - 12 predefined error contexts with actionable fix instructions
-  - 33 unit tests (`tests/errors.test.js`)
+  - 16 predefined error contexts with actionable fix instructions
+  - 38 unit tests (`tests/errors.test.js`)
+- `screeps-integration-tests/errors` sub-path export (`src/public/errors.js`) —
+  scenario authors can now `instanceof`-check error classes
+- New error contexts: `CLI_PARSE_ERROR`, `CONFIG_SYNTAX_ERROR`, `AMBIGUOUS_BOT`, `INVALID_BOTID_ARG`
 
 ### Changed
 
@@ -26,7 +29,8 @@ such file or directory, scandir`)
   with context about what scenarios are; `--only` not found now lists all
   available scenarios in the error output; summary shows up to 6 error lines
 - **`config.js`:** `loadConfigFile()` uses `safeRequire`/`safeReadFile` with
-  friendly errors for missing config and malformed JSON
+  friendly errors for missing config, malformed JSON, and syntax errors;
+  CLI parse errors now throw `ConfigError` instead of raw `Error`
 - **`builders/memory.js`:** `loadFixture()` and `saveFixture()` use
   `FixtureError` for consistent error formatting
 - **`orchestration/world.js`:** `buildCanonicalRoom()` lists available room
@@ -35,10 +39,20 @@ such file or directory, scandir`)
 - **`orchestration/worldHelpers.js`:** `botId()`, `setTicksToDowngrade()`,
   `setHitsStructure()`, `damageHitsStructure()`, `deleteStructure()` all use
   structured error classes with contextual fix suggestions
+- **`orchestration/resolveDefaults.js`:** `defaultBot()` now throws `BotError`
+  instead of raw `Error` for no-bots and multi-bot cases
 - **`runScenario.js`:** worker preserves `FrameworkError.toString()`
   formatting when serialising errors across IPC
 - Updated test assertions in `worldHelpers.test.js`, `world.test.js`,
-  `config.test.js`, and `world-spawn.scenario.js` for new error messages
+  `config.test.js`, `resolveDefaults.test.js`, and `world-spawn.scenario.js`
+  for new error messages
+
+### Fixed
+
+- Config syntax errors no longer misreported as "Config file not found" —
+  now use `CONFIG_SYNTAX_ERROR` context
+- JSDoc `@throws` corrected for `findScenarios()` (was `{never}`, now `{MissingDirectoryError}`)
+  and `resolveConfig()` (now lists all thrown error types)
 
 ## [1.0.0] — 2026-07-26
 
