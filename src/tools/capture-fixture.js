@@ -11,7 +11,7 @@
  *   node src/tools/capture-fixture.js <name> [options]
  *
  * Options:
- *   --from <fixture>     — starting snapshot (default: bootstrap_with_anchor)
+ *   --from <fixture>     — starting memory fixture (no default; skipped if omitted)
  *   --rcl <level>        — target RCL (default: 3, range: 1..8)
  *   --ticks <N>          — max ticks to reach RCL (default: 10000)
  *   --stabilize <N>      — extra ticks after reaching RCL (default: 2000)
@@ -105,7 +105,7 @@ function getRclFromMemory(memory, roomName) {
 /**
  * @typedef {Object} CaptureFixtureOpts
  * @property {string}  name                      — fixture name (without .memory.json)
- * @property {string}  [from='bootstrap_with_anchor'] — starting memory fixture
+ * @property {string}  [from] — starting memory fixture (undefined = no starting fixture)
  * @property {number}  [targetRcl=3]
  * @property {number}  [maxTicks=10000]
  * @property {number}  [stabilize=2000]
