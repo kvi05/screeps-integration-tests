@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `capture-fixture.js`: `--from` now defaults to `undefined` (no starting
+  memory fixture required). Previously defaulted to `bootstrap_with_anchor`.
+
+### Documentation
+
+- Clarified that `buildCommand` runs from the directory where the CLI is
+  invoked, not from the config file's directory
+- Restructured `docs/GETTING-STARTED.md`: added Project layout section,
+  split "Bot code format" into subsections, fixed example scenario
+  (RCL 1→2, `rooms` syntax), added bash/Linux/macOS note, expanded TOC
+- Restructured `docs/FIXTURES-GUIDE.md`: enriched §4 (Memory fixtures) with
+  `memoryOverrides` docs, merge semantics, and all `memory` option forms;
+  moved "Creating or updating" to §5 for TOC discoverability; trimmed
+  room overrides examples and removed redundant subsections
+- Fixed broken anchor links to FIXTURES-GUIDE.md in `CONTRIBUTING.md` and
+  `docs/INTEGRATION-TESTS.md`.
+- Updated `docs/EXAMPLES.md`: unified `bots[].rooms` syntax to array form
+  (`['W0N1']` instead of `'W0N1'`) for clarity
+- Restructured `docs/INTEGRATION-TESTS.md`: removed duplicate Observers section,
+  collapsed sub-tables in §1, merged child-process and cache-isolation sections,
+  moved storage-singleton race note to `CONTRIBUTING.md`
+
 ## [1.0.0] — 2026-07-26
 
 ### Added
