@@ -32,6 +32,7 @@ const { materializeStructure, materializeCreep } = require('../builders/material
 const { getBotMemory, setBotMemory, deepMergeMemory } = require('../builders/memory');
 const { readEventLog } = require('../observers/eventLog');
 const { resolveDefaultUserId, defaultBot } = require('./resolveDefaults');
+const { FrameworkError, BotError } = require('../errors');
 
 /**
  * @typedef {import('../runtime/storageAdapter').StorageAdapter} StorageAdapter
@@ -132,7 +133,11 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
             type: 'controller',
         });
         if (!controller) {
-            throw new Error(`setTicksToDowngrade: controller in room "${roomName}" not found`);
+            throw new FrameworkError('STRUCTURE_NOT_FOUND', roomName, {
+                title: `Controller not found in room "${roomName}"`,
+                why: 'setTicksToDowngrade requires a controller in the room.',
+                how: 'Make sure the room has a controller. Use spec.controller({ level: N }) in your room spec.',
+            });
         }
         if (ticks === null) {
             await db['rooms.objects'].update({ _id: controller._id }, { $set: { downgradeTime: null } });
@@ -156,7 +161,11 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         }
         const obj = await db['rooms.objects'].findOne({ _id });
         if (!obj) {
-            throw new Error(`setHitsStructure: object with _id "${_id}" not found`);
+            throw new FrameworkError('STRUCTURE_NOT_FOUND', _id, {
+                title: `Object with _id "${_id}" not found`,
+                why: 'setHitsStructure needs an existing object to modify its hit points.',
+                how: 'Check the _id. The object may have been destroyed or was never created.',
+            });
         }
         const clamped = Math.min(hits, obj.hitsMax || hits);
         await db['rooms.objects'].update({ _id }, { $set: { hits: clamped } });
@@ -170,7 +179,11 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         }
         const obj = await db['rooms.objects'].findOne({ _id });
         if (!obj) {
-            throw new Error(`damageHitsStructure: object with _id "${_id}" not found`);
+            throw new FrameworkError('STRUCTURE_NOT_FOUND', _id, {
+                title: `Object with _id "${_id}" not found`,
+                why: 'damageHitsStructure needs an existing object to apply damage to.',
+                how: 'Check the _id. The object may have been destroyed or was never created.',
+            });
         }
         const newHits = Math.max(0, obj.hits - amount);
         await db['rooms.objects'].update({ _id }, { $set: { hits: newHits } });
@@ -181,7 +194,11 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         const _id = resolveId(idOrObject);
         const obj = await db['rooms.objects'].findOne({ _id });
         if (!obj) {
-            throw new Error(`deleteStructure: object with _id "${_id}" not found`);
+            throw new FrameworkError('STRUCTURE_NOT_FOUND', _id, {
+                title: `Object with _id "${_id}" not found`,
+                why: 'deleteStructure needs an existing object to delete.',
+                how: 'Check the _id. The object may have been already deleted or was never created.',
+            });
         }
         await db['rooms.objects'].removeWhere({ _id });
     }
@@ -293,20 +310,39 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
             throw new Error('botId: bots not available (pass bots to createWorldHelpers)');
         }
         if (bot === undefined) {
+            if (!bots || Object.keys(bots).length === 0) {
+                throw new BotError('ZERO_BOTS', undefined, {
+                    title: 'botId() called with no bots registered',
+                    why: 'botId() without arguments returns the only bot, but no bots are registered.',
+                    how: 'Register at least one bot in createWorld({ bots: [...] }) or pass an explicit username.',
+                });
+            }
             return bots[defaultBot(bots)].id;
         }
         if (typeof bot === 'number') {
             const entries = Object.values(bots);
             if (bot < 0 || bot >= entries.length) {
-                throw new Error(
-                    `botId: index ${bot} is out of range (0..${entries.length - 1}). Available bots: ${Object.keys(bots).join(', ')}`,
-                );
+                throw new BotError('BOT_NOT_FOUND', String(bot), {
+                    title: `Bot index ${bot} out of range`,
+                    why: `Valid range: 0..${entries.length - 1}.`,
+                    how:
+                        entries.length > 0
+                            ? `Available bots: ${Object.keys(bots).join(', ')}`
+                            : 'No bots are registered.',
+                });
             }
             return entries[bot].id;
         }
         if (typeof bot === 'string') {
             if (!bots[bot]) {
-                throw new Error(`botId: bot "${bot}" not found. Available bots: ${Object.keys(bots).join(', ')}`);
+                throw new BotError(
+                    'BOT_NOT_FOUND',
+                    bot,
+                    {
+                        title: `Bot "${bot}" not found`,
+                    },
+                    [`Available bots: ${Object.keys(bots).join(', ') || '(none)'}`],
+                );
             }
             return bots[bot].id;
         }

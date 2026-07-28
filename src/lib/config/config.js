@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { parseArgs, HelpRequested } = require('./cli');
+const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('../errors');
 
 /**
  * @file Configuration loader for `screeps-integration-tests`.
@@ -108,19 +109,45 @@ function findConfigFile(cwd) {
  *
  * @param {string} configPath - Absolute path to the config file
  * @returns {Partial<FrameworkConfig>}
- * @throws {Error} If the file does not export a valid config object/function
+ * @throws {MissingFileError|ConfigError|FrameworkError}
  */
 function loadConfigFile(configPath) {
     const ext = path.extname(configPath).toLowerCase();
     if (ext === '.json') {
-        return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        let raw;
+        try {
+            raw = safeReadFile(configPath, 'MISSING_CONFIG');
+        } catch (e) {
+            // Re-throw MissingFileError as-is; wrap other FS errors
+            if (e instanceof MissingFileError) {
+                throw e;
+            }
+            throw new ConfigError('MISSING_CONFIG', configPath, {
+                title: `Cannot read config file: ${configPath}`,
+                why: 'The config file exists but could not be read (permissions or I/O error).',
+            });
+        }
+        try {
+            return JSON.parse(raw);
+        } catch {
+            throw new ConfigError('INVALID_CONFIG', configPath, {
+                title: `Invalid JSON in config file: ${configPath}`,
+                why: 'The config file contains malformed JSON.',
+                how: 'Validate the JSON syntax (trailing commas, unquoted keys, etc.).',
+            });
+        }
     }
 
-    delete require.cache[require.resolve(configPath)];
-    const raw = require(configPath);
+    // CJS / MJS — purge cache, then require with friendly error wrapping
+    try {
+        delete require.cache[require.resolve(configPath)];
+    } catch {
+        // File not resolvable — let safeRequire produce the friendly error
+    }
+    const raw = safeRequire(configPath, 'MISSING_CONFIG');
     const cfg = typeof raw === 'function' ? raw() : raw;
     if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
-        throw new Error(`Config file ${configPath} must export an object or a function returning an object`);
+        throw new ConfigError('INVALID_CONFIG', configPath);
     }
     return cfg;
 }

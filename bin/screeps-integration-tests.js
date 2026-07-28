@@ -27,6 +27,7 @@ const { once } = require('events');
 const { resolveConfig, printHelpAndExit } = require('../src/lib/config/config');
 const { saveCallgrind } = require('../src/lib/runtime/profile');
 const { pruneCache } = require('../src/lib/runtime/cleanup');
+const { assertDir, FrameworkError } = require('../src/lib/errors');
 
 /** @type {number} Maximum framework warnings to show in summary */
 const SUMMARY_WARNINGS_LIMIT = 6;
@@ -133,11 +134,7 @@ async function runBuild(command, cwd) {
  * @throws {never} Exits the process if `only` is set and the scenario is not found
  */
 function findScenarios(scenariosDir, only) {
-    if (!fs.existsSync(scenariosDir)) {
-        console.error(`[runner] Scenarios directory not found: ${scenariosDir}`);
-        console.error(`  Create it or specify --scenariosDir / create screeps-integration.config.js`);
-        process.exit(1);
-    }
+    assertDir(scenariosDir, 'MISSING_SCENARIOS_DIR');
 
     const files = fs
         .readdirSync(scenariosDir)
@@ -155,7 +152,11 @@ function findScenarios(scenariosDir, only) {
     if (only) {
         const matched = files.find((f) => f.replace('.scenario.js', '') === only);
         if (!matched) {
-            console.error(`[runner] scenario "${only}" not found in ${scenariosDir}`);
+            const available = files.map((f) => `  - ${f.replace('.scenario.js', '')}`).join('\n');
+            console.error(
+                `\n  Scenario "${only}" not found in:\n    ${scenariosDir}\n\n` +
+                    `  Available scenarios:\n${available || '  (none)'}\n`,
+            );
             process.exit(1);
         }
         return [matched];
@@ -235,7 +236,17 @@ function printSummary(results) {
         const timeStr = time !== undefined ? ` (${Math.round(time / 1000)}s)` : '';
         console.log(`  ${icon} ${name}${timeStr}`);
         if (error) {
-            console.log(`       ${error.split('\n')[0]}`);
+            // Show the first meaningful lines of the error (up to 6).
+            // FrameworkError.toString() produces multi-line formatted messages;
+            // raw errors have a stack trace — the first few lines are the most useful.
+            const errorLines = error.trim().split('\n');
+            const showLines = errorLines.slice(0, 6);
+            for (const line of showLines) {
+                console.log(`       ${line.trim()}`);
+            }
+            if (errorLines.length > 6) {
+                console.log(`       ... (${errorLines.length - 6} more lines)`);
+            }
         }
         if (result?.frameworkWarnings?.length > 0) {
             const limit = SUMMARY_WARNINGS_LIMIT;
@@ -285,7 +296,11 @@ async function main() {
         if (err.name === 'HelpRequested') {
             printHelpAndExit();
         }
-        console.error('[runner] Config error:', err.message);
+        if (err instanceof FrameworkError) {
+            console.error(`\n${err.toString()}`);
+        } else {
+            console.error('[runner] Config error:', err.message);
+        }
         process.exit(1);
     }
 
@@ -320,7 +335,18 @@ async function main() {
         console.log(`[runner] Cache cleanup: removed ${cleanupResult.removed}, kept ${cleanupResult.kept}`);
     }
 
-    const scenarioFiles = findScenarios(config.scenariosDir, config.only || null);
+    const scenarioFiles = (() => {
+        try {
+            return findScenarios(config.scenariosDir, config.only || null);
+        } catch (err) {
+            if (err instanceof FrameworkError) {
+                console.error(`\n${err.toString()}`);
+            } else {
+                console.error('[runner]', err.message);
+            }
+            process.exit(1);
+        }
+    })();
     /** @type {SummaryEntry[]} */
     const results = new Array(scenarioFiles.length);
 

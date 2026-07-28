@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { assertFile, FixtureError } = require('../errors');
 
 function resolveFixturesDir() {
     return process.env.SIT_FIXTURES_DIR || path.resolve(process.cwd(), 'fixtures');
@@ -43,16 +44,14 @@ async function getBotMemory(adapter, userId) {
  *
  * @param {string} fixtureName              — filename without `.memory.json` (e.g. 'rcl3-stable')
  * @returns {BotMemory}
- * @throws {Error} if file not found
+ * @throws {FixtureError} if file not found
  */
 function loadFixture(fixtureName) {
     const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
-    if (!fs.existsSync(fixturePath)) {
-        throw new Error(
-            `Fixture "${fixtureName}" not found: ${fixturePath}\n` +
-                'Create a fixture per the guide: docs/FIXTURES-GUIDE.md',
-        );
-    }
+    assertFile(fixturePath, 'MISSING_MEMORY_FIXTURE', {}, [
+        `Fixture name used: "${fixtureName}"`,
+        `Fixtures directory: ${resolveFixturesDir()}`,
+    ]);
     return JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 }
 
@@ -75,7 +74,7 @@ function hasFixture(fixtureName) {
  * @param {Object} [opts]
  * @param {boolean} [opts.force=true]     — allow overwriting existing fixture
  * @returns {{ path: string, size: number, existed: boolean }}
- * @throws {Error} if file already exists and `opts.force === false`
+ * @throws {FixtureError} if file already exists and `opts.force === false`
  */
 function saveFixture(fixtureName, memory, opts = {}) {
     const force = opts.force !== false;
@@ -83,7 +82,10 @@ function saveFixture(fixtureName, memory, opts = {}) {
     const existed = fs.existsSync(fixturePath);
 
     if (existed && !force) {
-        throw new Error(`Fixture "${fixtureName}" already exists: ${fixturePath}\n` + 'Use --force to overwrite.');
+        throw new FixtureError('MEMORY_FIXTURE_EXISTS', fixturePath, {}, [
+            `Fixture name: "${fixtureName}"`,
+            'Pass { force: true } to allow overwriting.',
+        ]);
     }
 
     const json = JSON.stringify(memory, null, 2);

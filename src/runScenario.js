@@ -52,10 +52,16 @@ const { once } = require('events');
 
         process.send(message);
     } catch (e) {
+        // Preserve FrameworkError formatting across IPC.
+        // FrameworkError.toString() provides the user-friendly multi-line message;
+        // fall back to stack / String for non-framework errors.
+        const { FrameworkError: FE } = require('./lib/errors');
+        const formatted = e instanceof FE ? e.toString() : null;
+
         /** @type {WorkerMessage} */
         const message = {
             status: 'fail',
-            error: e.stack || String(e),
+            error: formatted ? `${formatted}\n\n${e.stack || ''}` : e.stack || String(e),
         };
         process.send(message);
     } finally {

@@ -89,7 +89,7 @@ describe('config resolveConfig', () => {
         it('throws on invalid export', () => {
             createConfigFile('module.exports = 42;');
             const { resolveConfig } = require('../src/lib/config/config');
-            expect(() => resolveConfig([], tmpDir, {})).toThrow(/must export an object/);
+            expect(() => resolveConfig([], tmpDir, {})).toThrow(/Invalid config file/);
         });
 
         it('config from --config has priority over auto-discovery', () => {
