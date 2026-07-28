@@ -346,7 +346,11 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
             }
             return bots[bot].id;
         }
-        throw new Error('botId: argument must be username (string), index (number), or undefined');
+        throw new BotError('INVALID_BOTID_ARG', typeof bot, {
+            title: `Invalid botId() argument type: ${typeof bot}`,
+            why: 'botId() accepts a username (string), an index (number), or undefined (for default bot).',
+            how: `Pass a valid argument. Received type: ${typeof bot}.`,
+        });
     }
 
     // ─── Find ─────────────────────────────────────────────────────────────
