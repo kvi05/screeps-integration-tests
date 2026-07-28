@@ -131,7 +131,7 @@ async function runBuild(command, cwd) {
  * @param {string} scenariosDir - Directory to scan
  * @param {string|null} only - If set, filter to the scenario with this name (no extension)
  * @returns {string[]} Sorted array of filenames (e.g. `['smoke-empty.scenario.js', ...]`)
- * @throws {never} Exits the process if `only` is set and the scenario is not found
+ * @throws {MissingDirectoryError} If the scenarios directory does not exist
  */
 function findScenarios(scenariosDir, only) {
     assertDir(scenariosDir, 'MISSING_SCENARIOS_DIR');
