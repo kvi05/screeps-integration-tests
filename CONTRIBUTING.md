@@ -217,11 +217,11 @@ Re-export via `src/public/assertions.js` (if public). Add a test in `tests/asser
 
 ### New room fixture
 
-See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#7-how-to-create-a-room-fixture).
+See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#2-room-fixtures).
 
 ### New memory fixture
 
-See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#8-how-to-create-or-update-a-memory-fixture).
+See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#7-how-to-create-or-update-a-memory-fixture).
 
 ### New scenario
 

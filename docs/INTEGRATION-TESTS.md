@@ -466,5 +466,5 @@ screeps-integration-tests/
 | Add a new assertion       | [CONTRIBUTING.md](../CONTRIBUTING.md#new-assertion)                                 |
 | Add a new metric          | [CONTRIBUTING.md](../CONTRIBUTING.md#new-metric)                                    |
 | Add a new sub-path export | [CONTRIBUTING.md](../CONTRIBUTING.md#sub-path-exports-trickle-down-pattern)         |
-| Add a new room fixture    | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#7-how-to-create-a-room-fixture)             |
-| Update a memory fixture   | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#8-how-to-create-or-update-a-memory-fixture) |
+| Add a new room fixture    | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#2-room-fixtures)                            |
+| Update a memory fixture   | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#7-how-to-create-or-update-a-memory-fixture) |

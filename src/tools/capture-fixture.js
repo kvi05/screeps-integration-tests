@@ -50,7 +50,7 @@ const SCHEMA = {
     usage: 'node src/tools/capture-fixture.js <name> [options]',
     positional: [{ name: 'name', required: true, description: 'fixture name (without .memory.json)' }],
     options: {
-        from: { type: 'string', default: 'bootstrap_with_anchor', description: 'starting memory fixture' },
+        from: { type: 'string', default: undefined, description: 'starting memory fixture' },
         rcl: { type: 'int', default: 3, min: 1, max: 8, description: 'target RCL' },
         ticks: { type: 'int', default: 10000, min: 1, description: 'max ticks to reach RCL' },
         stabilize: { type: 'int', default: 2000, min: 0, description: 'extra ticks after reaching RCL' },
@@ -143,7 +143,7 @@ function getRclFromMemory(memory, roomName) {
 async function captureFixture(cfg) {
     const {
         name,
-        from = 'bootstrap_with_anchor',
+        from = undefined,
         targetRcl = 3,
         maxTicks = 10000,
         stabilize = 2000,

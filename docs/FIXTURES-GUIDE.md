@@ -10,9 +10,7 @@ Guide to the `screeps-integration-tests` fixture model: room fixtures and memory
 - [4. Memory fixtures](#4-memory-fixtures)
 - [5. Relationship between room fixture and memory fixture](#5-relationship-between-room-fixture-and-memory-fixture)
 - [6. How to choose an approach](#6-how-to-choose-an-approach)
-- [7. How to create a room fixture](#7-how-to-create-a-room-fixture)
-- [8. How to create or update a memory fixture](#8-how-to-create-or-update-a-memory-fixture)
-- [9. Recommendations and anti-patterns](#9-recommendations-and-anti-patterns)
+- [7. How to create or update a memory fixture](#7-how-to-create-or-update-a-memory-fixture)
 
 ## 1. Two types of fixtures
 
@@ -23,16 +21,6 @@ Semantic spec of a room: controller, sources, structures, creeps. Answers the qu
 ### Memory fixture
 
 JSON snapshot of the bot's `Memory`. Answers the question: **"What internal state should the bot start with?"**
-
-### Key difference
-
-| What          | Room fixture               | Memory fixture                                         |
-| ------------- | -------------------------- | ------------------------------------------------------ |
-| Describes     | World objects              | Bot's internal state                                   |
-| Format        | Canonical spec             | JSON snapshot                                          |
-| Where stored  | `*.room.js` (user-defined) | `fixtures/*.memory.json`                               |
-| Main use case | Reusable room              | "Warmed up" bot state                                  |
-| Connected via | `rooms[].roomFixture`      | `createWorld({ memory: 'name' })` or `memoryOverrides` |
 
 ## 2. Room fixtures
 
@@ -50,16 +38,15 @@ const {
 } = require('screeps-integration-tests/room-fixtures');
 ```
 
-See [API-REFERENCE.md](./API-REFERENCE.md#5-room-fixtures-api) for function details.
+See [API-REFERENCE.md '5. Room fixtures API'](./API-REFERENCE.md#5-room-fixtures-api) for function details.
 
 ### Example of a custom fixture
 
 ```javascript
 // fixtures/rooms/my-room.room.js
 const { spec } = require('screeps-integration-tests');
-const { registerRoomFixture } = require('screeps-integration-tests/room-fixtures');
 
-registerRoomFixture('my-room', {
+const myRoomFixture = {
   controller: spec.controller({ level: 3, progress: 2146 }),
   sources: [spec.source(15, 15), spec.source(35, 35, { id: '4361a44a5fa1c06' })],
   structures: [
@@ -69,7 +56,15 @@ registerRoomFixture('my-room', {
     spec.road(24, 24),
   ],
   creeps: [],
-});
+};
+```
+
+Register it via side-effect or export — both work, and you can even combine them (the loader simply calls `registerRoomFixture` twice with the same data, which is harmless):
+
+```javascript
+const { registerRoomFixture } = require('screeps-integration-tests/room-fixtures');
+registerRoomFixture('my-room', myRoomFixture); // side-effect
+module.exports = { name: 'my-room', fixture: myRoomFixture }; // export
 ```
 
 `spec.controller` accepts `progress` but **does not** accept `progressTotal`.
@@ -85,7 +80,8 @@ module.exports = {
 };
 ```
 
-Each `*.room.js` in that directory either calls `registerRoomFixture` or exports `{ name, fixture }`. Loading happens before the scenario runs.
+All *.room.js files in that directory are loaded before the scenario runs \
+and can be used immediately in the scenario.
 
 ### Manual registration in a scenario
 
@@ -220,12 +216,6 @@ See [API-REFERENCE.md](./API-REFERENCE.md#6-memory-fixtures-api) for details.
 
 - the bot should start with an already known room and caches;
 - task state must exist in `Memory`;
-- the scenario starts after bootstrap, not from scratch.
-
-### When a memory fixture is not needed
-
-- you only need to describe the room layout — use a room fixture;
-- the scenario starts with empty `Memory` and bootstrap runs naturally.
 
 ### Connection
 
@@ -257,8 +247,7 @@ const memory = await world.readMemory('bot');
 saveFixture('my-memory', memory, { force: true });
 ```
 
-`saveFixture(name, memory, { force = true })`. By default overwrites existing file. \
-This will save the Memory to the file specified in `screeps-integration.config`
+`force = true` overwrites existing file. \
 
 ## 5. Relationship between room fixture and memory fixture
 
@@ -268,9 +257,9 @@ Room fixtures and memory fixtures can be linked via `_id` of objects:
 spec.source(15, 15, { id: '94e8a44a5fa6113' });
 ```
 
-If the memory fixture stores references to objects by `_id` (e.g., structure cache), changing the `_id` in the room fixture will break those references.
+If the memory fixture stores references to objects by `_id`, changing the `_id` in the room fixture will break those references.
 
-Tip: when needed, fix `_id` in the room fixture explicitly and keep them in sync with the memory fixture.
+> when needed, fix `_id` in the room fixture explicitly and keep them in sync with the memory fixture.
 
 ## 6. How to choose an approach
 
@@ -290,8 +279,6 @@ createWorld({
 });
 ```
 
-Suitable for quick tests without reuse.
-
 ### Approach 2. Room fixture
 
 ```javascript
@@ -301,9 +288,7 @@ createWorld({
 });
 ```
 
-Suitable if you reuse the same room.
-
-### Approach 3. Room fixture + overrides
+### Approach 3. Room fixture + overrides + memory
 
 ```javascript
 createWorld({
@@ -315,103 +300,72 @@ createWorld({
     },
   ],
   bots: [{ username: 'bot', rooms: 'W0N1' }],
-});
-```
-
-Suitable for local variations of one room.
-
-### Approach 4. Fixture + memory
-
-```javascript
-createWorld({
-  rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
   memory: 'my-memory',
 });
 ```
 
-Suitable for testing a fully developed colony.
+> But if there are several bots: `memory: { bot: 'my-memory', ... }`
 
-## 7. How to create a room fixture
+## 7. How to create or update a memory fixture
 
-1. Create a `*.room.js` file in `roomFixturesDir` (or anywhere if registering manually).
-2. Describe the room using `spec.*` constructors:
-   - `spec.controller`
-   - `spec.source`
-   - `spec.spawn`
-   - `spec.tower`
-   - `spec.extension`
-   - `spec.container`
-   - `spec.storage`
-   - `spec.road`
-   - `spec.wall`
-   - `spec.rampart`
-   - `spec.creep`
-   - `spec.invader`
-   - `spec.dummyTarget`
-3. Set `id` explicitly if needed to reference from a memory fixture.
-4. Call `registerRoomFixture(name, fixture)` or export `{ name, fixture }`.
-5. Use `roomFixture: 'name'` in `createWorld`.
+A memory fixture is just a JSON snapshot of a bot's `Memory`. The most flexible way to create one is to run a scenario, let the bot work, and save the resulting `Memory` to a file.
 
-## 8. How to create or update a memory fixture
+### 7.1 Manual creation via scenario (recommended)
 
-To create memory fixtures, use the CLI tool `src/tools/capture-fixture.js`.
+Use `world.readMemory()` to extract the bot's state at any point, then `saveFixture()` to persist it:
 
-### Basic run
+```javascript
+// /your.scenario.js
+const { saveFixture } = require('screeps-integration-tests/memory-fixtures');
 
-```bash
-# First make sure smoke works
-npm run test:integration:smoke
-
-# Then create / rebuild the fixture
-node src/tools/capture-fixture.js my-memory
+// Snapshot the bot's Memory and save it as a fixture
+const memory = await world.readMemory('bot');
+saveFixture('my-bot-rcl3', memory);
 ```
 
-### What the tool does
+This approach gives you full control:
 
-1. Runs the world until the target RCL.
+- Use any room fixture, overrides, or multi-room setup.
+- Stop at a custom predicate instead of a fixed RCL.
+- Save multiple fixtures for different bots in one run.
+
+### 7.2 CLI tool (convenience wrapper)
+
+For simple cases, `src/tools/capture-fixture.js` provides a ready-made scenario that does exactly what the manual approach above does, but with pre-set defaults:
+
+1. Runs the world until the target RCL is reached.
 2. Gives the bot extra ticks for stabilization.
 3. Saves the final `Memory` to `fixtures/<name>.memory.json`.
 
-### Flags
+It is essentially a CLI wrapper around the manual workflow. It works well when you need a quick snapshot from a single-room, single-bot run with standard sources, but it is narrow:
 
-| Flag          | Default                                               | Purpose                        |
-| ------------- | ----------------------------------------------------- | ------------------------------ |
-| `--from`      | `bootstrap_with_anchor` (example from a personal bot) | Starting memory fixture        |
-| `--rcl`       | `3`                                                   | Target RCL                     |
-| `--ticks`     | `10000`                                               | Tick limit to reach RCL        |
-| `--stabilize` | `2000`                                                | Extra ticks for stabilization  |
-| `--room`      | `W0N1`                                                | Room name                      |
-| `--sources`   | `[{"x":15,"y":15},{"x":35,"y":35}]`                   | Source positions (JSON)        |
-| `--progress`  | `0`                                                   | Log every N ticks (0 = off)    |
-| `--log-level` | `error`                                               | `all` / `error` / `warn`       |
-| `--warn-size` | `50000`                                               | Size warning threshold (bytes) |
-| `--force`     | `false`                                               | Allow overwrite                |
+- Room is hard-coded to `W0N1` (or overridden via `--room`).
+- Only one bot is supported.
+- No custom room fixtures or overrides.
+- No arbitrary stop conditions beyond RCL.
 
-### Examples
+#### Flags
+
+| Flag          | Default                             | Purpose                        |
+| ------------- | ----------------------------------- | ------------------------------ |
+| `--from`      | undefined                           | Starting memory fixture        |
+| `--rcl`       | `3`                                 | Target RCL                     |
+| `--ticks`     | `10000`                             | Tick limit to reach RCL        |
+| `--stabilize` | `2000`                              | Extra ticks for stabilization  |
+| `--room`      | `W0N1`                              | Room name                      |
+| `--sources`   | `[{"x":15,"y":15},{"x":35,"y":35}]` | Source positions (JSON)        |
+| `--progress`  | `0`                                 | Log every N ticks (0 = off)    |
+| `--log-level` | `error`                             | `all` / `error` / `warn`       |
+| `--warn-size` | `50000`                             | Size warning threshold (bytes) |
+| `--force`     | `false`                             | Allow overwrite                |
+
+#### Examples
 
 ```bash
 node src/tools/capture-fixture.js my-memory
 
 node src/tools/capture-fixture.js my-memory --rcl 5 --ticks 20000
-
-node src/tools/capture-fixture.js my-memory --room W1N1 --force
 ```
-
-## 9. Recommendations and anti-patterns
-
-### Do this
-
-- store room layout in a room fixture;
-- store warmed-up bot state in a memory fixture;
-- describe variations via `roomOverrides`;
-- fix `_id` of objects if room fixture and memory fixture are linked.
-
-### Don't do this
-
-- don't store room layout in `*.memory.json`;
-- don't create a new fixture for one small change if `roomOverrides` suffices;
-- don't mix layers: world topology and runtime Memory.
 
 ## Related documents
 
