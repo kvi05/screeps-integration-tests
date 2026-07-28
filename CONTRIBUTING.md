@@ -234,7 +234,7 @@ See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#2-room-fixtures).
 
 ### New memory fixture
 
-See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#7-how-to-create-or-update-a-memory-fixture).
+See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#5-creating-or-updating-a-memory-fixture).
 
 ### New scenario
 

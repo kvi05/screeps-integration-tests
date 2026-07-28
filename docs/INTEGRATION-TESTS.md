@@ -402,11 +402,11 @@ screeps-integration-tests/
 
 ## 9. Extending the framework
 
-| Task                      | Guide                                                                               |
-| ------------------------- | ----------------------------------------------------------------------------------- |
-| Add a new scenario        | [GETTING-STARTED.md](./GETTING-STARTED.md#writing-a-scenario)                       |
-| Add a new assertion       | [CONTRIBUTING.md](../CONTRIBUTING.md#new-assertion)                                 |
-| Add a new metric          | [CONTRIBUTING.md](../CONTRIBUTING.md#new-metric)                                    |
-| Add a new sub-path export | [CONTRIBUTING.md](../CONTRIBUTING.md#sub-path-exports-trickle-down-pattern)         |
-| Add a new room fixture    | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#2-room-fixtures)                            |
-| Update a memory fixture   | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#7-how-to-create-or-update-a-memory-fixture) |
+| Task                      | Guide                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| Add a new scenario        | [GETTING-STARTED.md](./GETTING-STARTED.md#writing-a-scenario)                    |
+| Add a new assertion       | [CONTRIBUTING.md](../CONTRIBUTING.md#new-assertion)                              |
+| Add a new metric          | [CONTRIBUTING.md](../CONTRIBUTING.md#new-metric)                                 |
+| Add a new sub-path export | [CONTRIBUTING.md](../CONTRIBUTING.md#sub-path-exports-trickle-down-pattern)      |
+| Add a new room fixture    | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#2-room-fixtures)                         |
+| Update a memory fixture   | [FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md#5-creating-or-updating-a-memory-fixture) |
