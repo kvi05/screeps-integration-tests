@@ -58,14 +58,14 @@ Three APIs do most of the work.
 
 **`createWorld(opts)`** is the entry point — one declarative call that
 assembles the server, rooms, bots, objects, and initial memory, then returns
-a `world` instance you drive the simulation with. Everything below starts here.
+a `world` instance you drive the simulation with. Everything below starts here. \
 Full reference: [API-REFERENCE § createWorld](./docs/API-REFERENCE.md#1-main-entry-point-createworld).
 
 **`spec.*`** builds game objects as plain data — `spec.spawn(25, 25)`,
 `spec.controller({ level: 3 })`, `spec.creep(10, 10, { hits: 100 })`, and so on.
 It fills every field with sane Screeps defaults (`hits`, `hitsMax`, `store`, `energyCapacity`, …)
-so you only set what matters for the test.
-You already know the object types — `spec.*` just spares you the boilerplate.
+so you only set what matters for the test. \
+You already know the object types — `spec.*` just spares you the boilerplate. \
 Full reference: [API-REFERENCE § spec](./docs/API-REFERENCE.md#3-spec-constructors).
 
 **`world.*`** is what `createWorld` returns — it drives the running simulation:
@@ -95,8 +95,8 @@ npx screeps-integration-tests --only smoke-empty
 ```
 
 For the full path from install to your first `PASS` — including how to point
-the framework at your bot's compiled code — see
-[GETTING-STARTED.md](./docs/GETTING-STARTED.md).
+the framework at your bot's compiled code — \
+see [GETTING-STARTED.md](./docs/GETTING-STARTED.md).
 
 ## CLI
 
@@ -135,15 +135,19 @@ a community-maintained test harness that runs the official open-source Screeps s
 
 ## Known issues
 
-- **Profiler delay:** recording starts from tick 2 (0 — init, 1 — startup,
-  2 — first measurement).
+- **Profiler delay:** recording starts from tick 2 \
+  (0 — init, 1 — startup, 2 — first measurement).
 - **Command execution delay:** as in the game, player commands execute on the
-  next tick. `world.exec()` followed by `world.tick(2)` runs the command on
-  the 2nd tick.
+  next tick:
+  ```javascript
+  await world.exec();
+  await world.tick(2); // The command will only execute on the 2nd tick
+  ```
 - **`Storage connection lost`:** when many worlds run back-to-back in one
   scenario, you may see `Storage connection lost` in stderr. This is a known
   race in `@screeps/common`'s singleton storage; the framework filters it and
-  it does not affect results. Details — [INTEGRATION-TESTS.md](./docs/INTEGRATION-TESTS.md).
+  it does not affect results. \
+  Details — [CONTRIBUTING.md Known issues](./CONTRIBUTING.md#known-issues).
 
 ## Contributing
 

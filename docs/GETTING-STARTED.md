@@ -5,19 +5,45 @@ From package installation to your own scenario.
 ## Table of Contents
 
 - [Installation and first run](#installation-and-first-run)
+  - [Project layout](#project-layout)
+  - [Requirements](#requirements)
+  - [Install the package](#install-the-package)
+  - [Create a config (optional)](#create-a-config-optional)
+  - [Bot code format](#bot-code-format)
+  - [Build command](#build-command)
+  - [Minimal bot example](#minimal-bot-example)
+  - [Sanity check](#sanity-check)
 - [Running existing scenarios](#running-existing-scenarios)
 - [Writing a scenario](#writing-a-scenario)
+  - [Step 1. Copy the template](#step-1-copy-the-template)
+  - [Step 2. Fill in the scenario](#step-2-fill-in-the-scenario)
+  - [Step 3. Run it](#step-3-run-it)
 - [What's next](#whats-next)
 
 ## Installation and first run
 
-### 1. Requirements
+> **Note:** The shell commands (`mkdir`, `cp`, etc.) below are examples for
+> bash/Linux/macOS.
+
+### Project layout
+
+The framework expects two directories:
+
+- `distDir` (default: `./dist`) — your bot code, one `.js` file per Screeps
+  module.
+- `scenariosDir` (default: `./scenarios`) — your `*.scenario.js` test files.
+
+These are the defaults used when no config is present. You can override them
+in `screeps-integration.config.js`. Full schema — in
+[CONFIG.md](./CONFIG.md).
+
+### Requirements
 
 - Node.js >= 22.12.0
 - npm >= 10.8.2
-- Compiled bot: a folder with Screeps modules (usually `dist/`)
+- Your bot code: a folder with Screeps modules
 
-### 2. Install the package
+### Install the package
 
 In the bot's repository:
 
@@ -25,7 +51,7 @@ In the bot's repository:
 npm install --save-dev screeps-integration-tests
 ```
 
-### 3. (Optional) Create a config
+### Create a config (optional)
 
 If the default paths don't work for you, create
 `screeps-integration.config.js` in the root:
@@ -36,38 +62,44 @@ If the default paths don't work for you, create
 module.exports = {
   distDir: './dist',
   scenariosDir: './scenarios',
-  fixturesDir: './fixtures',
+  // etc.
 };
 ```
 
 Without a config, the same defaults are used. Full schema — in
 [CONFIG.md](./CONFIG.md).
 
-### 4. Bot code format
+### Bot code format
 
 The framework expects bot code as a **flat directory of `.js` files** — one
-file per Screeps module (e.g. `main.js`, `role.harvester.js`). No
-subdirectories, no bundled output — exactly as the Screeps game loads them.
+file per Screeps module (e.g. `main.js`, `role.harvester.js`). This should
+match the flat module structure the Screeps game loads.
 
-Point `distDir` (default: `./dist`) to this directory. If your bot requires
-a build step (TypeScript compilation, bundling to flat structure, etc.), run
-it yourself or set `buildCommand` in the config and pass `--build`:
+### Build command
+
+If your bot requires a build step (TypeScript compilation, bundling to a flat
+structure, etc.), run it yourself before the framework, or set
+`buildCommand` in the **config** and pass `--build`:
 
 ```bash
 npx screeps-integration-tests --build
 ```
 
+> **Working directory:** `buildCommand` runs from the directory where you run
+> the CLI, not from the config file's directory.
+
+### Minimal bot example
+
 > **No bot yet?** Create a minimal `dist/main.js` so the sanity check below
 > passes — it keeps `Memory` non-empty, which is all `assertBotWorked` needs:
 >
 > ```js
-> 'use strict';
 > module.exports.loop = function () {
 >   Memory.tick = Game.time;
 > };
 > ```
 
-### 5. Sanity check
+### Sanity check
 
 Copy the smoke scenario from the package examples:
 
@@ -87,7 +119,7 @@ If you see `PASS: smoke-empty` — the framework is ready.
 
 ## Running existing scenarios
 
-Run all scenarios:
+Run all scenarios from the `scenariosDir` directory:
 
 ```bash
 npx screeps-integration-tests
@@ -107,7 +139,8 @@ Main flags: `--only`, `--profiling`, `--bail`, `--timeout`, `--jobs`,
 
 > **Profiling:** the `--profiling` flag requires that the bot project has
 > `screeps-profiler` installed and `loop` is wrapped via
-> `profiler.wrap(module.exports.loop)`. Otherwise data won't be collected. See [Profiler](https://github.com/screepers/screeps-profiler)
+> `profiler.wrap(module.exports.loop)`. Otherwise data won't be collected. See the
+> [screeps-profiler](https://github.com/screepers/screeps-profiler) repository
 
 ## Writing a scenario
 
@@ -142,12 +175,12 @@ async function run(opts = {}) {
     rooms: [
       {
         name: ROOM_NAME,
-        controller: spec.controller({ level: 2 }),
+        controller: spec.controller({ level: 1 }),
         sources: [spec.source(15, 15), spec.source(35, 35)],
         structures: [spec.spawn(25, 25)],
       },
     ],
-    bots: [{ username: 'bot', rooms: ROOM_NAME }],
+    bots: [{ username: 'bot', rooms: [ROOM_NAME] }],
     ticks: 1000,
   });
 
@@ -155,7 +188,10 @@ async function run(opts = {}) {
     await world.run();
 
     assertBotWorked(world.report);
-    assertRclAtLeast(world.report, ROOM_NAME, 3);
+
+    // This checks whether the bot upgraded the controller from RCL 1 to RCL 2
+    // within the 1000 ticks.
+    assertRclAtLeast(world.report, ROOM_NAME, 2);
 
     console.log(`PASS: my-test (RCL ${world.report.finalRcl[ROOM_NAME]})`);
     return world.report;
@@ -172,8 +208,10 @@ module.exports = { run };
 ### Step 3. Run it
 
 ```bash
-npx screeps-integration-tests --only my-test
+npx screeps-integration-tests
 ```
+
+Your new scenario is now picked up automatically alongside the smoke test.
 
 ## What's next
 

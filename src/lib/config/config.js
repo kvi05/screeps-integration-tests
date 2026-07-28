@@ -37,7 +37,7 @@ const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('..
  * @property {number} cacheKeep         — Number of recent cache runs to keep during cleanup
  * @property {number} timeout           — Per-scenario timeout in milliseconds
  * @property {number} jobs              — Maximum number of parallel scenario workers
- * @property {string|null} buildCommand — Shell command to run before tests (e.g. `npm run build`)
+ * @property {string|null} buildCommand — Shell command to build the bot; runs from `process.cwd()` only when `--build` is passed (e.g. `npm run build`)
  * @property {string[]} require         — Module paths to pre-load before any scenario
  * @property {Object<string,string>} env — Environment variables passed to worker processes
  */

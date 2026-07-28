@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
 ### Added
+
+PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
 
 - Centralized user-friendly error layer (`src/lib/errors.js`):
   - `FrameworkError` base class with structured output (WHAT → WHY → HOW → docs link)
@@ -20,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New error contexts: `CLI_PARSE_ERROR`, `CONFIG_SYNTAX_ERROR`, `AMBIGUOUS_BOT`, `INVALID_BOTID_ARG`
 
 ### Changed
+
+PR #20 [Docs/fix docs - #20](https://github.com/kvi05/screeps-integration-tests/pull/20)
+
+- `capture-fixture.js`: `--from` now defaults to `undefined` (no starting
+  memory fixture required). Previously defaulted to `bootstrap_with_anchor`.
+  
+  
+PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
 
 - **`loadBot.js`:** replaced raw `fs.readdirSync(distDir)` with `safeReaddir` —
   missing `dist/` now produces a friendly message explaining what the dist
@@ -46,13 +57,36 @@ such file or directory, scandir`)
 - Updated test assertions in `worldHelpers.test.js`, `world.test.js`,
   `config.test.js`, `resolveDefaults.test.js`, and `world-spawn.scenario.js`
   for new error messages
-
+  
 ### Fixed
+
+PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
 
 - Config syntax errors no longer misreported as "Config file not found" —
   now use `CONFIG_SYNTAX_ERROR` context
 - JSDoc `@throws` corrected for `findScenarios()` (was `{never}`, now `{MissingDirectoryError}`)
   and `resolveConfig()` (now lists all thrown error types)
+
+### Documentation
+
+PR #20 [Docs/fix docs - #20](https://github.com/kvi05/screeps-integration-tests/pull/20)
+
+- Clarified that `buildCommand` runs from the directory where the CLI is
+  invoked, not from the config file's directory
+- Restructured `docs/GETTING-STARTED.md`: added Project layout section,
+  split "Bot code format" into subsections, fixed example scenario
+  (RCL 1→2, `rooms` syntax), added bash/Linux/macOS note, expanded TOC
+- Restructured `docs/FIXTURES-GUIDE.md`: enriched §4 (Memory fixtures) with
+  `memoryOverrides` docs, merge semantics, and all `memory` option forms;
+  moved "Creating or updating" to §5 for TOC discoverability; trimmed
+  room overrides examples and removed redundant subsections
+- Fixed broken anchor links to FIXTURES-GUIDE.md in `CONTRIBUTING.md` and
+  `docs/INTEGRATION-TESTS.md`.
+- Updated `docs/EXAMPLES.md`: unified `bots[].rooms` syntax to array form
+  (`['W0N1']` instead of `'W0N1'`) for clarity
+- Restructured `docs/INTEGRATION-TESTS.md`: removed duplicate Observers section,
+  collapsed sub-tables in §1, merged child-process and cache-isolation sections,
+  moved storage-singleton race note to `CONTRIBUTING.md`
 
 ## [1.0.0] — 2026-07-26
 
