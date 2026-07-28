@@ -9,6 +9,8 @@
  * @module orchestration/resolveDefaults
  */
 
+const { BotError } = require('../errors');
+
 /**
  * Resolves default userId for an object in a room.
  *
@@ -38,15 +40,18 @@ function resolveDefaultUserId(roomName, roomToBotUserId, defaultBotUserId) {
  *
  * @param {Object<string,{id:string}>} bots — bots by username
  * @returns {string} username
- * @throws {Error} if no bots or more than 1 bot
+ * @throws {BotError} if no bots or more than 1 bot
  */
 function defaultBot(bots) {
     const names = Object.keys(bots);
     if (names.length === 0) {
-        throw new Error('defaultBot: no bots in opts.bots');
+        throw new BotError('ZERO_BOTS');
     }
     if (names.length > 1) {
-        throw new Error(`defaultBot: more than 1 bot (${names.join(', ')}) — specify username explicitly`);
+        throw new BotError('AMBIGUOUS_BOT', null, {
+            title: `Ambiguous bot lookup: ${names.length} bots registered`,
+            why: `Registered bots: ${names.join(', ')}. The framework cannot determine which bot you mean when botId() is called without arguments.`,
+        });
     }
     return names[0];
 }

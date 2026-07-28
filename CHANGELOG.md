@@ -7,12 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
+
+- Centralized user-friendly error layer (`src/lib/errors.js`):
+  - `FrameworkError` base class with structured output (WHAT → WHY → HOW → docs link)
+  - Subclasses: `MissingDirectoryError`, `MissingFileError`, `ConfigError`, `FixtureError`, `BotError`
+  - Safe wrappers: `assertDir`, `assertFile`, `safeReaddir`, `safeReadFile`, `safeRequire`
+  - 16 predefined error contexts with actionable fix instructions
+  - 38 unit tests (`tests/errors.test.js`)
+- `screeps-integration-tests/errors` sub-path export (`src/public/errors.js`) —
+  scenario authors can now `instanceof`-check error classes
+- New error contexts: `CLI_PARSE_ERROR`, `CONFIG_SYNTAX_ERROR`, `AMBIGUOUS_BOT`, `INVALID_BOTID_ARG`
+
 ### Changed
+
+PR #20 [Docs/fix docs - #20](https://github.com/kvi05/screeps-integration-tests/pull/20)
 
 - `capture-fixture.js`: `--from` now defaults to `undefined` (no starting
   memory fixture required). Previously defaulted to `bootstrap_with_anchor`.
 
+PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
+
+- **`loadBot.js`:** replaced raw `fs.readdirSync(distDir)` with `safeReaddir` —
+  missing `dist/` now produces a friendly message explaining what the dist
+  directory is, why it's needed, and how to build the bot (was: `ENOENT: no
+such file or directory, scandir`)
+- **`bin/screeps-integration-tests.js`:** `findScenarios()` uses `assertDir`
+  with context about what scenarios are; `--only` not found now lists all
+  available scenarios in the error output; summary shows up to 6 error lines
+- **`config.js`:** `loadConfigFile()` uses `safeRequire`/`safeReadFile` with
+  friendly errors for missing config, malformed JSON, and syntax errors;
+  CLI parse errors now throw `ConfigError` instead of raw `Error`
+- **`builders/memory.js`:** `loadFixture()` and `saveFixture()` use
+  `FixtureError` for consistent error formatting
+- **`orchestration/world.js`:** `buildCanonicalRoom()` lists available room
+  fixtures when a referenced fixture is not found; `createWorld()` validation
+  errors (empty rooms, old `room` field) use `FrameworkError`/`BotError`
+- **`orchestration/worldHelpers.js`:** `botId()`, `setTicksToDowngrade()`,
+  `setHitsStructure()`, `damageHitsStructure()`, `deleteStructure()` all use
+  structured error classes with contextual fix suggestions
+- **`orchestration/resolveDefaults.js`:** `defaultBot()` now throws `BotError`
+  instead of raw `Error` for no-bots and multi-bot cases
+- **`runScenario.js`:** worker preserves `FrameworkError.toString()`
+  formatting when serialising errors across IPC
+- Updated test assertions in `worldHelpers.test.js`, `world.test.js`,
+  `config.test.js`, `resolveDefaults.test.js`, and `world-spawn.scenario.js`
+  for new error messages
+
+### Fixed
+
+PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
+
+- Config syntax errors no longer misreported as "Config file not found" —
+  now use `CONFIG_SYNTAX_ERROR` context
+- JSDoc `@throws` corrected for `findScenarios()` (was `{never}`, now `{MissingDirectoryError}`)
+  and `resolveConfig()` (now lists all thrown error types)
+
 ### Documentation
+
+PR #20 [Docs/fix docs - #20](https://github.com/kvi05/screeps-integration-tests/pull/20)
 
 - Clarified that `buildCommand` runs from the directory where the CLI is
   invoked, not from the config file's directory

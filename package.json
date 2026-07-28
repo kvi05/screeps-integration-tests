@@ -17,6 +17,7 @@
         "./room-fixtures": "./src/public/room-fixtures.js",
         "./world-helpers": "./src/public/worldHelpers.js",
         "./events": "./src/public/events.js",
+        "./errors": "./src/public/errors.js",
         "./constants": "./src/public/constants.js",
         "./package.json": "./package.json"
     },

@@ -145,7 +145,7 @@ describe('createWorldHelpers', () => {
 
         it('throws if controller is not found', async () => {
             await expect(helpers.setTicksToDowngrade('W0N2', 1000)).rejects.toThrow(
-                'controller in room "W0N2" not found',
+                'Controller not found in room "W0N2"',
             );
         });
 
@@ -183,7 +183,7 @@ describe('createWorldHelpers', () => {
 
         it('throws if object is not found', async () => {
             await expect(helpers.setHitsStructure('nonexistent', 100)).rejects.toThrow(
-                'object with _id "nonexistent" not found',
+                'Object with _id "nonexistent" not found',
             );
         });
 
@@ -508,7 +508,7 @@ describe('createWorldHelpers with bots', () => {
 
         it('throws if index is out of range', () => {
             const multiHelpers = createWorldHelpers(adapter, defaultBotUserId, {}, multiBots);
-            expect(() => multiHelpers.botId(5)).toThrow('index 5 is out of range');
+            expect(() => multiHelpers.botId(5)).toThrow('Bot index 5 out of range');
         });
 
         it('throws if username is not found', () => {

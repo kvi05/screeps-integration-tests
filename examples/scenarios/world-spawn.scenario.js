@@ -485,7 +485,7 @@ async function run(opts = {}) {
             );
 
             // Test V: botId() without bots → throws
-            assert.throws(() => world.botId(), /defaultBot/, 'V: botId() without bots throws an error');
+            assert.throws(() => world.botId(), /no bots/, 'V: botId() without bots throws an error');
 
             await world.run();
             assertNoErrors(world.report);

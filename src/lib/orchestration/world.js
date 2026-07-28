@@ -4,7 +4,7 @@ const path = require('path');
 const { prepareServer, addBots } = require('../runtime/runtime');
 const { materializeRoom } = require('../builders');
 const { setBotMemory, getBotMemory, resolveInitialMemoryByBot } = require('../builders/memory');
-const { loadRoomFixture, applyRoomOverrides } = require('../fixtures/roomFixture');
+const { loadRoomFixture, applyRoomOverrides, ROOM_FIXTURES } = require('../fixtures/roomFixture');
 const { readEventLog, accumulateEvents } = require('../observers/eventLog');
 const { collectMetrics, sampleMetrics } = require('../observers/metrics');
 const { MetricsReport } = require('../assertions/metricsReport');
@@ -17,6 +17,7 @@ const { finalizeReport } = require('./finalize');
 const { exportProfiles } = require('../runtime/profile');
 const { resolveDefaultUserId } = require('./resolveDefaults');
 const { INVADER_USER_ID } = require('../../constants/screepsConstants');
+const { FixtureError, BotError, FrameworkError } = require('../errors');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
 
@@ -243,19 +244,19 @@ async function initializeBots(bots, resolvedBots, adapter, opts, report, globalL
  */
 async function createWorld(opts) {
     if (!opts.rooms || opts.rooms.length === 0) {
-        throw new Error('createWorld: opts.rooms is required and must be a non-empty array');
+        throw new FrameworkError('EMPTY_ROOMS');
     }
 
     // Validate bots spec — catch old 'room' (singular) rename to 'rooms'
     if (opts.bots) {
         for (const botSpec of opts.bots) {
             if (botSpec.room !== undefined) {
-                const hint = typeof botSpec.room === 'string' ? `rooms: '${botSpec.room}'` : 'rooms: <value>';
-                throw new Error(
-                    `createWorld: BotSpec for "${botSpec.username}" uses unknown field 'room' (singular). ` +
-                        `The field has been renamed to 'rooms' (plural) to support multi-room bots. ` +
-                        `Replace \`room: ...\` with \`${hint}\`.`,
-                );
+                const hint = typeof botSpec.room === 'string' ? `rooms: ["${botSpec.room}"]` : 'rooms: <value>';
+                throw new BotError('INVALID_BOTSPEC_FIELD', `bots[].room → ${hint}`, {
+                    title: `Invalid BotSpec field "room" for bot "${botSpec.username}"`,
+                    why: 'The field has been renamed from "room" (singular) to "rooms" (plural) to support multi-room bots.',
+                    how: `Replace \`room: ...\` with \`${hint}\`.`,
+                });
             }
         }
     }
@@ -493,7 +494,19 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUs
     if (typeof roomInput.roomFixture === 'string') {
         const loaded = loadRoomFixture(roomInput.roomFixture);
         if (!loaded) {
-            throw new Error(`buildCanonicalRoom: roomFixture '${roomInput.roomFixture}' not found`);
+            const available = Object.keys(ROOM_FIXTURES);
+            const suggestions =
+                available.length > 0
+                    ? [`Available room fixtures: ${available.join(', ')}`]
+                    : ['No room fixtures are currently registered.'];
+            throw new FixtureError(
+                'MISSING_ROOM_FIXTURE',
+                roomInput.roomFixture,
+                {
+                    title: `Room fixture '${roomInput.roomFixture}' not found`,
+                },
+                suggestions,
+            );
         }
         base = loaded.fixture;
     } else if (roomInput.roomFixture && typeof roomInput.roomFixture === 'object') {

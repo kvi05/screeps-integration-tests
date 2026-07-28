@@ -1,7 +1,7 @@
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
+const { safeReaddir, safeReadFile } = require('../errors');
 
 /**
  * @typedef {import('../types').LoadBotOpts} LoadBotOpts
@@ -16,11 +16,12 @@ const path = require('path');
  */
 function loadBotModules(distDir, opts = {}) {
     const modules = {};
-    const entries = fs.readdirSync(distDir, { withFileTypes: true });
+    const entries = safeReaddir(distDir, 'MISSING_DIST_DIR');
     for (const entry of entries) {
         if (entry.isFile() && entry.name.endsWith('.js')) {
             const name = entry.name.replace(/\.js$/, '');
-            let code = fs.readFileSync(path.join(distDir, entry.name), 'utf8');
+            const filePath = path.join(distDir, entry.name);
+            let code = safeReadFile(filePath, 'MISSING_BOT_MODULE');
 
             // Profiler injection into main.js (loop wrapper).
             // Profiler runs in infinite (background) mode: disableTick=false,

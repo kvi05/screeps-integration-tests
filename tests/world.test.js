@@ -178,7 +178,7 @@ describe('buildCanonicalRoom', () => {
         it('throws for non-existent roomFixture', async () => {
             await expect(
                 buildCanonicalRoom({ name: 'W0N1', roomFixture: 'nonexistent_fixture' }, 'W0N1', 'defaultBot'),
-            ).rejects.toThrow("roomFixture 'nonexistent_fixture' not found");
+            ).rejects.toThrow("Room fixture 'nonexistent_fixture' not found");
         });
     });
 

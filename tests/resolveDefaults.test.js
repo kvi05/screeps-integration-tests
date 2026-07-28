@@ -43,11 +43,11 @@ describe('defaultBot', () => {
     });
 
     it('no-bot throws an error', () => {
-        expect(() => defaultBot({})).toThrow('defaultBot: no bots');
+        expect(() => defaultBot({})).toThrow('no bots');
     });
 
     it('multi-bot throws an error', () => {
         const bots = { bot1: { id: 'u1' }, bot2: { id: 'u2' } };
-        expect(() => defaultBot(bots)).toThrow(/more than 1 bot/);
+        expect(() => defaultBot(bots)).toThrow(/Ambiguous bot/);
     });
 });
