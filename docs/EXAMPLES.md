@@ -40,7 +40,7 @@ const world = await createWorld({
       structures: [spec.spawn(25, 25)],
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 30,
 });
 
@@ -65,7 +65,7 @@ const world = await createWorld({
       structures: [spec.spawn(25, 25)],
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: maxTicks,
   until: {
     maxTicks,
@@ -90,7 +90,7 @@ completion.
 ```javascript
 const world = await createWorld({
   rooms: [{ name: ROOM_NAME, roomFixture: 'rcl3-stable' }],
-  bots: [{ username: 'bot', rooms: ROOM_NAME }],
+  bots: [{ username: 'bot', rooms: [ROOM_NAME] }],
   memory: 'rcl3-stable',
   ticks: maxTicks,
   until: {
@@ -130,7 +130,7 @@ const world = await createWorld({
       },
     },
   ],
-  bots: [{ username: 'bot', rooms: ROOM_NAME }],
+  bots: [{ username: 'bot', rooms: [ROOM_NAME] }],
   memory: 'rcl3-stable',
 });
 ```
@@ -152,8 +152,8 @@ const world = await createWorld({
     },
   ],
   bots: [
-    { username: 'mainBot', rooms: 'W0N1' },
-    { username: 'reserveBot', rooms: 'W0N2' },
+    { username: 'mainBot', rooms: ['W0N1'] },
+    { username: 'reserveBot', rooms: ['W0N2'] },
   ],
   memory: {
     mainBot: 'rcl3-stable',
@@ -184,7 +184,7 @@ const world = await createWorld({
     { name: 'W0N1', controller: spec.controller({ level: 2 }), sources: [spec.source(15, 15)] },
     { name: 'W0N2', controller: spec.controller({ level: 1 }), sources: [spec.source(20, 20)] },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 10,
   metrics: { every: 1, rooms: true },
 });
@@ -235,7 +235,7 @@ const world = await createWorld({
       structures: [spec.spawn(25, 25), spec.tower(26, 24)],
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 100,
   events: [{ atTick: 20, action: 'spawnInvader', params: { x: 40, y: 40, room: 'W0N1' } }],
   onTick: async (world, tick) => {
@@ -275,7 +275,7 @@ const world = await createWorld({
       structures: [spec.spawn(25, 25)],
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   memory: 'baseline',
   memoryOverrides: {
     bot: {
@@ -310,7 +310,7 @@ const world = await createWorld({
       structures: [spec.spawn(25, 25)],
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 100,
   profiling: true,
 });
@@ -346,7 +346,7 @@ const BASE_ROOM = {
   sources: [spec.source(15, 15)],
   structures: [spec.spawn(25, 25)],
 };
-const BOT_SPEC = [{ username: 'bot', rooms: ROOM }];
+const BOT_SPEC = [{ username: 'bot', rooms: [ROOM] }];
 
 async function run(opts = {}) {
   // ─── Test 1 ─────────────────────────────────────
