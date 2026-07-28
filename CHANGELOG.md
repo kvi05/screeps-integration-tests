@@ -109,5 +109,6 @@ PR #20 [Docs/fix docs - #20](https://github.com/kvi05/screeps-integration-tests/
 - GitHub Actions CI with caching.
 - Full set of unit tests (Jest) and integration scenarios.
 
-[Unreleased]: https://github.com/kvi05/screeps-integration-tests/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/kvi05/screeps-integration-tests/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/kvi05/screeps-integration-tests/releases/tag/v1.1.0
 [1.0.0]: https://github.com/kvi05/screeps-integration-tests/releases/tag/v1.0.0
