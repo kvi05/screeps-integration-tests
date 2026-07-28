@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
 ### Added
 
 PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
@@ -28,8 +27,7 @@ PR #20 [Docs/fix docs - #20](https://github.com/kvi05/screeps-integration-tests/
 
 - `capture-fixture.js`: `--from` now defaults to `undefined` (no starting
   memory fixture required). Previously defaulted to `bootstrap_with_anchor`.
-  
-  
+
 PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
 
 - **`loadBot.js`:** replaced raw `fs.readdirSync(distDir)` with `safeReaddir` —
@@ -57,7 +55,7 @@ such file or directory, scandir`)
 - Updated test assertions in `worldHelpers.test.js`, `world.test.js`,
   `config.test.js`, `resolveDefaults.test.js`, and `world-spawn.scenario.js`
   for new error messages
-  
+
 ### Fixed
 
 PR #21 [Feat/user friendly errors](https://github.com/kvi05/screeps-integration-tests/pull/21)
