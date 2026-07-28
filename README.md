@@ -139,15 +139,15 @@ a community-maintained test harness that runs the official open-source Screeps s
   (0 — init, 1 — startup, 2 — first measurement).
 - **Command execution delay:** as in the game, player commands execute on the
   next tick:
-  ```javaScript
+  ```javascript
   await world.exec();
   await world.tick(2); // The command will only execute on the 2nd tick
   ```
 - **`Storage connection lost`:** when many worlds run back-to-back in one
   scenario, you may see `Storage connection lost` in stderr. This is a known
   race in `@screeps/common`'s singleton storage; the framework filters it and
-  it does not affect results. has not yet manifested itself. \
-  Details — [INTEGRATION-TESTS.md storage-singleton-race](./docs/INTEGRATION-TESTS.md#storage-singleton-race).
+  it does not affect results. \
+  Details — [CONTRIBUTING.md Known issues](./CONTRIBUTING.md#known-issues).
 
 ## Contributing
 
