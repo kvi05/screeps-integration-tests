@@ -144,7 +144,19 @@ function loadConfigFile(configPath) {
     } catch {
         // File not resolvable — let safeRequire produce the friendly error
     }
-    const raw = safeRequire(configPath, 'MISSING_CONFIG');
+    let raw;
+    try {
+        raw = safeRequire(configPath, 'MISSING_CONFIG');
+    } catch (e) {
+        if (e instanceof MissingFileError) {
+            throw e;
+        }
+        // Syntax error or other runtime error in the config file
+        throw new ConfigError('CONFIG_SYNTAX_ERROR', configPath, {
+            title: e.message,
+            why: 'The config file exists but could not be loaded. Check for JavaScript syntax errors.',
+        });
+    }
     const cfg = typeof raw === 'function' ? raw() : raw;
     if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
         throw new ConfigError('INVALID_CONFIG', configPath);
@@ -190,6 +202,9 @@ function resolvePaths(cfg, baseDir) {
  * @param {Partial<FrameworkConfig>} [overrides] - Explicit overrides for testing
  * @returns {{ config: FrameworkConfig, configPath: string|null }}
  * @throws {HelpRequested} When `--help` is present in argv
+ * @throws {MissingFileError} When `--config` points to a non-existent file
+ * @throws {ConfigError} When CLI args are invalid, config file has syntax errors, or config is malformed
+ * @throws {FrameworkError} When config loading fails for other reasons
  */
 function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overrides = {}) {
     /** @type {FrameworkConfig} */
@@ -203,7 +218,10 @@ function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overri
         if (err instanceof HelpRequested) {
             throw err;
         }
-        throw new Error(`CLI parse error: ${err.message}`);
+        throw new ConfigError('CLI_PARSE_ERROR', null, {
+            title: 'CLI parse error',
+            why: err.message,
+        });
     }
 
     const configPath = cliOptions.config ? path.resolve(cwd, cliOptions.config) : findConfigFile(cwd);

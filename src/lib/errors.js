@@ -141,6 +141,27 @@ const ERROR_CONTEXTS = {
         why: 'botId() was called without arguments, but no bots are registered in this world.',
         how: 'Pass an explicit bot username: world.botId("bot1"), or make sure bots are registered in createWorld().',
     },
+    AMBIGUOUS_BOT: {
+        title: 'Ambiguous bot lookup with multiple bots',
+        why: 'botId() was called without arguments but multiple bots are registered. The framework cannot determine which bot you mean.',
+        how: 'Pass an explicit bot username, e.g. world.botId("bot1"), or an index, e.g. world.botId(0).',
+    },
+    INVALID_BOTID_ARG: {
+        title: 'Invalid botId() argument type',
+        why: 'botId() accepts a username (string), an index (number), or undefined for the default bot.',
+        how: 'Pass a valid argument: world.botId("bot1"), world.botId(0), or world.botId().',
+    },
+    CLI_PARSE_ERROR: {
+        title: 'CLI argument parse error',
+        why: 'The command-line arguments could not be parsed. This usually means an unknown flag or an invalid value format was passed.',
+        how: 'Run with --help to see the list of supported options and their expected formats.',
+    },
+    CONFIG_SYNTAX_ERROR: {
+        title: 'Config file has a syntax error',
+        why: 'The config file exists but contains invalid JavaScript syntax and cannot be loaded.',
+        how: 'Check the file for syntax errors: missing commas, unmatched brackets, invalid statements, etc.',
+        docs: 'docs/CONFIG.md',
+    },
 };
 
 // ─── Base error class ───────────────────────────────────────────────────────
