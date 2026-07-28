@@ -64,6 +64,19 @@ lint → format:check → unit tests → integration tests
 | `npm run test:integration:capture`   | Capture fixture                        |
 | `npm run check`                      | Full CI pipeline                       |
 
+### Known issues
+
+**Storage-singleton race.** `@screeps/common/lib/storage.js` holds one TCP
+socket per process. When multiple `createWorld` calls happen in a row in
+one scenario (e.g. `world-spawn` with 15 worlds), there is a narrow window
+between `dispose()` and the next `server.start()` where the old socket is
+not yet closed and the new storage process is not yet listening.
+
+In practice it doesn't manifest: the 1-second reconnect in `storage.js`
+(Screeps) + the duration of the `createWorld` pipeline cover the race.
+Symptom — `Storage connection lost` in stderr (filtered in
+`pipeChildStreams`). It does not affect results.
+
 ## Code conventions
 
 ### Module system
@@ -217,11 +230,11 @@ Re-export via `src/public/assertions.js` (if public). Add a test in `tests/asser
 
 ### New room fixture
 
-See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#7-how-to-create-a-room-fixture).
+See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#2-room-fixtures).
 
 ### New memory fixture
 
-See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#8-how-to-create-or-update-a-memory-fixture).
+See [docs/FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md#5-creating-or-updating-a-memory-fixture).
 
 ### New scenario
 
