@@ -17,13 +17,11 @@ neighboring files:
 2. [Scenario lifecycle](#2-scenario-lifecycle)
 3. [Runtime: multi-room + multi-bot](#3-runtime-multi-room--multi-bot)
 4. [Stop condition (until)](#4-stop-condition-until)
-5. [Observers](#5-observers)
-6. [Child processes and data transfer](#6-child-processes-and-data-transfer)
-7. [Memory isolation and cache management](#7-memory-isolation-and-cache-management)
-8. [Profiling](#8-profiling)
-9. [File structure](#9-file-structure)
-10. [Best practices](#10-best-practices)
-11. [Extending the framework](#11-extending-the-framework)
+5. [Process isolation and data transfer](#5-process-isolation-and-data-transfer)
+6. [Profiling](#6-profiling)
+7. [File structure](#7-file-structure)
+8. [Best practices](#8-best-practices)
+9. [Extending the framework](#9-extending-the-framework)
 
 ## 1. Architecture: layers and responsibilities
 
@@ -70,40 +68,17 @@ Seven layers:
 | **Assertions**    | `lib/assertions/assertions.js`, `lib/assertions/metricAssertions.js`, `lib/assertions/metricRegression.js`                                                                | Bot behaviour assertions                                                                                            |
 | **Fixtures**      | `lib/fixtures/roomFixture.js`                                                                                                                                             | Room fixture registry                                                                                               |
 
-### Separation in builders
+**Key separations within layers:**
 
-| Layer         | File                      | Knowledge                            | Purpose                       |
-| ------------- | ------------------------- | ------------------------------------ | ----------------------------- |
-| `spec`        | `builders/spec.js`        | Object defaults, `roomName`/`userId` | Pure spec-object constructors |
-| `materialize` | `builders/materialize.js` | Mockup server DB schema              | Only layer that writes to DB  |
-
-> **Important:** knowledge of the DB schema lives **only** in `materialize`. Scenarios and
-> `createWorld()` use it as the only channel for writing to the DB.
->
-> **Default resolution helpers:** centralized in `orchestration/resolveDefaults.js` (`resolveDefaultUserId`, `defaultBot`).
-> Spec constructors do **not** assign default userId — that is an orchestration-layer concern.
-
-### Separation in observers
-
-| Layer     | File                     | Purpose                             |
-| --------- | ------------------------ | ----------------------------------- |
-| eventLog  | `observers/eventLog.js`  | Reading and filtering events        |
-| metrics   | `observers/metrics.js`   | Collecting game data (room metrics) |
-| predicate | `observers/predicate.js` | Checking stop conditions            |
-| ownership | `observers/ownership.js` | Tracking object owners              |
-
-Observers only read the DB and return data. They do not mutate state.
-
-### Metrics separation
-
-| Layer      | File                                 | Purpose                                      |
-| ---------- | ------------------------------------ | -------------------------------------------- |
-| Observer   | `observers/metrics.js`               | Reading world state, returning `RoomMetrics` |
-| Recorder   | `lib/assertions/metricsReport.js`    | Writing samples to `report.metrics`          |
-| Query      | `lib/assertions/metricsReport.js`    | Reading series, aggregation                  |
-| Assertions | `lib/assertions/metricAssertions.js` | Assertions based on time-series              |
-| Export     | `lib/assertions/metricsReport.js`    | Conversion to CSV (`toCsv()`)                |
-| Regression | `lib/assertions/metricRegression.js` | Comparison of current vs baseline            |
+- **Builders:** `spec.js` — pure constructors, no DB knowledge. `materialize.js` — the only layer
+  that knows the mockup server DB schema and writes to it. Default userId resolution is an
+  orchestration concern (`orchestration/resolveDefaults.js`), not a spec concern.
+- **Observers:** stateless DB readers — `eventLog.js`, `metrics.js`, `predicate.js`, `ownership.js`.
+  They only read and return data, never mutate state.
+- **Metrics:** a mini-pipeline inside assertions — observer (`observers/metrics.js`) collects raw
+  data → recorder (`metricsReport.js`) writes samples to `report.metrics` → the same module
+  provides query, aggregation, and CSV export → `metricAssertions.js` for assertions →
+  `metricRegression.js` for baseline comparison.
 
 ### Constants
 
@@ -129,6 +104,8 @@ the mockup server's global environment.
    │   ├─ server.tick()
    │   ├─ for each room:
    │   │   ├─ readEventLog → accumulate → report.events
+   │   │   │   (event log is overwritten every tick by the engine,
+   │   │   │    so accumulateEvents appends each tick's entries)
    │   │   ├─ snapshotOwners → mergeOwners
    │   │   └─ collectMetrics → sampleMetrics → report.metrics.rooms
    │   ├─ events (declarative spawns)
@@ -152,7 +129,7 @@ Ticks are numbered from 0. The bot executes every tick, starting from the first.
 Metrics, `eventLog` and `predicate` are collected every tick (or with
 period `metrics.every` for metrics).
 
-Tick semantics for the profiler are described in §8.
+Tick semantics for the profiler are described in §6.
 
 ## 3. Runtime: multi-room + multi-bot
 
@@ -175,16 +152,6 @@ The runtime is split into three independent phases:
 - `TestBot` class → `src/lib/runtime/testBot.js` — EventEmitter-based bot with console subscription.
 - `waitForProcessExit()` + `createDispose()` → `src/lib/runtime/cleanup.js` — process lifecycle.
 - `lib/runtime/runtime.js` now contains only `prepareServer`, `addBots`, `addBot`, `prepareRoom`, `createRuntime`.
-
-```js
-// Full pipeline (createWorld) — internal functions, not exported to public API.
-// In scenarios, use createWorld().
-const prepared = await prepareServer({ rooms, cacheDir });
-const { bots } = await addBots({ server: prepared.server, bots, distDir });
-const canonical = await buildCanonicalRoom(roomInput, roomName, bots['bot'].id);
-const ids = await materializeRoom(server, canonical);
-await server.start();
-```
 
 ### Contract
 
@@ -219,19 +186,7 @@ The scenario completes when:
 Predicate can be sync or async. If the predicate throws an error — the test
 completes with that error.
 
-## 5. Observers
-
-| Layer     | File                     | Purpose                      |
-| --------- | ------------------------ | ---------------------------- |
-| eventLog  | `observers/eventLog.js`  | Reading and filtering events |
-| metrics   | `observers/metrics.js`   | Collecting room metrics      |
-| predicate | `observers/predicate.js` | Stop conditions              |
-| ownership | `observers/ownership.js` | Tracking object owners       |
-
-The event log is overwritten by the engine every tick, so
-`accumulateEvents` is used to accumulate entries in `report.events[]`.
-
-## 6. Child processes and data transfer
+## 5. Process isolation and data transfer
 
 ### Why `console.log` is visible in the scenario
 
@@ -259,7 +214,7 @@ so parallel runs don't conflict.
 | Profiler                  | `report.profileText` and `report.profileCallgrind` |
 | Event log                 | `report.events`                                    |
 
-## 7. Memory isolation and cache management
+### Cache isolation
 
 Each scenario runs in an isolated cache directory:
 
@@ -279,20 +234,7 @@ waits for them to finish, and removes the cache directory. On timeout,
 Called automatically when CLI starts. It cleans up the `cacheDir`, keeping
 the last `cacheKeep` directories (configurable in `screeps-integration.config.js`, default `./.cache`).
 
-### Storage-singleton race
-
-`@screeps/common/lib/storage.js` holds one TCP socket per process. When
-multiple `createWorld` calls happen in a row in one scenario (e.g.,
-`world-spawn` with 15 worlds), there is a narrow window between `dispose()`
-and the next `server.start()` where the old socket is not yet closed and the
-new storage process is not yet listening.
-
-In practice it doesn't manifest: the 1-second reconnect in `storage.js`
-(Screeps) + the duration of the `createWorld` pipeline cover the race.
-Symptom — `Storage connection lost` in stderr (filtered in
-`pipeChildStreams`). It does not affect results.
-
-## 8. Profiling
+## 6. Profiling
 
 `profiling: true` enables `screeps-profiler` via `lib/runtime/loadBot.js`. Data
 goes into separate report fields:
@@ -339,7 +281,7 @@ Open `.callgrind` with KCachegrind or a similar tool.
 
 See also [screeps-profiler](https://github.com/screepers/screeps-profiler).
 
-## 9. File structure
+## 7. File structure
 
 ```
 screeps-integration-tests/
@@ -429,7 +371,7 @@ screeps-integration-tests/
 └── jest.config.js
 ```
 
-## 10. Best practices
+## 8. Best practices
 
 1. **Idempotence.** Each scenario should work independently of the run order.
 
@@ -458,7 +400,7 @@ screeps-integration-tests/
    API simplifies most tasks. Details — in
    [API-REFERENCE.md](./API-REFERENCE.md).
 
-## 11. Extending the framework
+## 9. Extending the framework
 
 | Task                      | Guide                                                                               |
 | ------------------------- | ----------------------------------------------------------------------------------- |
