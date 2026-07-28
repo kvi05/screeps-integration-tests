@@ -172,6 +172,58 @@ describe('Error subclasses', () => {
         expect(err).toBeInstanceOf(BotError);
         expect(err.name).toBe('BotError');
     });
+
+    it('MissingDirectoryError supports overrides and suggestions', () => {
+        const err = new MissingDirectoryError(
+            'MISSING_SCENARIOS_DIR',
+            '/p',
+            { title: 'Custom title', why: 'Custom why' },
+            ['Hint 1', 'Hint 2'],
+        );
+        expect(err.title).toBe('Custom title');
+        expect(err.why).toBe('Custom why');
+        expect(err.suggestions).toEqual(['Hint 1', 'Hint 2']);
+        expect(err.name).toBe('MissingDirectoryError');
+    });
+
+    it('MissingFileError supports overrides and suggestions', () => {
+        const err = new MissingFileError('MISSING_CONFIG', '/f', { title: 'Custom file error', how: 'Custom how' }, [
+            'Check the path',
+        ]);
+        expect(err.title).toBe('Custom file error');
+        expect(err.how).toBe('Custom how');
+        expect(err.suggestions).toEqual(['Check the path']);
+        expect(err.name).toBe('MissingFileError');
+    });
+
+    it('ConfigError supports overrides and suggestions', () => {
+        const err = new ConfigError('INVALID_CONFIG', '/cfg.js', { title: 'Bad config', why: 'Invalid syntax' }, [
+            'Fix line 42',
+        ]);
+        expect(err.title).toBe('Bad config');
+        expect(err.why).toBe('Invalid syntax');
+        expect(err.suggestions).toEqual(['Fix line 42']);
+        expect(err.name).toBe('ConfigError');
+    });
+
+    it('FixtureError supports overrides and suggestions', () => {
+        const err = new FixtureError('MISSING_MEMORY_FIXTURE', '/f.json', { title: 'Custom fixture error' }, [
+            'Run npx sit capture',
+        ]);
+        expect(err.title).toBe('Custom fixture error');
+        expect(err.suggestions).toEqual(['Run npx sit capture']);
+        expect(err.name).toBe('FixtureError');
+    });
+
+    it('BotError supports overrides and suggestions', () => {
+        const err = new BotError('BOT_NOT_FOUND', 'myBot', { title: 'Where is myBot?', why: 'Bot not registered' }, [
+            'Available: bot1, bot2',
+        ]);
+        expect(err.title).toBe('Where is myBot?');
+        expect(err.why).toBe('Bot not registered');
+        expect(err.suggestions).toEqual(['Available: bot1, bot2']);
+        expect(err.name).toBe('BotError');
+    });
 });
 
 // ─── Safe wrappers ──────────────────────────────────────────────────────────
