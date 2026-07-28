@@ -95,7 +95,7 @@ registerRoomFixture('quick-room', {
 
 const world = await createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'quick-room' }],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 100,
 });
 ```
@@ -105,7 +105,7 @@ const world = await createWorld({
 ```javascript
 const world = await createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 100,
 });
 ```
@@ -141,7 +141,7 @@ const world = await createWorld({
       roomOverrides: { exclude: ['tower'] },
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
 });
 ```
 
@@ -201,14 +201,14 @@ The `memory` option accepts several forms:
 // single-bot: fixture name
 const world = await createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   memory: 'my-memory',
 });
 
 // single-bot: fixture + inline overrides
 const world2 = await createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   memory: { fixture: 'my-memory', flags: { testMode: true } },
 });
 ```
@@ -244,7 +244,7 @@ Merge semantics (same as `deepMergeMemory`):
 ```javascript
 const world = await createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   memory: 'baseline',
   memoryOverrides: {
     bot: { flags: { testMode: true }, colonies: { W0N1: { spawnQueue: ['harvester'] } } },
@@ -318,7 +318,7 @@ spec.source(15, 15, { id: '94e8a44a5fa6113' });
 
 If the memory fixture stores references to objects by `_id`, changing the `_id` in the room fixture will break those references.
 
-> when needed, fix `_id` in the room fixture explicitly and keep them in sync with the memory fixture.
+> When needed, fix `_id` in the room fixture explicitly and keep them in sync with the memory fixture.
 
 ## 7. How to choose an approach
 
@@ -334,7 +334,7 @@ createWorld({
       structures: [spec.spawn(25, 25)],
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
 });
 ```
 
@@ -343,7 +343,7 @@ createWorld({
 ```javascript
 createWorld({
   rooms: [{ name: 'W0N1', roomFixture: 'my-room' }],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
 });
 ```
 
@@ -358,7 +358,7 @@ createWorld({
       roomOverrides: { exclude: ['tower'] },
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   memory: 'my-memory',
 });
 ```
