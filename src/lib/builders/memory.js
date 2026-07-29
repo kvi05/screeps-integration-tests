@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { assertFile, FixtureError } = require('../errors');
 
-function resolveFixturesDir() {
-    return process.env.SIT_FIXTURES_DIR || path.resolve(process.cwd(), 'fixtures');
+function resolveMemoryFixturesDir() {
+    return process.env.SIT_MEMORY_FIXTURES_DIR || path.resolve(process.cwd(), 'fixtures');
 }
 
 /**
@@ -46,11 +46,11 @@ async function getBotMemory(adapter, userId) {
  * @returns {BotMemory}
  * @throws {FixtureError} if file not found
  */
-function loadFixture(fixtureName) {
-    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
+function loadMemoryFixture(fixtureName) {
+    const fixturePath = path.join(resolveMemoryFixturesDir(), `${fixtureName}.memory.json`);
     assertFile(fixturePath, 'MISSING_MEMORY_FIXTURE', {}, [
         `Fixture name used: "${fixtureName}"`,
-        `Fixtures directory: ${resolveFixturesDir()}`,
+        `Fixtures directory: ${resolveMemoryFixturesDir()}`,
     ]);
     return JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 }
@@ -61,8 +61,8 @@ function loadFixture(fixtureName) {
  * @param {string} fixtureName
  * @returns {boolean}
  */
-function hasFixture(fixtureName) {
-    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
+function hasMemoryFixture(fixtureName) {
+    const fixturePath = path.join(resolveMemoryFixturesDir(), `${fixtureName}.memory.json`);
     return fs.existsSync(fixturePath);
 }
 
@@ -76,9 +76,9 @@ function hasFixture(fixtureName) {
  * @returns {{ path: string, size: number, existed: boolean }}
  * @throws {FixtureError} if file already exists and `opts.force === false`
  */
-function saveFixture(fixtureName, memory, opts = {}) {
+function saveMemoryFixture(fixtureName, memory, opts = {}) {
     const force = opts.force !== false;
-    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
+    const fixturePath = path.join(resolveMemoryFixturesDir(), `${fixtureName}.memory.json`);
     const existed = fs.existsSync(fixturePath);
 
     if (existed && !force) {
@@ -89,7 +89,7 @@ function saveFixture(fixtureName, memory, opts = {}) {
     }
 
     const json = JSON.stringify(memory, null, 2);
-    fs.mkdirSync(resolveFixturesDir(), { recursive: true });
+    fs.mkdirSync(resolveMemoryFixturesDir(), { recursive: true });
     fs.writeFileSync(fixturePath, json, 'utf8');
 
     return { path: fixturePath, size: Buffer.byteLength(json, 'utf8'), existed };
@@ -155,14 +155,14 @@ function resolveMemorySource(source, contextLabel) {
         return null;
     }
     if (typeof source === 'string') {
-        return loadFixture(source);
+        return loadMemoryFixture(source);
     }
     if (typeof source !== 'object' || Array.isArray(source)) {
         throw new Error(`${contextLabel}: expected fixture name or object, got ${typeof source}`);
     }
     if (typeof source.fixture === 'string') {
         const { fixture, ...inlineOverrides } = source;
-        const base = loadFixture(fixture);
+        const base = loadMemoryFixture(fixture);
         return Object.keys(inlineOverrides).length > 0 ? deepMergeMemory(base, inlineOverrides) : base;
     }
     return source;
@@ -246,9 +246,9 @@ function resolveInitialMemoryByBot(botNames, memory, memoryOverrides) {
 module.exports = {
     setBotMemory,
     getBotMemory,
-    loadFixture,
-    hasFixture,
-    saveFixture,
+    loadMemoryFixture,
+    hasMemoryFixture,
+    saveMemoryFixture,
     deepMergeMemory,
     resolveMemorySource,
     normalizePerBotMemoryOption,

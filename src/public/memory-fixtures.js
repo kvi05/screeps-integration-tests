@@ -5,7 +5,7 @@
  *
  * Responsibility:
  *   Manage `*.memory.json` fixture files stored in the directory configured
- *   by `fixturesDir` (default `./fixtures`).  These snapshots capture the
+ *   by `memoryFixturesDir` (default `./fixtures`).  These snapshots capture the
  *   entire `Memory` object of a bot at a given point in time and are used
  *   to set up repeatable test scenarios.
  *
@@ -13,9 +13,9 @@
  *
  * | Function | Purpose |
  * |---|---|
- * | `loadFixture(name)` | Load a memory fixture (throws if missing) |
- * | `hasFixture(name)` | Check whether a memory fixture exists |
- * | `saveFixture(name, memory, opts?)` | Save memory to a fixture file |
+ * | `loadMemoryFixture(name)` | Load a memory fixture (throws if missing) |
+ * | `hasMemoryFixture(name)` | Check whether a memory fixture exists |
+ * | `saveMemoryFixture(name, memory, opts?)` | Save memory to a fixture file |
  * | `deepMergeMemory(target, ...sources)` | Recursive deep merge of Memory objects |
  * | `resolveMemorySource(source, context)` | Normalise a memory source (string → fixture, object → inline) |
  * | `resolveInitialMemoryByBot(botNames, memory, memoryOverrides)` | Resolve initial Memory per bot |
@@ -23,12 +23,12 @@
  * | `getBotMemory(server, userId)` | Read Memory directly from storage (env) |
  *
  * @example
- * const { hasFixture, loadFixture } = require('screeps-integration-tests/memory-fixtures');
- * if (!hasFixture('rcl3-stable')) {
+ * const { hasMemoryFixture, loadMemoryFixture } = require('screeps-integration-tests/memory-fixtures');
+ * if (!hasMemoryFixture('rcl3-stable')) {
  *     console.log('SKIP: fixture not found');
  *     return { skipped: true };
  * }
- * const memory = loadFixture('rcl3-stable');
+ * const memory = loadMemoryFixture('rcl3-stable');
  *
  * @module screeps-integration-tests/memory-fixtures
  */
@@ -36,9 +36,9 @@
 const {
     setBotMemory,
     getBotMemory,
-    loadFixture,
-    hasFixture,
-    saveFixture,
+    loadMemoryFixture,
+    hasMemoryFixture,
+    saveMemoryFixture,
     deepMergeMemory,
     resolveMemorySource,
     resolveInitialMemoryByBot,
@@ -47,9 +47,9 @@ const {
 module.exports = {
     setBotMemory,
     getBotMemory,
-    loadFixture,
-    hasFixture,
-    saveFixture,
+    loadMemoryFixture,
+    hasMemoryFixture,
+    saveMemoryFixture,
     deepMergeMemory,
     resolveMemorySource,
     resolveInitialMemoryByBot,

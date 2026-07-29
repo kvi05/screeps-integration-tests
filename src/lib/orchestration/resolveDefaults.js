@@ -4,7 +4,7 @@
  * Pure helper functions for resolving default values (userId, roomName) from runtime context.
  *
  * These functions are used by orchestration layer to centralize default-resolution logic
- * that was previously duplicated across buildCanonicalRoom, world.spawn, and createStructure.
+ * that was previously duplicated across buildCanonicalRoom, world.spawnCreep, and createStructure.
  *
  * @module orchestration/resolveDefaults
  */

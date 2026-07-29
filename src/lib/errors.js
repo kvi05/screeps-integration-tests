@@ -56,7 +56,7 @@ const ERROR_CONTEXTS = {
         why: 'Memory fixtures (*.memory.json) provide pre-built bot Memory snapshots for scenarios. They are loaded from the fixtures directory.',
         how:
             '1. Create a "fixtures/" directory in your project root.\n' +
-            '  2. Or specify a custom path: --fixturesDir <path> or set "fixturesDir" in screeps-integration.config.js.\n' +
+            '  2. Or specify a custom path: --memoryFixturesDir <path> or set "memoryFixturesDir" in screeps-integration.config.js.\n' +
             '  3. Or capture a fixture from a running scenario: npx sit capture.',
         docs: 'docs/FIXTURES-GUIDE.md',
     },

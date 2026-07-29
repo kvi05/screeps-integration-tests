@@ -17,7 +17,7 @@
  * - `damageHitsStructure` — subtract damage from hits (not below 0)
  * - `deleteStructure` — delete a structure from `rooms.objects`
  * - `createStructure` — create a structure via materialize (spec object)
- * - `spawn` — create a creep via materialize (spec object)
+ * - `spawnCreep` — create a creep via materialize (spec object)
  * - `getRcl` — read RCL of a room from DB
  * - `eventLog` — read event log for a room
  * - `readMemory` / `writeMemory` — bot memory operations
@@ -221,10 +221,10 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
 
     // ─── Creeps ────────────────────────────────────────────────────────────
 
-    /** @type {import('../types').SpawnFn} */
-    async function spawn(creepSpec) {
+    /** @type {import('../types').SpawnCreepFn} */
+    async function spawnCreep(creepSpec) {
         if (!creepSpec.roomName) {
-            throw new Error('spawn: roomName is required');
+            throw new Error('spawnCreep: roomName is required');
         }
         // explicit userId: undefined is preserved; default applied only if userId is not specified
         const userId =
@@ -232,7 +232,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
                 ? creepSpec.userId
                 : resolveDefaultUserId(creepSpec.roomName, roomToBotUserId, defaultBotUserId);
         if (userId === undefined) {
-            throw new Error('spawn: userId is required (no default bot available)');
+            throw new Error('spawnCreep: userId is required (no default bot available)');
         }
         return materializeCreep(adapter, creepSpec.roomName, { ...creepSpec, userId });
     }
@@ -402,7 +402,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         deleteStructure,
         createStructure,
         // Creeps
-        spawn,
+        spawnCreep,
         // Room queries
         getRcl: (roomName) => getRoomRcl(adapter, roomName),
         // Event log

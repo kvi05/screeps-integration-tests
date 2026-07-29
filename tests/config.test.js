@@ -158,7 +158,7 @@ describe('config DEFAULTS', () => {
         expect(DEFAULTS).toMatchObject({
             distDir: './dist',
             scenariosDir: './scenarios',
-            fixturesDir: './fixtures',
+            memoryFixturesDir: './fixtures',
             cacheKeep: 5,
             buildCommand: null,
         });
@@ -174,7 +174,7 @@ describe('config CLI_SCHEMA', () => {
         expect(optKeys).toContain('config');
         expect(optKeys).toContain('scenariosDir');
         expect(optKeys).toContain('distDir');
-        expect(optKeys).toContain('fixturesDir');
+        expect(optKeys).toContain('memoryFixturesDir');
         expect(optKeys).toContain('roomFixturesDir');
         expect(optKeys).toContain('profiling');
         expect(optKeys).toContain('bail');

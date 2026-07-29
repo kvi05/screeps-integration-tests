@@ -24,7 +24,7 @@ const BOT_SPEC = [{ username: 'bot', rooms: ROOM }];
 /**
  * Scenario: world-spawn.
  *
- * Verifies the `world.spawn()` method: creating creeps in different modes,
+ * Verifies the `world.spawnCreep()` method: creating creeps in different modes,
  * error handling, working with spec constructors, multiple spawns,
  * spawn before/during run, verification via find.
  *
@@ -51,7 +51,7 @@ async function run(opts = {}) {
 
             // Test A: spawn with explicit userId
             {
-                const creepId = await world.spawn(
+                const creepId = await world.spawnCreep(
                     spec.creep(10, 10, {
                         roomName: ROOM,
                         name: 'TestCreep_A',
@@ -72,7 +72,7 @@ async function run(opts = {}) {
 
             // Test B: spawn without userId (single bot — fallback)
             {
-                const creepId = await world.spawn(
+                const creepId = await world.spawnCreep(
                     spec.creep(12, 12, {
                         roomName: ROOM,
                         name: 'TestCreep_B',
@@ -87,7 +87,7 @@ async function run(opts = {}) {
 
             // Test C: spawn with userId='2' (invader)
             {
-                const creepId = await world.spawn(
+                const creepId = await world.spawnCreep(
                     spec.creep(30, 30, {
                         roomName: ROOM,
                         name: 'Invader_C',
@@ -107,7 +107,7 @@ async function run(opts = {}) {
                     name: 'SpecCreep_D',
                     userId: botId,
                 });
-                const creepId = await world.spawn(creepSpec);
+                const creepId = await world.spawnCreep(creepSpec);
                 assert.ok(typeof creepId === 'string', 'D: spawn(spec.creep())');
                 const creep = await world.findOne({ _id: creepId });
                 assert.strictEqual(creep.name, 'SpecCreep_D');
@@ -123,7 +123,7 @@ async function run(opts = {}) {
 
             // Test E: spawn via spec.invader()
             {
-                const creepId = await world.spawn(spec.invader(40, 40, { roomName: ROOM, name: 'Invader_E' }));
+                const creepId = await world.spawnCreep(spec.invader(40, 40, { roomName: ROOM, name: 'Invader_E' }));
                 assert.ok(typeof creepId === 'string', 'E: spawn(spec.invader())');
                 const creep = await world.findOne({ _id: creepId });
                 assert.strictEqual(creep.user, '2', 'E: invader userId="2"');
@@ -133,7 +133,7 @@ async function run(opts = {}) {
 
             // Test F: spawn via spec.dummyTarget()
             {
-                const creepId = await world.spawn(spec.dummyTarget(10, 10, { roomName: ROOM, name: 'Dummy_F' }));
+                const creepId = await world.spawnCreep(spec.dummyTarget(10, 10, { roomName: ROOM, name: 'Dummy_F' }));
                 assert.ok(typeof creepId === 'string', 'F: spawn(spec.dummyTarget())');
                 const creep = await world.findOne({ _id: creepId });
                 assert.strictEqual(creep.name, 'Dummy_F');
@@ -142,7 +142,7 @@ async function run(opts = {}) {
 
             // Test O: spawn returns unique _id on each call
             {
-                const id1 = await world.spawn(
+                const id1 = await world.spawnCreep(
                     spec.creep(1, 1, {
                         roomName: ROOM,
                         name: 'Unique_O_1',
@@ -150,7 +150,7 @@ async function run(opts = {}) {
                         userId: botId,
                     }),
                 );
-                const id2 = await world.spawn(
+                const id2 = await world.spawnCreep(
                     spec.creep(2, 2, {
                         roomName: ROOM,
                         name: 'Unique_O_2',
@@ -208,7 +208,7 @@ async function run(opts = {}) {
 
         try {
             // Test S: spawn with explicit userId: null does not get default
-            const creepId = await world.spawn(
+            const creepId = await world.spawnCreep(
                 spec.creep(5, 5, {
                     roomName: ROOM,
                     name: 'NoUser_Creep',
@@ -241,7 +241,7 @@ async function run(opts = {}) {
 
             // Test G: spawn without roomName → error
             await assert.rejects(
-                world.spawn({
+                world.spawnCreep({
                     x: 10,
                     y: 10,
                     name: 'NoRoom_Creep',
@@ -254,7 +254,7 @@ async function run(opts = {}) {
 
             // Test I: spawn without body → error
             await assert.rejects(
-                world.spawn({
+                world.spawnCreep({
                     roomName: ROOM,
                     x: 10,
                     y: 10,
@@ -300,7 +300,7 @@ async function run(opts = {}) {
                     { type: 'move', hits: 150 },
                     { type: 'heal', hits: 200 },
                 ];
-                const creepId = await world.spawn(
+                const creepId = await world.spawnCreep(
                     spec.creep(20, 25, {
                         roomName: ROOM,
                         name: 'CustomBody_J',
@@ -322,7 +322,7 @@ async function run(opts = {}) {
                 const NUM_CREEPS = 5;
                 const ids = [];
                 for (let i = 0; i < NUM_CREEPS; i++) {
-                    const id = await world.spawn(
+                    const id = await world.spawnCreep(
                         spec.creep(10 + i, 10, {
                             roomName: ROOM,
                             name: `MultiCreep_K_${i}`,
@@ -338,7 +338,7 @@ async function run(opts = {}) {
 
             // Test L: spawn before run
             {
-                const preId = await world.spawn(
+                const preId = await world.spawnCreep(
                     spec.creep(5, 5, {
                         roomName: ROOM,
                         name: 'PreRun_Creep_L',
@@ -351,7 +351,7 @@ async function run(opts = {}) {
 
             // Test N: spawn in a neutral room (W0N2)
             {
-                const creepId = await world.spawn(
+                const creepId = await world.spawnCreep(
                     spec.creep(20, 20, {
                         roomName: 'W0N2',
                         name: 'NeutralRoom_N',
@@ -390,7 +390,7 @@ async function run(opts = {}) {
             until: { maxTicks: 15 },
             onTick: async (w, tick) => {
                 if (tick === 5) {
-                    await w.spawn(
+                    await w.spawnCreep(
                         spec.creep(15, 15, {
                             roomName: ROOM,
                             name: 'OnTick_Creep_M',
@@ -473,7 +473,7 @@ async function run(opts = {}) {
         try {
             // Test H: spawn without userId and without bots → error
             await assert.rejects(
-                world.spawn({
+                world.spawnCreep({
                     roomName: ROOM,
                     x: 10,
                     y: 10,

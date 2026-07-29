@@ -35,7 +35,7 @@
 
 const { createWorld } = require('../lib/orchestration/world');
 const spec = require('../lib/builders/spec');
-const { saveFixture, hasFixture } = require('../lib/builders/memory');
+const { saveMemoryFixture, hasMemoryFixture } = require('../lib/builders/memory');
 const { parseArgs, HelpRequested } = require('../lib/config/cli');
 
 /**
@@ -159,7 +159,7 @@ async function captureFixture(cfg) {
     } = cfg;
 
     // Overwrite check — BEFORE starting the world (don't waste minutes)
-    if (!force && hasFixture(name)) {
+    if (!force && hasMemoryFixture(name)) {
         throw new Error(`Fixture "${name}" already exists. Use --force to overwrite.`);
     }
 
@@ -241,7 +241,7 @@ async function captureFixture(cfg) {
         // ─── Save fixture ─────────────────────────────────────────────────────
         const finalMemory = await world.readMemory('bot');
         const finalRcl = getRclFromMemory(finalMemory, room);
-        const { path: filePath, size } = saveFixture(name, finalMemory, { force });
+        const { path: filePath, size } = saveMemoryFixture(name, finalMemory, { force });
         const wallClockMs = Date.now() - startTime;
         const wallSec = (wallClockMs / 1000).toFixed(1);
 

@@ -159,7 +159,7 @@ The template already contains `createWorld → run → assertBotWorked` and
 A minimal scenario consists of three parts:
 
 1. **Creating the world** via `createWorld()`
-2. **Actions** — `world.run()`, `world.tick(n)`, `world.spawn(...)`
+2. **Actions** — `world.run()`, `world.tick(n)`, `world.spawnCreep(...)`
 3. **Assertions** — `assertBotWorked`, `assertRclAtLeast`, etc.
 
 ```javascript
