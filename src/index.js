@@ -28,7 +28,7 @@
  * @example
  * const { createWorld, spec } = require('screeps-integration-tests');
  * const { assertBotWorked } = require('screeps-integration-tests/assertions');
- * const { hasFixture } = require('screeps-integration-tests/memory-fixtures');
+ * const { hasMemoryFixture } = require('screeps-integration-tests/memory-fixtures');
  *
  * @module screeps-integration-tests
  */

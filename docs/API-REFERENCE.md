@@ -305,15 +305,15 @@ controls where `*.memory.json` snapshots are located.
 ## 6. Memory fixtures API
 
 ```javascript
-const { loadFixture, hasFixture, saveFixture, deepMergeMemory } = require('screeps-integration-tests/memory-fixtures');
+const { loadMemoryFixture, hasMemoryFixture, saveMemoryFixture, deepMergeMemory } = require('screeps-integration-tests/memory-fixtures');
 ```
 
-| Function                           | Purpose                            |
-| ---------------------------------- | ---------------------------------- |
-| `loadFixture(name)`                | Read `*.memory.json`               |
-| `hasFixture(name)`                 | Check existence                    |
-| `saveFixture(name, memory, opts?)` | Save a snapshot                    |
-| `deepMergeMemory(target, ...src)`  | Deep-merge (plain objects recurse) |
+| Function                                 | Purpose                            |
+| ---------------------------------------- | ---------------------------------- |
+| `loadMemoryFixture(name)`                | Read `*.memory.json`               |
+| `hasMemoryFixture(name)`                 | Check existence                    |
+| `saveMemoryFixture(name, memory, opts?)` | Save a snapshot                    |
+| `deepMergeMemory(target, ...src)`        | Deep-merge (plain objects recurse) |
 
 ## 7. Assertions API
 

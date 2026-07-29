@@ -183,7 +183,7 @@ A memory fixture is a `*.memory.json` file containing a JSON snapshot of a bot's
 ### Public API
 
 ```javascript
-const { loadFixture, hasFixture, saveFixture, deepMergeMemory } = require('screeps-integration-tests/memory-fixtures');
+const { loadMemoryFixture, hasMemoryFixture, saveMemoryFixture, deepMergeMemory } = require('screeps-integration-tests/memory-fixtures');
 ```
 
 See [API-REFERENCE.md '6. Memory fixtures API'](./API-REFERENCE.md#6-memory-fixtures-api) for function details.
@@ -215,11 +215,11 @@ const world2 = await createWorld({
 
 For multi-bot, use a per-bot map — see [EXAMPLES.md §5](./EXAMPLES.md#5-multi-room-main--reserve) for a full example.
 
-> Guard with `hasFixture(name)` before `createWorld` if the fixture may not exist:
+> Guard with `hasMemoryFixture(name)` before `createWorld` if the fixture may not exist:
 >
 > ```javascript
-> const { hasFixture } = require('screeps-integration-tests/memory-fixtures');
-> if (!hasFixture('my-memory')) {
+> const { hasMemoryFixture } = require('screeps-integration-tests/memory-fixtures');
+> if (!hasMemoryFixture('my-memory')) {
 >   console.log('SKIP: memory fixture not found');
 >   return { skipped: true };
 > }
@@ -267,17 +267,17 @@ A memory fixture is just a JSON snapshot of a bot's `Memory`. The most flexible 
 
 ### Manual creation via scenario (recommended)
 
-Use `world.readMemory()` to extract the bot's state at any point, then `saveFixture()` to persist it:
+Use `world.readMemory()` to extract the bot's state at any point, then `saveMemoryFixture()` to persist it:
 
 ```javascript
 // your.scenario.js
-const { saveFixture } = require('screeps-integration-tests/memory-fixtures');
+const { saveMemoryFixture } = require('screeps-integration-tests/memory-fixtures');
 
 const memory = await world.readMemory('bot');
-saveFixture('my-bot-rcl3', memory);
+saveMemoryFixture('my-bot-rcl3', memory);
 ```
 
-`saveFixture` overwrites by default; pass `{ force: false }` to refuse overwriting an existing file.
+`saveMemoryFixture` overwrites by default; pass `{ force: false }` to refuse overwriting an existing file.
 
 This approach gives you full control:
 
