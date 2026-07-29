@@ -495,7 +495,7 @@
  * @property {RunFn} run                          — main run, returns WorldReport
  * @property {TickFn} tick                        — execute `n` ticks
  * @property {ExecFn} exec                        — execute JS code in a bot
- * @property {SpawnFn} spawn                      — spawn a creep (room required)
+ * @property {SpawnCreepFn} spawnCreep            — spawn a creep (room required)
  * @property {BotIdFn} botId                      — _id of a bot by username/index/first
  * @property {EventLogFn} eventLog                   — read room event log
  * @property {ReadMemoryFn} readMemory            — read bot Memory (by username)
@@ -539,7 +539,7 @@
  */
 
 /**
- * @callback SpawnFn
+ * @callback SpawnCreepFn
  * @param {CreepSpecCanonical} spec   — complete creep spec (use spec.creep() / spec.invader() / spec.dummyTarget())
  * @returns {Promise<string>}          _id of the created creep
  */

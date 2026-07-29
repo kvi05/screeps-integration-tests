@@ -59,7 +59,7 @@ function resolveCacheBase(opts) {
  * @typedef {import('../types').RunFn} RunFn
  * @typedef {import('../types').TickFn} TickFn
  * @typedef {import('../types').ExecFn} ExecFn
- * @typedef {import('../types').SpawnFn} SpawnFn
+ * @typedef {import('../types').SpawnCreepFn} SpawnCreepFn
  * @typedef {import('../types').EventLogFn} EventLogFn
  * @typedef {import('../types').ReadMemoryFn} ReadMemoryFn
  * @typedef {import('../types').WriteMemoryFn} WriteMemoryFn

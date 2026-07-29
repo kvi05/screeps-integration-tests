@@ -143,7 +143,7 @@ const world = await createWorld({
 | `world.run()`                          | Run the scenario until `opts.ticks` / `until.maxTicks` / predicate |
 | `world.tick(n)`                        | Execute `n` ticks; respects `until.maxTicks`, ignores `opts.ticks` |
 | `world.exec(code, username?)`          | Execute JS code in bot context                                     |
-| `world.spawn(spec)`                    | Create a creep. See `CreepSpecCanonical` (§14) for spec format.    |
+| `world.spawnCreep(spec)`               | Create a creep. See `CreepSpecCanonical` (§14) for spec format.    |
 | `world.createStructure(spec)`          | Create a structure via spec (see §Helpers)                         |
 | `world.eventLog(room)`                 | Event log for the room for the current tick                        |
 | `world.readMemory(username?)`          | Read bot Memory                                                    |
@@ -173,7 +173,7 @@ const world = await createWorld({
 
 ```javascript
 await world.tick(10);
-await world.spawn(spec.dummyTarget(10, 10, { roomName: ROOM_NAME }));
+await world.spawnCreep(spec.dummyTarget(10, 10, { roomName: ROOM_NAME }));
 await world.tick(40);
 ```
 
@@ -611,7 +611,7 @@ const world = await createWorld({
   // ...
   onTick: async (world, tick) => {
     if (tick === 50) {
-      await world.spawn(spec.invader(40, 40, { roomName: 'W0N1' }));
+      await world.spawnCreep(spec.invader(40, 40, { roomName: 'W0N1' }));
     }
     const mem = await world.readMemory('bot');
     if (mem.emergencyStop) {
@@ -794,7 +794,7 @@ Complete creep specification. Build it with `spec.creep()`, `spec.invader()`
 or `spec.dummyTarget()` — they compute `body`, `hits`, `store` and
 `storeCapacity` automatically.
 
-For `world.spawn()`, `roomName` is required (the world needs to know
+For `world.spawnCreep()`, `roomName` is required (the world needs to know
 which room to put the creep in).
 
 ```typescript
@@ -956,14 +956,14 @@ await world.deleteStructure(wallId);
 
 ### Creeps
 
-| Method              | Description                                                                                         |
-| ------------------- | --------------------------------------------------------------------------------------------------- |
-| `world.spawn(spec)` | Create a creep. `roomName` required (see `CreepSpecCanonical` §14). `userId` defaults to first bot. |
+| Method                   | Description                                                                                         |
+| ------------------------ | --------------------------------------------------------------------------------------------------- |
+| `world.spawnCreep(spec)` | Create a creep. `roomName` required (see `CreepSpecCanonical` §14). `userId` defaults to first bot. |
 
 ```javascript
-const creepId = await world.spawn(spec.creep(25, 25, { roomName: 'W0N1', name: 'Harvester1' }));
-const invaderId = await world.spawn(spec.invader(40, 40, { roomName: 'W0N1' }));
-const dummyId = await world.spawn(spec.dummyTarget(10, 10, { roomName: 'W0N1' }));
+const creepId = await world.spawnCreep(spec.creep(25, 25, { roomName: 'W0N1', name: 'Harvester1' }));
+const invaderId = await world.spawnCreep(spec.invader(40, 40, { roomName: 'W0N1' }));
+const dummyId = await world.spawnCreep(spec.dummyTarget(10, 10, { roomName: 'W0N1' }));
 ```
 
 ### Room queries

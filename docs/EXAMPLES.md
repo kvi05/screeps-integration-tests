@@ -102,9 +102,9 @@ const world = await createWorld({
   },
 });
 
-await world.spawn(spec.dummyTarget(10, 10, { roomName: ROOM_NAME }));
+await world.spawnCreep(spec.dummyTarget(10, 10, { roomName: ROOM_NAME }));
 await world.tick(10);
-await world.spawn(spec.invader(40, 40, { roomName: ROOM_NAME }));
+await world.spawnCreep(spec.invader(40, 40, { roomName: ROOM_NAME }));
 await world.tick(maxTicks - 10);
 
 assertBotWorked(world.report);
@@ -240,7 +240,7 @@ const world = await createWorld({
   events: [{ atTick: 20, action: 'spawnInvader', params: { x: 40, y: 40, room: 'W0N1' } }],
   onTick: async (world, tick) => {
     if (tick === 30) {
-      await world.spawn(spec.creep(25, 25, { roomName: 'W0N1', name: 'Defender' }));
+      await world.spawnCreep(spec.creep(25, 25, { roomName: 'W0N1', name: 'Defender' }));
       spawned = true;
     }
   },
@@ -259,7 +259,7 @@ await world.run();
 assert.ok(spawned);
 ```
 
-> `world.spawn()` creates a creep in the DB, but your bot code must control it
+> `world.spawnCreep()` creates a creep in the DB, but your bot code must control it
 
 ## 8. memoryOverrides and direct DB access
 
@@ -374,7 +374,7 @@ async function run(opts = {}) {
     });
     try {
       await world.tick(5);
-      await world.spawn(spec.invader(40, 40, { roomName: ROOM }));
+      await world.spawnCreep(spec.invader(40, 40, { roomName: ROOM }));
       await world.run();
       // ...assertions...
     } finally {

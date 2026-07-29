@@ -75,7 +75,7 @@ Full reference: [API-REFERENCE § spec](./docs/API-REFERENCE.md#3-spec-construct
 | Method                                                    | What it does                                                 |
 | --------------------------------------------------------- | ------------------------------------------------------------ |
 | `world.run()` / `world.tick(n)`                           | advance time (to `ticks` or `until.predicate`)               |
-| `world.spawn(spec)`                                       | add a creep at runtime                                       |
+| `world.spawnCreep(spec)`                                  | add a creep at runtime                                       |
 | `world.exec(code)`                                        | run JS in the bot's context                                  |
 | `world.readMemory()` / `world.writeMemory()`              | inspect / patch bot memory (support deep merging)            |
 | `world.eventLog(room)`                                    | read **game events** — what happened in a room (`EVENT_ATTACK`, `EVENT_OBJECT_DESTROYED`…) |

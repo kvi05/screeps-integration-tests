@@ -60,7 +60,7 @@ For rooms **not** claimed by any bot, the first bot from `opts.bots` is used (ba
 spec.spawn(25, 25, { userId: 'someOtherUser' });
 ```
 
-> `world.spawn()` only creates creeps (see [API-REFERENCE.md](API-REFERENCE.md#2-worldinstance)).
+> `world.spawnCreep()` only creates creeps (see [API-REFERENCE.md](API-REFERENCE.md#2-worldinstance)).
 > To create a structure after `createWorld()`, you must go directly through the DB:
 >
 > ```javascript

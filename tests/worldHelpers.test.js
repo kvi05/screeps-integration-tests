@@ -349,13 +349,13 @@ describe('createWorldHelpers', () => {
         });
     });
 
-    // ─── spawn ───────────────────────────────────────────────────────────
+    // ─── spawnCreep ──────────────────────────────────────────────────────
 
-    describe('spawn', () => {
+    describe('spawnCreep', () => {
         it('calls materializeCreep with spec and defaultBotUserId', async () => {
             const { materializeCreep } = require('../src/lib/builders/materialize');
             const spec = { roomName: 'W0N1', x: 20, y: 20, name: 'TestCreep' };
-            const id = await helpers.spawn(spec);
+            const id = await helpers.spawnCreep(spec);
             expect(id).toBe('mocked_creep_id');
             expect(materializeCreep).toHaveBeenCalledWith(
                 adapter,
@@ -367,7 +367,7 @@ describe('createWorldHelpers', () => {
         it('does not override an explicit userId', async () => {
             const { materializeCreep } = require('../src/lib/builders/materialize');
             const spec = { roomName: 'W0N1', x: 20, y: 20, name: 'TestCreep', userId: 'custom' };
-            await helpers.spawn(spec);
+            await helpers.spawnCreep(spec);
             expect(materializeCreep).toHaveBeenCalledWith(
                 adapter,
                 'W0N1',
@@ -376,7 +376,7 @@ describe('createWorldHelpers', () => {
         });
 
         it('throws if roomName is not specified', async () => {
-            await expect(helpers.spawn({ x: 5, y: 5 })).rejects.toThrow('spawn: roomName is required');
+            await expect(helpers.spawnCreep({ x: 5, y: 5 })).rejects.toThrow('spawnCreep: roomName is required');
         });
     });
 

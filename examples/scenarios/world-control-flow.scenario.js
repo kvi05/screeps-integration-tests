@@ -11,7 +11,7 @@ const BOT = 'bot';
  * Scenario: world-control-flow.
  *
  * Verifies: until predicate/signal, readMemory/writeMemory, world.exec,
- * opts.events + registerEvent, world.spawn, world.eventLog, onTick,
+ * opts.events + registerEvent, world.spawnCreep, world.eventLog, onTick,
  * proper dispose cleanup.
  *
  * All tests are short (10-15 ticks).
@@ -135,7 +135,7 @@ async function run(opts = {}) {
         }
     }
 
-    // ─── Test D: world.spawn + eventLog + world.eventLog ────────────
+    // ─── Test D: world.spawnCreep + eventLog + world.eventLog ────────────
     {
         const world = await createWorld({
             rooms: [
@@ -154,7 +154,7 @@ async function run(opts = {}) {
         try {
             // Spawn a creep before run via the spawn method
             const botId = world.bots[BOT].id;
-            const creepId = await world.spawn(
+            const creepId = await world.spawnCreep(
                 spec.creep(10, 10, {
                     roomName: ROOM,
                     name: 'TestCreep',
