@@ -17,7 +17,7 @@
  * - `damageHitsStructure` — subtract damage from hits (not below 0)
  * - `deleteStructure` — delete a structure from `rooms.objects`
  * - `createStructure` — create a structure via materialize (spec object)
- * - `spawn` — create a creep via materialize (spec object)
+ * - `spawnCreep` — create a creep via materialize (spec object)
  * - `getRcl` — read RCL of a room from DB
  * - `eventLog` — read event log for a room
  * - `readMemory` / `writeMemory` — bot memory operations

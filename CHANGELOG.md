@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `world.spawn(spec)` renamed to `world.spawnCreep(spec)`.
+- **BREAKING:** Config key `fixturesDir` renamed to `memoryFixturesDir`
+  (env: `SIT_MEMORY_FIXTURES_DIR`, CLI: `--memoryFixturesDir`).
+- **BREAKING:** `loadFixture` / `hasFixture` / `saveFixture` renamed to
+  `loadMemoryFixture` / `hasMemoryFixture` / `saveMemoryFixture`
+  (`screeps-integration-tests/memory-fixtures` sub-path).
+
 ## [1.1.0] - 2026-07-29
 
 ### Added
