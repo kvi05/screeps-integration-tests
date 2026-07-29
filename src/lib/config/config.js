@@ -171,15 +171,15 @@ function loadConfigFile(configPath) {
  * `profilesDir`, `cacheDir`.  If a value is already absolute or null it is left untouched.
  *
  * @param {FrameworkConfig} cfg
- * @param {string} baseDir - Base directory (usually the config file's directory or cwd)
+ * @param {string} configDir - Base directory (usually the config file's directory or cwd)
  * @returns {FrameworkConfig}
  */
-function resolvePaths(cfg, baseDir) {
+function resolvePaths(cfg, configDir) {
     const pathKeys = ['distDir', 'scenariosDir', 'memoryFixturesDir', 'roomFixturesDir', 'profilesDir', 'cacheDir'];
     for (const key of pathKeys) {
         const value = cfg[key];
         if (value !== null && typeof value === 'string') {
-            cfg[key] = path.resolve(baseDir, value);
+            cfg[key] = path.resolve(configDir, value);
         }
     }
     return cfg;
@@ -225,7 +225,7 @@ function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overri
     }
 
     const configPath = cliOptions.config ? path.resolve(cwd, cliOptions.config) : findConfigFile(cwd);
-    const baseDir = configPath ? path.dirname(configPath) : cwd;
+    const configDir = configPath ? path.dirname(configPath) : cwd;
 
     if (configPath) {
         const fileCfg = loadConfigFile(configPath);
@@ -248,7 +248,7 @@ function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overri
     Object.assign(cfg, overrides);
 
     return {
-        config: resolvePaths(cfg, baseDir),
+        config: resolvePaths(cfg, configDir),
         configPath,
     };
 }
