@@ -19,7 +19,7 @@ const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('..
  * Resolution order (lowest to highest priority):
  *   1. Built-in defaults
  *   2. Config file (screeps-integration.config.{js,json,cjs,mjs})
- *   3. Environment variables (`BOT_DIST_DIR` → `distDir`; `SIT_FIXTURES_DIR` and
+ *   3. Environment variables (`BOT_DIST_DIR` → `distDir`; `SIT_MEMORY_FIXTURES_DIR` and
  *      `SIT_CACHE_DIR` are read directly by library modules, not by this function)
  *   4. CLI flags (`--scenariosDir`, `--distDir`, …)
  *
@@ -30,7 +30,7 @@ const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('..
  * @typedef {Object} FrameworkConfig
  * @property {string} distDir           — Path to the bot's compiled `dist/` directory
  * @property {string} scenariosDir      — Directory containing `*.scenario.js` test files
- * @property {string} fixturesDir       — Directory containing `*.memory.json` snapshot files
+ * @property {string} memoryFixturesDir — Directory containing `*.memory.json` snapshot files
  * @property {string|null} roomFixturesDir — Directory containing user room fixture files (`*.room.js`)
  * @property {string} profilesDir       — Output directory for callgrind profiling data
  * @property {string} cacheDir          — Base directory for the mockup server cache
@@ -46,7 +46,7 @@ const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('..
 const DEFAULTS = {
     distDir: './dist',
     scenariosDir: './scenarios',
-    fixturesDir: './fixtures',
+    memoryFixturesDir: './fixtures',
     roomFixturesDir: null,
     profilesDir: './profiles',
     cacheDir: './.cache',
@@ -65,7 +65,7 @@ const CLI_SCHEMA = {
         config: { type: 'string', description: 'Path to screeps-integration.config.js' },
         scenariosDir: { type: 'string', description: 'Scenarios directory (*.scenario.js)' },
         distDir: { type: 'string', description: 'Bot dist/ directory (compiled modules)' },
-        fixturesDir: { type: 'string', description: 'Memory fixtures directory (*.memory.json)' },
+        memoryFixturesDir: { type: 'string', description: 'Memory fixtures directory (*.memory.json)' },
         roomFixturesDir: { type: 'string', description: 'Room fixtures directory (*.room.js)' },
         profilesDir: { type: 'string', description: 'Callgrind profiles output directory' },
         cacheDir: { type: 'string', description: 'Mockup server cache base directory' },
@@ -167,7 +167,7 @@ function loadConfigFile(configPath) {
 /**
  * Resolves all relative path properties in the config against a base directory.
  *
- * Affected keys: `distDir`, `scenariosDir`, `fixturesDir`, `roomFixturesDir`,
+ * Affected keys: `distDir`, `scenariosDir`, `memoryFixturesDir`, `roomFixturesDir`,
  * `profilesDir`, `cacheDir`.  If a value is already absolute or null it is left untouched.
  *
  * @param {FrameworkConfig} cfg
@@ -175,7 +175,7 @@ function loadConfigFile(configPath) {
  * @returns {FrameworkConfig}
  */
 function resolvePaths(cfg, baseDir) {
-    const pathKeys = ['distDir', 'scenariosDir', 'fixturesDir', 'roomFixturesDir', 'profilesDir', 'cacheDir'];
+    const pathKeys = ['distDir', 'scenariosDir', 'memoryFixturesDir', 'roomFixturesDir', 'profilesDir', 'cacheDir'];
     for (const key of pathKeys) {
         const value = cfg[key];
         if (value !== null && typeof value === 'string') {

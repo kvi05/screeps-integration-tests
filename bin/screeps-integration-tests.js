@@ -307,7 +307,7 @@ async function main() {
     // Injects config env variables into the parent process (inherited by workers).
     process.env.INTEGRATION_TEST = '1';
     process.env.BOT_DIST_DIR = config.distDir;
-    process.env.SIT_FIXTURES_DIR = config.fixturesDir;
+    process.env.SIT_MEMORY_FIXTURES_DIR = config.memoryFixturesDir;
     process.env.SIT_CACHE_DIR = config.cacheDir;
     for (const [key, value] of Object.entries(config.env || {})) {
         process.env[key] = String(value);

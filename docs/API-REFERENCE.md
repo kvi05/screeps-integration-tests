@@ -291,7 +291,8 @@ const {
 
 A room fixture is a declarative description of a room. Register via
 `registerRoomFixture` or auto-load from `roomFixturesDir` (see
-[FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)).
+[FIXTURES-GUIDE.md](./FIXTURES-GUIDE.md)). The `memoryFixturesDir` config option
+controls where `*.memory.json` snapshots are located.
 
 | Function                                 | Purpose                                |
 | ---------------------------------------- | -------------------------------------- |

@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { assertFile, FixtureError } = require('../errors');
 
-function resolveFixturesDir() {
-    return process.env.SIT_FIXTURES_DIR || path.resolve(process.cwd(), 'fixtures');
+function resolveMemoryFixturesDir() {
+    return process.env.SIT_MEMORY_FIXTURES_DIR || path.resolve(process.cwd(), 'fixtures');
 }
 
 /**
@@ -47,10 +47,10 @@ async function getBotMemory(adapter, userId) {
  * @throws {FixtureError} if file not found
  */
 function loadFixture(fixtureName) {
-    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
+    const fixturePath = path.join(resolveMemoryFixturesDir(), `${fixtureName}.memory.json`);
     assertFile(fixturePath, 'MISSING_MEMORY_FIXTURE', {}, [
         `Fixture name used: "${fixtureName}"`,
-        `Fixtures directory: ${resolveFixturesDir()}`,
+        `Fixtures directory: ${resolveMemoryFixturesDir()}`,
     ]);
     return JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 }
@@ -62,7 +62,7 @@ function loadFixture(fixtureName) {
  * @returns {boolean}
  */
 function hasFixture(fixtureName) {
-    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
+    const fixturePath = path.join(resolveMemoryFixturesDir(), `${fixtureName}.memory.json`);
     return fs.existsSync(fixturePath);
 }
 
@@ -78,7 +78,7 @@ function hasFixture(fixtureName) {
  */
 function saveFixture(fixtureName, memory, opts = {}) {
     const force = opts.force !== false;
-    const fixturePath = path.join(resolveFixturesDir(), `${fixtureName}.memory.json`);
+    const fixturePath = path.join(resolveMemoryFixturesDir(), `${fixtureName}.memory.json`);
     const existed = fs.existsSync(fixturePath);
 
     if (existed && !force) {
@@ -89,7 +89,7 @@ function saveFixture(fixtureName, memory, opts = {}) {
     }
 
     const json = JSON.stringify(memory, null, 2);
-    fs.mkdirSync(resolveFixturesDir(), { recursive: true });
+    fs.mkdirSync(resolveMemoryFixturesDir(), { recursive: true });
     fs.writeFileSync(fixturePath, json, 'utf8');
 
     return { path: fixturePath, size: Buffer.byteLength(json, 'utf8'), existed };

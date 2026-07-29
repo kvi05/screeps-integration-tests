@@ -5,7 +5,7 @@
  *
  * Responsibility:
  *   Manage `*.memory.json` fixture files stored in the directory configured
- *   by `fixturesDir` (default `./fixtures`).  These snapshots capture the
+ *   by `memoryFixturesDir` (default `./fixtures`).  These snapshots capture the
  *   entire `Memory` object of a bot at a given point in time and are used
  *   to set up repeatable test scenarios.
  *

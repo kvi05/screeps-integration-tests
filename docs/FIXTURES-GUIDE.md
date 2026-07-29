@@ -369,6 +369,6 @@ createWorld({
 
 - [API-REFERENCE.md](./API-REFERENCE.md) — full API reference
 - [EXAMPLES.md](./EXAMPLES.md) — reference scenarios and patterns
-- [CONFIG.md](./CONFIG.md) — config file and CLI flags (incl. `fixturesDir`, `roomFixturesDir`)
+- [CONFIG.md](./CONFIG.md) — config file and CLI flags (incl. `memoryFixturesDir`, `roomFixturesDir`)
 - [GETTING-STARTED.md](./GETTING-STARTED.md) — quick start
 - [MULTI-ROOM-GUIDE.md](./MULTI-ROOM-GUIDE.md) — multi-room and multi-bot

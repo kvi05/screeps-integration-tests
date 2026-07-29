@@ -10,7 +10,7 @@
 module.exports = {
     distDir: './mock-bot/dist',
     scenariosDir: './scenarios',
-    fixturesDir: './fixtures',
+    memoryFixturesDir: './fixtures',
     cacheDir: './.cache',
     profilesDir: './profiles',
     jobs: 12,

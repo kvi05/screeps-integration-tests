@@ -21,7 +21,7 @@ Relative paths are resolved **from the config file's directory**; if there is no
 module.exports = {
   distDir: './dist', // bot modules; fallback: BOT_DIST_DIR, then ./dist
   scenariosDir: './scenarios', // *.scenario.js
-  fixturesDir: './fixtures', // *.memory.json
+  memoryFixturesDir: './fixtures', // *.memory.json
   roomFixturesDir: null, // *.room.js; null = auto-load disabled
   profilesDir: './profiles', // callgrind profiles
   cacheDir: './.cache', // mockup server cache
@@ -85,21 +85,21 @@ npx screeps-integration-tests --build
 
 ## CLI flags
 
-| Flag                      | Description                                               |
-| ------------------------- | --------------------------------------------------------- |
-| `--config <path>`         | Path to config                                            |
-| `--scenariosDir <dir>`    | Directory with scenarios                                  |
-| `--distDir <dir>`         | Bot `dist/` directory (flat compiled `.js` modules)       |
-| `--fixturesDir <dir>`     | Directory with memory fixtures                            |
-| `--roomFixturesDir <dir>` | Directory with room fixtures                              |
-| `--profilesDir <dir>`     | Directory for profiles                                    |
-| `--cacheDir <dir>`        | Directory for server cache                                |
-| `--only <name>`           | Run only one scenario by file name without `.scenario.js` |
-| `--profiling`             | Enable callgrind profiling                                |
-| `--bail`                  | Stop on first error                                       |
-| `--timeout <int>`         | Timeout per scenario, ms                                  |
-| `--jobs <int>`            | Number of parallel workers                                |
-| `--build`                 | Run the configured `buildCommand` before scenarios        |
+| Flag                        | Description                                               |
+| --------------------------- | --------------------------------------------------------- |
+| `--config <path>`           | Path to config                                            |
+| `--scenariosDir <dir>`      | Directory with scenarios                                  |
+| `--distDir <dir>`           | Bot `dist/` directory (flat compiled `.js` modules)       |
+| `--memoryFixturesDir <dir>` | Directory with memory fixtures                            |
+| `--roomFixturesDir <dir>`   | Directory with room fixtures                              |
+| `--profilesDir <dir>`       | Directory for profiles                                    |
+| `--cacheDir <dir>`          | Directory for server cache                                |
+| `--only <name>`             | Run only one scenario by file name without `.scenario.js` |
+| `--profiling`               | Enable callgrind profiling                                |
+| `--bail`                    | Stop on first error                                       |
+| `--timeout <int>`           | Timeout per scenario, ms                                  |
+| `--jobs <int>`              | Number of parallel workers                                |
+| `--build`                   | Run the configured `buildCommand` before scenarios        |
 
 The timeout applies to each scenario individually; there is no global timeout.
 
@@ -111,7 +111,7 @@ The timeout applies to each scenario individually; there is no global timeout.
 module.exports = {
   distDir: './dist',
   scenariosDir: './inter_tests/scenarios',
-  fixturesDir: './inter_tests/fixtures',
+  memoryFixturesDir: './inter_tests/fixtures',
   roomFixturesDir: './inter_tests/room-fixtures',
   cacheDir: './inter_tests/.cache',
   profilesDir: './inter_tests/profiles',
@@ -127,7 +127,7 @@ module.exports = {
 module.exports = {
   distDir: './examples/mock-bot/dist',
   scenariosDir: './examples/scenarios',
-  fixturesDir: './examples/fixtures',
+  memoryFixturesDir: './examples/fixtures',
   cacheDir: './examples/.cache',
   profilesDir: './examples/profiles',
 };
