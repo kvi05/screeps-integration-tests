@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `loadFixture` / `hasFixture` / `saveFixture` renamed to
   `loadMemoryFixture` / `hasMemoryFixture` / `saveMemoryFixture`
   (`screeps-integration-tests/memory-fixtures` sub-path).
+- `world.report.wallClockMs`, `finalMemory`, and `finalRcl` are now updated
+  after every tick (via `finalizeReport` inside `doTick`), not only at the
+  end of `world.run()`. This means these fields are always current and can be
+  inspected between `tick()` / `run()` calls. The final call after
+  `exportProfiles` still captures `__profileText` / `__profileCallgrind`.
 
 ## [1.1.0] - 2026-07-29
 

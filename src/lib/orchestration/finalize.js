@@ -4,9 +4,12 @@
  * @file Finalisation of the world run report.
  *
  * Responsibility:
- *   After the tick loop ends (for any reason — limit, predicate, or error),
- *   this module collects the final state snapshot: wall clock time, per-bot
- *   Memory, per-room RCL, and profiler output (text + callgrind).
+ *   Called after each tick (from `doTick`) to keep `world.report`
+ *   current, and once more at the end of `world.run()` (after
+ *   `exportProfiles`) for the final snapshot including profiler output.
+ *
+ *   Collects: wall clock time, per-bot Memory, per-room RCL,
+ *   and profiler output (text + callgrind).
  *
  *   The function is stateless — it takes all dependencies explicitly.
  *
@@ -22,10 +25,14 @@
  */
 
 /**
- * Collects the final state after the tick loop finishes.
+ * Collects the current state snapshot after a tick.
  *
  * Reads per-bot Memory from storage, per-room RCL from the DB, and
  * extracts profiler output (text + callgrind) from profiled bots.
+ *
+ * Called after each tick (from `doTick`) and once more after
+ * `exportProfiles` at the end of `world.run()` to capture
+ * __profileText / __profileCallgrind.
  *
  * @param {WorldReport} report       — in-place mutation; fields wallClockMs,
  *   finalMemory, finalRcl, profileText, profileCallgrind are filled

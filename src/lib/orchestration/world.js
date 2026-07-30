@@ -366,6 +366,15 @@ async function createWorld(opts) {
             worldInstance.readMemory,
             worldInstance.eventLog,
         );
+
+        // Keep world.report current after each tick
+        // (finalMemory, wallClockMs, RCL, profileText, profileCallgrind)
+        try {
+            await finalizeReport(report, startTime, bots, adapter, roomStatus, resolvedBots, getBotMemory, getRcl);
+        } catch (e) {
+            report.frameworkWarnings.push(`finalizeReport tick ${tickNum}: ${e.message ?? String(e)}`);
+        }
+
         return shouldStop;
     }
 
@@ -374,7 +383,12 @@ async function createWorld(opts) {
      *
      * Respects the global `maxTicks` limit and ticks already done (via `report.ticksRun`).
      * If the scenario is already stopped (`report.stopReason` or `report.ticksRun >= maxTicks`),
-     * no extra ticks are made — only finalizes the report.
+     * no extra ticks are made.
+     *
+     * Per-tick report update (finalMemory, wallClockMs, RCL) happens inside
+     * `doTick`. After the loop, `exportProfiles` runs a technical tick to
+     * collect profiler output, then `finalizeReport` captures the final
+     * snapshot (including __profileText / __profileCallgrind).
      *
      * Guarantees profile export even after an exception mid-scenario:
      * catches the error, runs the profiler finalization tick and
