@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-PR #27 [feat/add-unregister-room-fixture](https://github.com/kvi05/screeps-integration-tests/pull/27)
-
-- **`unregisterRoomFixture(name)`** — public counterpart to `registerRoomFixture`.
-  Removes a fixture from the global registry. Returns `true` if the fixture
-  existed and was removed, `false` (silent no-op) for non-existent names.
-  Exposed via `screeps-integration-tests/room-fixtures`.
-
 PR #26 [Feat/add custom terrain](https://github.com/kvi05/screeps-integration-tests/pull/26)
 
 - **Custom terrain support:** rooms can now specify terrain via the optional `terrain` field
@@ -25,6 +18,34 @@ PR #26 [Feat/add custom terrain](https://github.com/kvi05/screeps-integration-te
   - New scenario: `examples/scenarios/terrain-custom.scenario.js` — 5 sub-tests
     covering all terrain formats and fixture overrides
   - New room fixture: `examples/fixtures/terrain-walls.room.js`
+
+PR #27 [feat/add-unregister-room-fixture](https://github.com/kvi05/screeps-integration-tests/pull/27)
+
+- **`unregisterRoomFixture(name)`** — public counterpart to `registerRoomFixture`.
+  Removes a fixture from the global registry. Returns `true` if the fixture
+  existed and was removed, `false` (silent no-op) for non-existent names.
+  Exposed via `screeps-integration-tests/room-fixtures`.
+
+PR #28 [feat/adding-the-remaining-game-structures](https://github.com/kvi05/screeps-integration-tests/pull/28)
+
+- **10 new structure type constants** (`screeps-integration-tests/constants`):
+  `STRUCTURE_OBSERVER`, `STRUCTURE_POWER_SPAWN`, `STRUCTURE_EXTRACTOR`,
+  `STRUCTURE_LAB`, `STRUCTURE_NUKER`, `STRUCTURE_FACTORY`,
+  `STRUCTURE_INVADER_CORE`, `STRUCTURE_POWER_BANK`, `STRUCTURE_PORTAL`,
+  `STRUCTURE_KEEPER_LAIR`.
+- **10 new spec constructors** (`spec.observer`, `spec.powerSpawn`,
+  `spec.extractor`, `spec.lab`, `spec.nuker`, `spec.factory`,
+  `spec.invaderCore`, `spec.powerBank`, `spec.portal`, `spec.keeperLair`).
+  Each handles type-specific fields (`observeRoom`, `power`, `mineralType`,
+  `cooldown`, `level`, `ticksToDeploy`, `ticksToDecay`, `destination`,
+  `unstableDate`) via the `overrides` mechanism.
+- NPC structures (`invaderCore`, `keeperLair`) default to their faction
+  userIds; neutral structures (`powerBank`, `portal`) explicitly set
+  `userId: null`.
+- `materializeStructure` now treats `powerSpawn` and `invaderCore` as
+  spawn-like (sets `spawning: null`).
+- `BOT_STRUCTURE_TYPES` updated to include new bot-owned types.
+- `buildOverrides()` now propagates `opts.overrides` for all constructors.
 
 ### Changed
 

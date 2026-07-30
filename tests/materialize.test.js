@@ -239,4 +239,30 @@ describe('materializeStructure', () => {
         const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
         expect(callArg).not.toHaveProperty('user');
     });
+
+    it('sets spawning:null for powerSpawn', async () => {
+        const spec = {
+            type: 'powerSpawn',
+            x: 10,
+            y: 20,
+        };
+
+        await materializeStructure(adapter, 'W0N1', spec);
+
+        const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
+        expect(callArg.spawning).toBeNull();
+    });
+
+    it('sets spawning:null for invaderCore', async () => {
+        const spec = {
+            type: 'invaderCore',
+            x: 15,
+            y: 15,
+        };
+
+        await materializeStructure(adapter, 'W0N1', spec);
+
+        const callArg = adapter.db['rooms.objects'].insert.mock.calls[0][0];
+        expect(callArg.spawning).toBeNull();
+    });
 });

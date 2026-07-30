@@ -41,7 +41,7 @@
  * @property {string} [distDir]          — path to dist/ (for code='default')
  */
 
-const { STRUCTURE_SPAWN } = require('../../constants/screepsConstants');
+const { STRUCTURE_SPAWN, STRUCTURE_POWER_SPAWN, STRUCTURE_INVADER_CORE } = require('../../constants/screepsConstants');
 
 // ─── Materialize structures ─────────────────────────────────────────────────
 
@@ -100,8 +100,10 @@ async function materializeStructure(adapter, roomName, s) {
         doc.nextDecayTime = s.nextDecayTime;
     }
 
-    // spawn-specific
-    if (s.type === STRUCTURE_SPAWN) {
+    // spawn-specific (spawn, powerSpawn, invaderCore)
+    const isSpawnLike =
+        s.type === STRUCTURE_SPAWN || s.type === STRUCTURE_POWER_SPAWN || s.type === STRUCTURE_INVADER_CORE;
+    if (isSpawnLike) {
         doc.spawning = null;
     }
 
