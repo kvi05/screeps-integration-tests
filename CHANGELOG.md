@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `assertObjectNoDestroyed` renamed to `assertObjectNotDestroyed`
+  for naming consistency with the rest of the assertion family
+  (`assertObjectNotAttacking`, `assertObjectNotDamaged`, etc.).
+- `EventSpec` typedef — documented top-level `room` field (dispatch has always
+  used `event.room`; `params.room` was a docs-only inaccuracy).
 - **BREAKING:** `world.spawn(spec)` renamed to `world.spawnCreep(spec)`.
 - **BREAKING:** Config key `fixturesDir` renamed to `memoryFixturesDir`
   (env: `SIT_MEMORY_FIXTURES_DIR`, CLI: `--memoryFixturesDir`).
@@ -24,6 +29,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Documents mock server limitation: when a creep without CARRY body part
   (or with full store) calls .harvest(), energy is lost rather than
   dropped to the ground as on the official Screeps server.
+
+### Documentation
+
+- Full audit of all documentation files (README, docs/*.md, CONTRIBUTING).
+  - Fixed 3 broken anchor links in MULTI-ROOM-GUIDE pointing to API-REFERENCE.
+  - Removed orphan ToC entry `10. Patterns` in EXAMPLES.
+  - Simplified the `spec.*` structures table in API-REFERENCE to 3 examples.
+  - Fixed malformed `memoryOverrides` merge-semantics list in API-REFERENCE.
+  - Removed incomplete «When to use memoryOverrides vs a new fixture» section
+    in FIXTURES-GUIDE.
+  - Fixed events examples in API-REFERENCE and EXAMPLES — `room` is now at
+    the top level of `EventSpec`, matching the dispatch implementation.
+  - Added `const report = world.report` to metrics examples
+    (was: undefined variable `report`).
+  - Documented `SIT_MEMORY_FIXTURES_DIR` and `SIT_CACHE_DIR` env vars in CONFIG.
+  - Unified `bots[].rooms` syntax to array form `['W0N1']` across all examples.
+  - Added consolidated sub-path exports table to API-REFERENCE.
+  - Fixed `cacheKeep`/`cacheDir` ambiguity in INTEGRATION-TESTS.
+  - Marked file structure tree in INTEGRATION-TESTS as abbreviated.
+  - Clarified that `report.metrics` is a `MetricsReport` instance.
 
 ## [1.1.0] - 2026-07-29
 
