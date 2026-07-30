@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+PR #26 [Feat/add custom terrain](https://github.com/kvi05/screeps-integration-tests/pull/26)
+
 - **Custom terrain support:** rooms can now specify terrain via the optional `terrain` field
   in `RoomSpecInput`, `RoomFixtureSpec`, or `RoomOverrides`. Three formats supported:
   positional `{ walls, swamps }`, matrix `number[][]` 50×50, and callback `(matrix) => void`.
@@ -18,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New room fixture: `examples/fixtures/terrain-walls.room.js`
 
 ### Changed
+
+PR #26 [Feat/add custom terrain](https://github.com/kvi05/screeps-integration-tests/pull/26)
 
 - **BREAKING:** `world.spawn(spec)` renamed to `world.spawnCreep(spec)`.
 - **BREAKING:** Config key `fixturesDir` renamed to `memoryFixturesDir`
