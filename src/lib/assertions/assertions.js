@@ -141,7 +141,7 @@ function assertObjectDestroyed(report, opts = {}) {
  * @param {Array<string>} [opts.types]  — types of objects (STRUCTURE_* or TYPE_CREEPS)
  * @returns {void}
  */
-function assertObjectNoDestroyed(report, opts = {}) {
+function assertObjectNotDestroyed(report, opts = {}) {
     /** @type {EventLogEntry[]} */
     const destroyed = filterDestroyed(report.events, opts);
     assert.strictEqual(
@@ -154,7 +154,7 @@ function assertObjectNoDestroyed(report, opts = {}) {
 
 /**
  * Asserts that bot structures are NOT destroyed. Specialised wrapper around
- * `assertObjectNoDestroyed` with a default set of "bot structure" types
+ * `assertObjectNotDestroyed` with a default set of "bot structure" types
  * (spawn, tower, extension, constructedWall, container, storage).
  *
  * @param {WorldReport} report
@@ -162,7 +162,7 @@ function assertObjectNoDestroyed(report, opts = {}) {
  * @returns {void}
  */
 function assertNoBotObjectDestroyed(report, opts = {}) {
-    assertObjectNoDestroyed(report, { types: opts.types || BOT_STRUCTURE_TYPES, id: opts.id });
+    assertObjectNotDestroyed(report, { types: opts.types || BOT_STRUCTURE_TYPES, id: opts.id });
 }
 
 // ─── Combat (attack / damage) ────────────────────────────────────────────────
@@ -302,7 +302,7 @@ module.exports = {
     assertRclBelow,
     // Structures / objects
     assertObjectDestroyed,
-    assertObjectNoDestroyed,
+    assertObjectNotDestroyed,
     assertNoBotObjectDestroyed,
     // -- Combat --
     // By object id
