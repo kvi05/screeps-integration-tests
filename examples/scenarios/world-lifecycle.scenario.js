@@ -43,6 +43,12 @@ async function run(opts = {}) {
             await world.tick(3);
             assert.strictEqual(world.report.ticksRun, 3, 'tick(3) should complete 3 ticks');
 
+            // world.report reflects current state after each tick
+            assert.ok(world.report.finalMemory.bot, 'finalMemory should be present after tick()');
+            assert.ok(typeof world.report.finalMemory.bot === 'object', 'finalMemory should contain bot memory');
+            assert.ok(world.report.wallClockMs > 0, 'wallClockMs should be updated after tick()');
+            assert.ok(typeof world.report.finalRcl.W0N1 === 'number', 'finalRcl should be present after tick()');
+
             // sequential tick()
             await world.tick(2);
             assert.strictEqual(world.report.ticksRun, 5, 'tick(2) after tick(3) should give 5');
