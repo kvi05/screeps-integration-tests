@@ -25,7 +25,18 @@ const {
     STRUCTURE_RAMPART,
     STRUCTURE_LINK,
     STRUCTURE_TERMINAL,
+    STRUCTURE_OBSERVER,
+    STRUCTURE_POWER_SPAWN,
+    STRUCTURE_EXTRACTOR,
+    STRUCTURE_LAB,
+    STRUCTURE_NUKER,
+    STRUCTURE_FACTORY,
+    STRUCTURE_INVADER_CORE,
+    STRUCTURE_POWER_BANK,
+    STRUCTURE_PORTAL,
+    STRUCTURE_KEEPER_LAIR,
     INVADER_USER_ID,
+    SOURCE_KEEPER_USER_ID,
     WORK,
     MOVE,
     CARRY,
@@ -153,6 +164,59 @@ const STRUCTURE_DEFAULTS = {
         hitsMax: 3000,
         notifyWhenAttacked: true,
     },
+    [STRUCTURE_OBSERVER]: {
+        hits: 500,
+        hitsMax: 500,
+        notifyWhenAttacked: true,
+    },
+    [STRUCTURE_POWER_SPAWN]: {
+        store: { energy: 5000, power: 100 },
+        storeCapacity: 5000,
+        hits: 5000,
+        hitsMax: 5000,
+        notifyWhenAttacked: true,
+    },
+    [STRUCTURE_EXTRACTOR]: {
+        hits: 500,
+        hitsMax: 500,
+        notifyWhenAttacked: true,
+    },
+    [STRUCTURE_LAB]: {
+        store: {},
+        storeCapacity: 3000,
+        hits: 500,
+        hitsMax: 500,
+        notifyWhenAttacked: true,
+    },
+    [STRUCTURE_NUKER]: {
+        store: { energy: 0, G: 0 },
+        storeCapacity: 300000,
+        hits: 1000,
+        hitsMax: 1000,
+        notifyWhenAttacked: true,
+    },
+    [STRUCTURE_FACTORY]: {
+        store: {},
+        storeCapacity: 50000,
+        hits: 1000,
+        hitsMax: 1000,
+        notifyWhenAttacked: true,
+    },
+    [STRUCTURE_INVADER_CORE]: {
+        hits: 100000,
+        hitsMax: 100000,
+    },
+    [STRUCTURE_POWER_BANK]: {
+        hits: 2000000,
+        hitsMax: 2000000,
+    },
+    [STRUCTURE_PORTAL]: {
+        // indestructible — no hits/hitsMax
+    },
+    [STRUCTURE_KEEPER_LAIR]: {
+        hits: 10000,
+        hitsMax: 10000,
+    },
 };
 
 /** @type {BodyPart[]} */
@@ -208,6 +272,9 @@ function buildOverrides(opts, cfg = {}) {
     if (cfg.withHits && opts.hits !== undefined) {
         o.hits = opts.hits;
         if (cfg.withHits !== 'noMax') o.hitsMax = opts.hits;
+    }
+    if (opts.overrides) {
+        o.overrides = opts.overrides;
     }
     return o;
 }
@@ -461,6 +528,185 @@ function terminal(x, y, opts = {}) {
 }
 
 /**
+ * Creates an observer spec.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, hits?, observeRoom?, overrides? }
+ * @returns {StructureSpec}
+ */
+function observer(x, y, opts = {}) {
+    const merged = { ...opts };
+    if (opts.observeRoom !== undefined) {
+        merged.overrides = { ...(opts.overrides || {}), observeRoom: opts.observeRoom };
+    }
+    return structure(STRUCTURE_OBSERVER, x, y, buildOverrides(merged, { withUserId: true, withHits: true }));
+}
+
+/**
+ * Creates a power spawn spec.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, power?, storeCapacity?, hits?, overrides? }
+ * @returns {StructureSpec}
+ */
+function powerSpawn(x, y, opts = {}) {
+    const merged = { ...opts };
+    if (opts.power !== undefined) {
+        merged.overrides = { ...(opts.overrides || {}), power: opts.power };
+    }
+    return structure(
+        STRUCTURE_POWER_SPAWN,
+        x,
+        y,
+        buildOverrides(merged, { withUserId: true, withStore: 'simple', withHits: true }),
+    );
+}
+
+/**
+ * Creates an extractor spec.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, hits?, cooldown?, overrides? }
+ * @returns {StructureSpec}
+ */
+function extractor(x, y, opts = {}) {
+    const merged = { ...opts };
+    if (opts.cooldown !== undefined) {
+        merged.overrides = { ...(opts.overrides || {}), cooldown: opts.cooldown };
+    }
+    return structure(STRUCTURE_EXTRACTOR, x, y, buildOverrides(merged, { withUserId: true, withHits: true }));
+}
+
+/**
+ * Creates a lab spec.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, mineralType?, cooldown?, hits?, overrides? }
+ * @returns {StructureSpec}
+ */
+function lab(x, y, opts = {}) {
+    const merged = { ...opts };
+    const extra = { ...(opts.overrides || {}) };
+    if (opts.cooldown !== undefined) extra.cooldown = opts.cooldown;
+    if (opts.mineralType !== undefined) extra.mineralType = opts.mineralType;
+    if (Object.keys(extra).length > 0) merged.overrides = extra;
+    return structure(
+        STRUCTURE_LAB,
+        x,
+        y,
+        buildOverrides(merged, { withUserId: true, withStore: 'simple', withHits: true }),
+    );
+}
+
+/**
+ * Creates a nuker spec.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, G?, storeCapacity?, cooldown?, hits?, overrides? }
+ * @returns {StructureSpec}
+ */
+function nuker(x, y, opts = {}) {
+    const merged = { ...opts };
+    const extra = { ...(opts.overrides || {}) };
+    if (opts.cooldown !== undefined) extra.cooldown = opts.cooldown;
+    if (Object.keys(extra).length > 0) merged.overrides = extra;
+    return structure(
+        STRUCTURE_NUKER,
+        x,
+        y,
+        buildOverrides(merged, { withUserId: true, withStore: 'simple', withHits: true }),
+    );
+}
+
+/**
+ * Creates a factory spec.
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, energy?, storeCapacity?, level?, cooldown?, hits?, overrides? }
+ * @returns {StructureSpec}
+ */
+function factory(x, y, opts = {}) {
+    const merged = { ...opts };
+    const extra = { ...(opts.overrides || {}) };
+    if (opts.cooldown !== undefined) extra.cooldown = opts.cooldown;
+    if (opts.level !== undefined) extra.level = opts.level;
+    if (Object.keys(extra).length > 0) merged.overrides = extra;
+    return structure(
+        STRUCTURE_FACTORY,
+        x,
+        y,
+        buildOverrides(merged, { withUserId: true, withStore: 'simple', withHits: true }),
+    );
+}
+
+/**
+ * Creates an invader core spec (NPC structure, owned by Invader faction).
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, hits?, level?, ticksToDeploy?, overrides? }
+ * @returns {StructureSpec}
+ */
+function invaderCore(x, y, opts = {}) {
+    // NPC structure, defaults to Invader userId ('2')
+    const merged = { ...opts, userId: opts.userId !== undefined ? opts.userId : INVADER_USER_ID };
+    const extra = { ...(opts.overrides || {}) };
+    if (opts.level !== undefined) extra.level = opts.level;
+    if (opts.ticksToDeploy !== undefined) extra.ticksToDeploy = opts.ticksToDeploy;
+    if (Object.keys(extra).length > 0) merged.overrides = extra;
+    return structure(STRUCTURE_INVADER_CORE, x, y, buildOverrides(merged, { withUserId: true, withHits: true }));
+}
+
+/**
+ * Creates a power bank spec (NPC structure, neutral — no owner).
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, hits?, power?, ticksToDecay?, overrides? }
+ * @returns {StructureSpec}
+ */
+function powerBank(x, y, opts = {}) {
+    // Neutral NPC structure — explicit null userId prevents default bot assignment
+    const merged = { ...opts, userId: opts.userId !== undefined ? opts.userId : null };
+    const extra = { ...(opts.overrides || {}) };
+    if (opts.power !== undefined) extra.power = opts.power;
+    if (opts.ticksToDecay !== undefined) extra.ticksToDecay = opts.ticksToDecay;
+    if (Object.keys(extra).length > 0) merged.overrides = extra;
+    return structure(STRUCTURE_POWER_BANK, x, y, buildOverrides(merged, { withUserId: true, withHits: true }));
+}
+
+/**
+ * Creates a portal spec (neutral, indestructible — no owner).
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, destination?, unstableDate?, overrides? }
+ * @returns {StructureSpec}
+ */
+function portal(x, y, opts = {}) {
+    // Neutral — explicit null userId prevents default bot assignment
+    const merged = { ...opts, userId: opts.userId !== undefined ? opts.userId : null };
+    const extra = { ...(opts.overrides || {}) };
+    if (opts.destination !== undefined) extra.destination = opts.destination;
+    if (opts.unstableDate !== undefined) extra.unstableDate = opts.unstableDate;
+    if (Object.keys(extra).length > 0) merged.overrides = extra;
+    return structure(STRUCTURE_PORTAL, x, y, buildOverrides(merged, { withUserId: true }));
+}
+
+/**
+ * Creates a keeper lair spec (NPC structure, owned by Source Keeper faction).
+ * @param {number} x
+ * @param {number} y
+ * @param {Object} [opts] — { roomName?, id?, userId?, hits?, ticksToSpawn?, overrides? }
+ * @returns {StructureSpec}
+ */
+function keeperLair(x, y, opts = {}) {
+    // NPC structure, defaults to Source Keeper userId ('3')
+    const merged = { ...opts, userId: opts.userId !== undefined ? opts.userId : SOURCE_KEEPER_USER_ID };
+    if (opts.ticksToSpawn !== undefined) {
+        merged.overrides = { ...(opts.overrides || {}), ticksToSpawn: opts.ticksToSpawn };
+    }
+    return structure(STRUCTURE_KEEPER_LAIR, x, y, buildOverrides(merged, { withUserId: true, withHits: true }));
+}
+
+/**
  * Creates a canonical source spec.
 
  * @param {number} x
@@ -599,6 +845,16 @@ module.exports = {
     rampart,
     link,
     terminal,
+    observer,
+    powerSpawn,
+    extractor,
+    lab,
+    nuker,
+    factory,
+    invaderCore,
+    powerBank,
+    portal,
+    keeperLair,
     source,
     controller,
     creep,
