@@ -19,7 +19,6 @@ Reference scenarios and typical usage patterns for the framework.
 - [7. onTick + events + registerEvent](#7-ontick--events--registerevent)
 - [8. memoryOverrides and direct DB access](#8-memoryoverrides-and-direct-db-access)
 - [9. Profiling](#9-profiling)
-- [10. Patterns](#10-patterns)
 - [10. Multiple worlds in one scenario](#10-multiple-worlds-in-one-scenario)
 
 ## 1. Smoke: minimal startup check
@@ -191,6 +190,7 @@ const world = await createWorld({
 
 await world.run();
 
+const report = world.report;
 const m = report.metrics; // MetricsReport — all methods on a single object
 
 // Rooms are independent — each has its own time-series
@@ -237,7 +237,7 @@ const world = await createWorld({
   ],
   bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 100,
-  events: [{ atTick: 20, action: 'spawnInvader', params: { x: 40, y: 40, room: 'W0N1' } }],
+  events: [{ atTick: 20, action: 'spawnInvader', room: 'W0N1', params: { x: 40, y: 40 } }],
   onTick: async (world, tick) => {
     if (tick === 30) {
       await world.spawnCreep(spec.creep(25, 25, { roomName: 'W0N1', name: 'Defender' }));
