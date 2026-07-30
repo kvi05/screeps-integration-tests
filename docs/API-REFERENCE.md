@@ -142,10 +142,6 @@ terrain: (matrix) => {
 > scenarios. Custom terrain is applied on top of border walls. Avoid placing
 > non-wall terrain at room edges to preserve correct exit behaviour.
 
-For programmatic access, `applyTerrainSpec(terrainMatrix, terrainSpec)` from
-`screeps-integration-tests/terrain` applies a terrain spec to a TerrainMatrix
-instance in-place.
-
 ### UntilOpts
 
 | Field       | Type       | Description                                                                                            |
