@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+PR #25 [Docs/audit fixes](https://github.com/kvi05/screeps-integration-tests/pull/25)
+
 - **BREAKING:** `assertObjectNoDestroyed` renamed to `assertObjectNotDestroyed`
   for naming consistency with the rest of the assertion family
   (`assertObjectNotAttacking`, `assertObjectNotDamaged`, etc.).
@@ -31,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dropped to the ground as on the official Screeps server.
 
 ### Documentation
+
+PR #25 [Docs/audit fixes](https://github.com/kvi05/screeps-integration-tests/pull/25)
 
 - Full audit of all documentation files (README, docs/*.md, CONTRIBUTING).
   - Fixed 3 broken anchor links in MULTI-ROOM-GUIDE pointing to API-REFERENCE.
