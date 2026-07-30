@@ -6,7 +6,7 @@ const {
     assertRclAtLeast,
     assertRclBelow,
     assertObjectDestroyed,
-    assertObjectNoDestroyed,
+    assertObjectNotDestroyed,
     assertNoBotObjectDestroyed,
     assertObjectAttacking,
     assertObjectNotAttacking,
@@ -180,16 +180,16 @@ describe('assertions', () => {
         });
     });
 
-    describe('assertObjectNoDestroyed', () => {
+    describe('assertObjectNotDestroyed', () => {
         it('passes when no destructions', () => {
             const report = makeEmptyReport();
-            expect(() => assertObjectNoDestroyed(report)).not.toThrow();
+            expect(() => assertObjectNotDestroyed(report)).not.toThrow();
         });
 
         it('fails when destructions are present', () => {
             const report = makeEmptyReport();
             report.events = [{ tick: 1, event: 2, objectId: 'obj1' }];
-            expect(() => assertObjectNoDestroyed(report)).toThrow(/разрушены/);
+            expect(() => assertObjectNotDestroyed(report)).toThrow(/разрушены/);
         });
     });
 

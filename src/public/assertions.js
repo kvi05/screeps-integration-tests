@@ -19,7 +19,7 @@
  * | `assertRclAtLeast(report, room, n)` | RCL ≥ n |
  * | `assertRclBelow(report, room, n)` | RCL < n |
  * | `assertObjectDestroyed(report, [opts])` | Object(s) have been destroyed |
- * | `assertObjectNoDestroyed(report, [opts])` | Object(s) NOT destroyed |
+ * | `assertObjectNotDestroyed(report, [opts])` | Object(s) NOT destroyed |
  * | `assertNoBotObjectDestroyed(report)` | No bot-owned buildings destroyed |
  * | `assertObjectAttacking(report, objectId)` | Object initiated an attack |
  * | `assertObjectNotAttacking(report, objectId)` | Object did NOT attack |
@@ -46,7 +46,7 @@ const {
     assertRclAtLeast,
     assertRclBelow,
     assertObjectDestroyed,
-    assertObjectNoDestroyed,
+    assertObjectNotDestroyed,
     assertNoBotObjectDestroyed,
     assertObjectAttacking,
     assertObjectNotAttacking,
@@ -64,7 +64,7 @@ module.exports = {
     assertRclAtLeast,
     assertRclBelow,
     assertObjectDestroyed,
-    assertObjectNoDestroyed,
+    assertObjectNotDestroyed,
     assertNoBotObjectDestroyed,
     assertObjectAttacking,
     assertObjectNotAttacking,
