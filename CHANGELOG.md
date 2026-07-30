@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+PR #27 [feat/add-unregister-room-fixture](https://github.com/kvi05/screeps-integration-tests/pull/27)
+
+- **`unregisterRoomFixture(name)`** — public counterpart to `registerRoomFixture`.
+  Removes a fixture from the global registry. Returns `true` if the fixture
+  existed and was removed, `false` (silent no-op) for non-existent names.
+  Exposed via `screeps-integration-tests/room-fixtures`.
+
 PR #26 [Feat/add custom terrain](https://github.com/kvi05/screeps-integration-tests/pull/26)
 
 - **Custom terrain support:** rooms can now specify terrain via the optional `terrain` field

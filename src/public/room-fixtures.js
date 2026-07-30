@@ -18,6 +18,7 @@
  * | Function | Purpose |
  * |---|---|
  * | `registerRoomFixture(name, fixture)` | Register a new room fixture |
+ * | `unregisterRoomFixture(name)` | Remove a fixture from the registry |
  * | `loadRoomFixture(name)` | Load a fixture by name (returns `{ fixture }` or `null`) |
  * | `hasRoomFixture(name)` | Check whether a fixture exists |
  * | `getRoomFixture(name)` | Get the fixture object (or `null`) |
@@ -43,6 +44,7 @@ const {
     loadRoomFixture,
     applyRoomOverrides,
     registerRoomFixture,
+    unregisterRoomFixture,
 } = require('../lib/fixtures/roomFixture');
 
 module.exports = {
@@ -51,4 +53,5 @@ module.exports = {
     loadRoomFixture,
     applyRoomOverrides,
     registerRoomFixture,
+    unregisterRoomFixture,
 };

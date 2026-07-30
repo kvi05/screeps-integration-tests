@@ -9,6 +9,7 @@ const {
     loadRoomFixture,
     applyRoomOverrides,
     registerRoomFixture,
+    unregisterRoomFixture,
     loadRoomFixturesFromDir,
     ROOM_FIXTURES,
 } = require('../src/lib/fixtures/roomFixture');
@@ -41,6 +42,47 @@ describe('roomFixture', () => {
             const loaded = loadRoomFixture('test2');
             expect(loaded).toEqual({ fixture: expect.any(Object) });
             expect(loadRoomFixture('nonexistent')).toBeNull();
+        });
+    });
+
+    describe('unregisterRoomFixture', () => {
+        it('removes a registered fixture', () => {
+            registerRoomFixture('temp', { controller: spec.controller(), structures: [], creeps: [] });
+            expect(hasRoomFixture('temp')).toBe(true);
+
+            const result = unregisterRoomFixture('temp');
+            expect(result).toBe(true);
+            expect(hasRoomFixture('temp')).toBe(false);
+            expect(getRoomFixture('temp')).toBeNull();
+        });
+
+        it('returns true when fixture existed', () => {
+            registerRoomFixture('temp', { controller: spec.controller(), structures: [], creeps: [] });
+            expect(unregisterRoomFixture('temp')).toBe(true);
+        });
+
+        it('returns false for unknown name (silent no-op)', () => {
+            expect(unregisterRoomFixture('nonexistent')).toBe(false);
+        });
+
+        it('does not throw for unknown name', () => {
+            expect(() => unregisterRoomFixture('nonexistent')).not.toThrow();
+        });
+
+        it('does not affect other registered fixtures', () => {
+            registerRoomFixture('keep', { controller: spec.controller(), structures: [], creeps: [] });
+            registerRoomFixture('remove', { controller: spec.controller(), structures: [], creeps: [] });
+
+            unregisterRoomFixture('remove');
+
+            expect(hasRoomFixture('keep')).toBe(true);
+            expect(hasRoomFixture('remove')).toBe(false);
+        });
+
+        it('double unregister is safe (returns false on second call)', () => {
+            registerRoomFixture('once', { controller: spec.controller(), structures: [], creeps: [] });
+            expect(unregisterRoomFixture('once')).toBe(true);
+            expect(unregisterRoomFixture('once')).toBe(false);
         });
     });
 
