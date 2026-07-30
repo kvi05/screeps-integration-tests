@@ -9,6 +9,7 @@ const { getFreePort } = require('./port');
 const { TestBot } = require('./testBot');
 const { createDispose } = require('./cleanup');
 const { computeAdjacentBorders } = require('./roomUtils');
+const { getTerrainMatrixClass } = require('../builders/terrain');
 
 /**
  * @typedef {import('../types').ScreepsServer} ScreepsServer
@@ -237,7 +238,7 @@ async function prepareRoom(adapter, roomName, adjacentBorders) {
     try {
         await adapter.world.getTerrain(roomName);
     } catch {
-        const TerrainMatrix = require('screeps-server-mockup/dist/src/terrainMatrix').default;
+        const TerrainMatrix = getTerrainMatrixClass();
         const terrain = new TerrainMatrix();
 
         // Close borders that do NOT face adjacent declared rooms

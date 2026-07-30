@@ -148,6 +148,19 @@
  */
 
 /**
+ * Terrain specification for a room.
+ *
+ * Supported formats (auto-detected by type):
+ * - **Positional** — `{ walls: [{x,y}, ...], swamps: [{x,y}, ...] }`
+ * - **Matrix** — `number[][]` 50×50 (0=plain, 1=WALL, 2=SWAMP)
+ * - **Callback** — `(terrainMatrix) => void` — full access to TerrainMatrix API
+ *
+ * Applied via `applyTerrainSpec(terrainMatrix, terrainSpec)`.
+ *
+ * @typedef {Object|number[][]|Function} TerrainSpec
+ */
+
+/**
  * Canonical room specification — assembled after applyRoomOverrides
  * (or directly if no fixture). Used by the materialize layer.
  *
@@ -158,6 +171,7 @@
  * @property {StructureSpec[]} [structures=[]]
  * @property {CreepSpecCanonical[]} [creeps=[]]
  * @property {CreepSpecCanonical[]} [hostiles=[]]
+ * @property {TerrainSpec} [terrain]          — custom terrain (walls, swamps, plains)
  */
 
 // ─── Room fixture ──────────────────────────────────────────────────────────
@@ -175,6 +189,7 @@
  * @property {SourceSpecCanonical[]} [sources]
  * @property {StructureSpec[]} [structures]
  * @property {CreepSpecCanonical[]} [creeps]
+ * @property {TerrainSpec} [terrain]          — custom terrain (walls, swamps, plains)
  */
 
 /**
@@ -194,6 +209,8 @@
  *           — add a creep for the bot
  * @property {CreepSpecCanonical[]} [hostiles]
  *           — add hostile creeps
+ * @property {TerrainSpec} [terrain]
+ *           — replace fixture terrain (walls, swamps, plains)
  */
 
 /**
@@ -265,13 +282,14 @@
  * @property {string|Object} [roomFixture]  — registered fixture name or inline object
  *
  * @property {RoomOverrides} [roomOverrides]
- *           — modifications on top of the fixture (exclude / structures / append / hostiles / controller)
+ *           — modifications on top of the fixture (exclude / structures / append / creeps / hostiles / controller / terrain)
  *
  * @property {ControllerSpec} [controller]  — (if no fixture) inline controller
  * @property {SourceSpecCanonical[]} [sources]  — (if no fixture) sources
  * @property {StructureSpec[]} [structures]     — (if no fixture) structures
  * @property {CreepSpecCanonical[]} [creeps]     — (if no fixture) bot creeps
  * @property {CreepSpecCanonical[]} [hostiles]   — (if no fixture) hostile creeps
+ * @property {TerrainSpec} [terrain]             — custom terrain (walls, swamps, plains)
  */
 
 /**

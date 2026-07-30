@@ -7,30 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+PR #26 [Feat/add custom terrain](https://github.com/kvi05/screeps-integration-tests/pull/26)
+
+- **Custom terrain support:** rooms can now specify terrain via the optional `terrain` field
+  in `RoomSpecInput`, `RoomFixtureSpec`, or `RoomOverrides`. Three formats supported:
+  positional `{ walls, swamps }`, matrix `number[][]` 50×50, and callback `(matrix) => void`.
+  Border walls are automatically applied for correct multi-room exit behaviour.
+  - New scenario: `examples/scenarios/terrain-custom.scenario.js` — 5 sub-tests
+    covering all terrain formats and fixture overrides
+  - New room fixture: `examples/fixtures/terrain-walls.room.js`
+
 ### Changed
 
-PR #25 [Docs/audit fixes](https://github.com/kvi05/screeps-integration-tests/pull/25)
+PR #22 [refavtor/rename-variables](https://github.com/kvi05/screeps-integration-tests/pull/22)
 
-- **BREAKING:** `assertObjectNoDestroyed` renamed to `assertObjectNotDestroyed`
-  for naming consistency with the rest of the assertion family
-  (`assertObjectNotAttacking`, `assertObjectNotDamaged`, etc.).
-- `EventSpec` typedef — documented top-level `room` field (dispatch has always
-  used `event.room`; `params.room` was a docs-only inaccuracy).
 - **BREAKING:** `world.spawn(spec)` renamed to `world.spawnCreep(spec)`.
 - **BREAKING:** Config key `fixturesDir` renamed to `memoryFixturesDir`
   (env: `SIT_MEMORY_FIXTURES_DIR`, CLI: `--memoryFixturesDir`).
 - **BREAKING:** `loadFixture` / `hasFixture` / `saveFixture` renamed to
   `loadMemoryFixture` / `hasMemoryFixture` / `saveMemoryFixture`
   (`screeps-integration-tests/memory-fixtures` sub-path).
+
+PR #23 [feat/per-tick-finalizeReport](https://github.com/kvi05/screeps-integration-tests/pull/23)
+
 - `world.report.wallClockMs`, `finalMemory`, and `finalRcl` are now updated
   after every tick (via `finalizeReport` inside `doTick`), not only at the
   end of `world.run()`. This means these fields are always current and can be
   inspected between `tick()` / `run()` calls. The final call after
   `exportProfiles` still captures `__profileText` / `__profileCallgrind`.
+
+PR #24 [feat/harvest-no-carry-drop-scenario](https://github.com/kvi05/screeps-integration-tests/pull/24)
+
 - New scenario: 'examples/scenarios/harvest-no-carry-drop.scenario.js' \
   Documents mock server limitation: when a creep without CARRY body part
   (or with full store) calls .harvest(), energy is lost rather than
   dropped to the ground as on the official Screeps server.
+
+PR #25 [docs/audit-fixes](https://github.com/kvi05/screeps-integration-tests/pull/25)
+
+- **BREAKING:** `assertObjectNoDestroyed` renamed to `assertObjectNotDestroyed`
+  for naming consistency with the rest of the assertion family
+  (`assertObjectNotAttacking`, `assertObjectNotDamaged`, etc.).
+- `EventSpec` typedef — documented top-level `room` field (dispatch has always
+  used `event.room`; `params.room` was a docs-only inaccuracy).
 
 ### Documentation
 

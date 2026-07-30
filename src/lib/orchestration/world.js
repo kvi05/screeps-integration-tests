@@ -16,6 +16,7 @@ const { createWorldHelpers, getRoomRcl } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
 const { exportProfiles } = require('../runtime/profile');
 const { resolveDefaultUserId } = require('./resolveDefaults');
+const { applyTerrainSpec, getTerrainMatrixClass } = require('../builders/terrain');
 const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 const { FixtureError, BotError, FrameworkError } = require('../errors');
 
@@ -187,6 +188,24 @@ async function materializeRooms(roomInputs, adapter, defaultBotUserId, roomToBot
         const name = roomInput.name;
         const canonical = await buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUserId);
         const ids = await materializeRoom(adapter, canonical);
+
+        // Apply custom terrain if specified
+        if (canonical.terrain) {
+            try {
+                const TerrainMatrix = getTerrainMatrixClass();
+                let terrainMatrix;
+                try {
+                    terrainMatrix = await adapter.world.getTerrain(name);
+                } catch {
+                    terrainMatrix = new TerrainMatrix();
+                }
+                applyTerrainSpec(terrainMatrix, canonical.terrain);
+                await adapter.world.setTerrain(name, terrainMatrix);
+            } catch (e) {
+                throw new Error(`Failed to apply custom terrain to room '${name}': ${e.message ?? String(e)}`);
+            }
+        }
+
         roomStatus[name] = {
             name,
             canonical,
@@ -534,6 +553,7 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUs
             structures: roomInput.structures || [],
             creeps: roomInput.creeps || [],
             hostiles: roomInput.hostiles || [],
+            terrain: roomInput.terrain,
         };
     }
 
@@ -572,6 +592,7 @@ async function buildCanonicalRoom(roomInput, name, defaultBotUserId, roomToBotUs
         structures: (base.structures || []).map((s) => applyDefaults(s)),
         creeps: (base.creeps || []).map((s) => applyDefaults(s)),
         hostiles: (base.hostiles || []).map((s) => applyDefaults(s, true)),
+        terrain: base.terrain,
     };
 }
 
