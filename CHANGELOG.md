@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   end of `world.run()`. This means these fields are always current and can be
   inspected between `tick()` / `run()` calls. The final call after
   `exportProfiles` still captures `__profileText` / `__profileCallgrind`.
+- New scenario: 'examples/scenarios/harvest-no-carry-drop.scenario.js' \
+  Documents mock server limitation: when a creep without CARRY body part
+  (or with full store) calls .harvest(), energy is lost rather than
+  dropped to the ground as on the official Screeps server.
 
 ## [1.1.0] - 2026-07-29
 

@@ -148,6 +148,12 @@ a community-maintained test harness that runs the official open-source Screeps s
   race in `@screeps/common`'s singleton storage; the framework filters it and
   it does not affect results. \
   Details — [CONTRIBUTING.md Known issues](./CONTRIBUTING.md#known-issues).
+- **Harvest without CARRY / full store — energy is lost:** on the official
+  Screeps server, when a creep calls `.harvest()` but cannot hold the energy
+  (no `CARRY` body part or full store), the energy automatically drops to the
+  ground (`FIND_DROPPED_RESOURCES`). The mock server does **not** implement
+  this behaviour — energy extracted from the source is simply lost. See
+  scenario `harvest-no-carry-drop` for a reproducible test.
 
 ## Contributing
 
