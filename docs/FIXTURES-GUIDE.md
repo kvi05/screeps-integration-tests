@@ -121,14 +121,15 @@ const world = await createWorld({
 
 ### Supported override fields
 
-| Field        | Purpose                                           |
-| ------------ | ------------------------------------------------- |
-| `exclude`    | Remove objects by `id`, `type` or template object |
-| `controller` | Modify controller (merge)                         |
-| `structures` | Override fields of existing structures            |
-| `append`     | Add new structures                                |
-| `creeps`     | Add own creeps                                    |
-| `hostiles`   | Add hostile creeps                                |
+| Field        | Purpose                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------- |
+| `exclude`    | Remove objects by `id`, `type` or template object                                       |
+| `controller` | Modify controller (merge)                                                               |
+| `structures` | Override fields of existing structures                                                  |
+| `append`     | Add new structures                                                                      |
+| `creeps`     | Add own creeps                                                                          |
+| `hostiles`   | Add hostile creeps                                                                      |
+| `terrain`    | Replace fixture terrain (see [Terrain](./API-REFERENCE.md#terrain) in API-REFERENCE.md) |
 
 ### Example 1. Remove a tower
 
@@ -165,6 +166,16 @@ roomOverrides: {
   hostiles: [spec.invader(10, 25, { name: 'Invader_1' })],
 }
 ```
+
+### Example 4. Custom terrain
+
+```javascript
+roomOverrides: {
+  terrain: { walls: [{ x: 5, y: 5 }], swamps: [] },
+}
+```
+
+Terrain can also be set in the fixture itself — see [Terrain](./API-REFERENCE.md#terrain) in API-REFERENCE.md for all supported formats.
 
 ## 4. Memory fixtures
 

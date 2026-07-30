@@ -72,7 +72,7 @@ const world = await createWorld({
 
 | Option            | Type                             | Purpose                                                                                   |
 | ----------------- | -------------------------------- | ----------------------------------------------------------------------------------------- |
-| `rooms`           | `RoomSpecInput[]`                | Required, at least 1 room                                                                 |
+| `rooms`           | `RoomSpecInput[]`                | Required, at least 1 room. Each room can have optional `terrain` field.                   |
 | `bots`            | `BotInput[]`                     | Bots: `[{ username, rooms, x?, y?, modules?, logLevel?, profiling? }]`                    |
 | `memory`          | `MemoryInput \| MemoryByBot`     | Initial Memory: string (fixture) or per-bot map                                           |
 | `memoryOverrides` | `Object \| MemoryByBot`          | Deep-merge patches on top of `memory`; without base become initial memory                 |
@@ -84,6 +84,67 @@ const world = await createWorld({
 | `until`           | `UntilOpts`                      | Hard stop condition                                                                       |
 | `onTick`          | `(world, tick) => Promise<void>` | Callback on each tick, called after bot-tick and before predicate                         |
 | `events`          | `EventSpec[]`                    | Declarative events by tick                                                                |
+
+### Terrain
+
+Custom room terrain can be specified via the `terrain` field in `RoomSpecInput`,
+`RoomFixtureSpec`, or `RoomOverrides`. Three formats are supported (auto-detected):
+
+#### Positional format (recommended)
+
+```javascript
+const world = await createWorld({
+  rooms: [
+    {
+      name: 'W0N1',
+      terrain: {
+        walls: [
+          { x: 10, y: 10 },
+          { x: 11, y: 10 },
+        ],
+        swamps: [{ x: 20, y: 20 }],
+      },
+      controller: spec.controller({ level: 1 }),
+      structures: [spec.spawn(25, 25)],
+    },
+  ],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
+});
+```
+
+#### Matrix format
+
+A 50×50 array (`0` = plain, `1` = WALL, `2` = SWAMP):
+
+```javascript
+const { TERRAIN_MASK_WALL, TERRAIN_MASK_SWAMP } = require('screeps-integration-tests/constants');
+const matrix = Array.from({ length: 50 }, () => new Array(50).fill(0));
+matrix[10][10] = TERRAIN_MASK_WALL;
+matrix[20][20] = TERRAIN_MASK_SWAMP;
+
+// terrain: matrix
+```
+
+#### Callback format
+
+Full access to the TerrainMatrix API:
+
+```javascript
+terrain: (matrix) => {
+  matrix.set(25, 25, 'swamp');
+  matrix.set(10, 10, 'wall');
+},
+```
+
+> **Border walls:** The framework automatically applies wall tiles at room borders
+> that do NOT face another declared room, even when custom terrain is specified.
+> This ensures correct `Game.map.describeExits` between adjacent rooms in multi-room
+> scenarios. Custom terrain is applied on top of border walls. Avoid placing
+> non-wall terrain at room edges to preserve correct exit behaviour.
+
+For programmatic access, `applyTerrainSpec(terrainMatrix, terrainSpec)` from
+`screeps-integration-tests/terrain` applies a terrain spec to a TerrainMatrix
+instance in-place.
 
 ### UntilOpts
 
@@ -766,14 +827,28 @@ Below is a summary of key types. Full JSDoc definitions — in `src/lib/types.js
 {
     name: 'W0N1',
     roomFixture?: 'rcl3-stable' | object,
-    roomOverrides?: { exclude, controller, structures, append, hostiles, creeps },
+    roomOverrides?: { exclude, controller, structures, append, hostiles, creeps, terrain },
     controller?,           // inline
     sources?,
     structures?,
     creeps?,
     hostiles?,
+    terrain?,              // custom terrain (walls, swamps, plains)
 }
 ```
+
+### TerrainSpec
+
+Custom room terrain. Three auto-detected formats:
+
+```typescript
+TerrainSpec =
+  | { walls: { x: number, y: number }[], swamps: { x: number, y: number }[] }  // positional
+  | number[][]                                                                 // matrix 50×50 (0=plain, 1=WALL, 2=SWAMP)
+  | (terrainMatrix: TerrainMatrix) => void                                     // callback
+```
+
+See [§1 Terrain](#terrain) for usage examples.
 
 ### BotInput
 
