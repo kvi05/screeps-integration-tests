@@ -51,7 +51,7 @@
 
 /**
  * Structure type in the mockup DB.
- * @typedef {'spawn'|'tower'|'extension'|'container'|'storage'|'road'|'constructedWall'|'rampart'} StructureType
+ * @typedef {'spawn'|'tower'|'extension'|'container'|'storage'|'road'|'constructedWall'|'rampart'|'link'|'terminal'|'observer'|'powerSpawn'|'extractor'|'lab'|'nuker'|'factory'|'invaderCore'|'powerBank'|'portal'|'keeperLair'} StructureType
  */
 
 // ─── Canonical spec types ──────────────────────────────────────────────────

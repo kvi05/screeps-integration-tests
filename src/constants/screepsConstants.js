@@ -75,6 +75,26 @@ const STRUCTURE_LINK = 'link';
 const STRUCTURE_TERMINAL = 'terminal';
 /** @type {string} */
 const STRUCTURE_CONTROLLER = 'controller';
+/** @type {string} */
+const STRUCTURE_OBSERVER = 'observer';
+/** @type {string} */
+const STRUCTURE_POWER_SPAWN = 'powerSpawn';
+/** @type {string} */
+const STRUCTURE_EXTRACTOR = 'extractor';
+/** @type {string} */
+const STRUCTURE_LAB = 'lab';
+/** @type {string} */
+const STRUCTURE_NUKER = 'nuker';
+/** @type {string} */
+const STRUCTURE_FACTORY = 'factory';
+/** @type {string} */
+const STRUCTURE_INVADER_CORE = 'invaderCore';
+/** @type {string} */
+const STRUCTURE_POWER_BANK = 'powerBank';
+/** @type {string} */
+const STRUCTURE_PORTAL = 'portal';
+/** @type {string} */
+const STRUCTURE_KEEPER_LAIR = 'keeperLair';
 
 /** @type {string[]} */
 const BOT_STRUCTURE_TYPES = [
@@ -86,6 +106,12 @@ const BOT_STRUCTURE_TYPES = [
     STRUCTURE_STORAGE,
     STRUCTURE_LINK,
     STRUCTURE_TERMINAL,
+    STRUCTURE_OBSERVER,
+    STRUCTURE_POWER_SPAWN,
+    STRUCTURE_EXTRACTOR,
+    STRUCTURE_LAB,
+    STRUCTURE_NUKER,
+    STRUCTURE_FACTORY,
 ];
 
 // ─── RESOURCE_* ─────────────────────────────────────────────────────────────
@@ -181,6 +207,8 @@ const TERRAIN_MASK_LAVA = 4;
 
 /** @type {string} */
 const INVADER_USER_ID = '2';
+/** @type {string} */
+const SOURCE_KEEPER_USER_ID = '3';
 
 // ─── Type names (used as object type in `rooms.objects`) ───────────────────────
 
@@ -219,6 +247,16 @@ module.exports = {
     STRUCTURE_LINK,
     STRUCTURE_TERMINAL,
     STRUCTURE_CONTROLLER,
+    STRUCTURE_OBSERVER,
+    STRUCTURE_POWER_SPAWN,
+    STRUCTURE_EXTRACTOR,
+    STRUCTURE_LAB,
+    STRUCTURE_NUKER,
+    STRUCTURE_FACTORY,
+    STRUCTURE_INVADER_CORE,
+    STRUCTURE_POWER_BANK,
+    STRUCTURE_PORTAL,
+    STRUCTURE_KEEPER_LAIR,
     BOT_STRUCTURE_TYPES,
 
     // RESOURCE
@@ -237,6 +275,7 @@ module.exports = {
 
     // Framework-specific
     INVADER_USER_ID,
+    SOURCE_KEEPER_USER_ID,
 
     // Type names (for type === ... in filters)
     TYPE_CREEPS,
