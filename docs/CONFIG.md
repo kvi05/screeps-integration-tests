@@ -9,7 +9,10 @@ From lowest to highest:
 
 1. Built-in defaults
 2. Config file
-3. Environment variable `BOT_DIST_DIR` → `distDir`
+3. Environment variables:
+   - `BOT_DIST_DIR` → `distDir`
+   - `SIT_MEMORY_FIXTURES_DIR` → `memoryFixturesDir` (read by `lib/builders/memory.js`; also set by CLI from config)
+   - `SIT_CACHE_DIR` → `cacheDir` (read by `lib/orchestration/world.js` and `src/tools/clean-cache.js`; also set by CLI from config)
 4. CLI arguments
 5. Explicit overrides from code
 

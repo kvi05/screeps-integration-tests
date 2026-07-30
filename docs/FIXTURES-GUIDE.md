@@ -266,12 +266,6 @@ const world = await createWorld({
 
 See [EXAMPLES.md §8](./EXAMPLES.md#8-memoryoverrides-and-direct-db-access) for a full example with direct DB access.
 
-#### When to use memoryOverrides vs a new fixture
-
-Use `memoryOverrides` for local variations:
-
-- flip a flag or toggle a mode;
-
 ## 5. Creating or updating a memory fixture
 
 A memory fixture is just a JSON snapshot of a bot's `Memory`. The most flexible way to create one is to run a scenario, let the bot work, and save the resulting `Memory` to a file.

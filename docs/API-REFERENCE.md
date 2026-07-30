@@ -20,6 +20,25 @@ documents reference this one; duplication is kept to a minimum.
 - [13. Timeout](#13-timeout)
 - [14. Core types](#14-core-types)
 - [15. World helpers](#15-world-helpers)
+- [Sub-path exports](#sub-path-exports)
+
+## Sub-path exports
+
+| Import path                                   | Exports                                       |
+| --------------------------------------------- | --------------------------------------------- |
+| `screeps-integration-tests`                   | `{ createWorld, spec }`                       |
+| `screeps-integration-tests/assertions`        | `{ assertBotWorked, assertNoErrors, … }`      |
+| `screeps-integration-tests/metrics`           | `{ MetricsReport, MetricsRegression }`        |
+| `screeps-integration-tests/metric-assertions` | `{ MetricsAssert }`                           |
+| `screeps-integration-tests/memory-fixtures`   | `{ loadMemoryFixture, … }`                    |
+| `screeps-integration-tests/room-fixtures`     | `{ getRoomFixture, … }`                       |
+| `screeps-integration-tests/terrain`           | `{ applyTerrainSpec }`                        |
+| `screeps-integration-tests/world-helpers`     | `{ createWorldHelpers }`                      |
+| `screeps-integration-tests/events`            | `{ EVENT_ATTACK, EVENT_OBJECT_DESTROYED, … }` |
+| `screeps-integration-tests/errors`            | `{ FrameworkError, … }`                       |
+| `screeps-integration-tests/constants`         | `{ STRUCTURE_SPAWN, WORK, … }`                |
+
+Полный список — в `package.json` → `"exports"`.
 
 ## 1. Main entry point: createWorld
 
@@ -40,7 +59,7 @@ const world = await createWorld({
       structures: [spec.spawn(25, 25)],
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 100,
 });
 ```
@@ -59,7 +78,7 @@ const world = await createWorld({
       },
     },
   ],
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   memory: 'rcl3-stable',
   ticks: 200,
 });
@@ -163,15 +182,15 @@ terrain: (matrix) => {
 ```javascript
 // single-bot
 const world = await createWorld({
-  bots: [{ username: 'bot', rooms: 'W0N1' }],
+  bots: [{ username: 'bot', rooms: ['W0N1'] }],
   memory: 'rcl3-stable',
 });
 
 // multi-bot
 const world = await createWorld({
   bots: [
-    { username: 'mainBot', rooms: 'W0N1' },
-    { username: 'reserveBot', rooms: 'W0N2' },
+    { username: 'mainBot', rooms: ['W0N1'] },
+    { username: 'reserveBot', rooms: ['W0N2'] },
   ],
   memory: {
     mainBot: 'rcl3-stable',
@@ -187,7 +206,8 @@ const world = await createWorld({
 
 - plain objects are merged recursively;
 - arrays and primitives are replaced;
-  | `undefined` is ignored in patch (does not erase the field).
+- `undefined` in the patch is ignored (does not erase the field);
+- `null` in the patch replaces the field.
 
 ## 2. WorldInstance
 
@@ -273,12 +293,7 @@ const { spec } = require('screeps-integration-tests');
 | `spec.structure(type, x, y, opts)` | Universal constructor |
 | `spec.spawn(x, y, opts)`           | Spawn                 |
 | `spec.tower(x, y, opts)`           | Tower                 |
-| `spec.extension(x, y, opts)`       | Extension             |
-| `spec.container(x, y, opts)`       | Container             |
-| `spec.storage(x, y, opts)`         | Storage               |
-| `spec.road(x, y, opts)`            | Road                  |
-| `spec.wall(x, y, opts)`            | Constructed wall      |
-| `spec.rampart(x, y, opts)`         | Rampart               |
+| …                                  | exc.                  |
 
 `opts` for structures:
 
@@ -381,7 +396,7 @@ const {
   assertRclAtLeast,
   assertRclBelow,
   assertObjectDestroyed,
-  assertObjectNoDestroyed,
+  assertObjectNotDestroyed,
   assertNoBotObjectDestroyed,
   assertObjectAttacking,
   assertObjectNotAttacking,
@@ -401,7 +416,7 @@ const {
 | RCL       | `assertRclAtLeast(report, room, n)`           | `RCL >= n`                      |
 | RCL       | `assertRclBelow(report, room, n)`             | `RCL < n`                       |
 | Destroyed | `assertObjectDestroyed(report, opts)`         | Object(s) destroyed             |
-| Destroyed | `assertObjectNoDestroyed(report, opts)`       | Objects NOT destroyed           |
+| Destroyed | `assertObjectNotDestroyed(report, opts)`      | Objects NOT destroyed           |
 | Destroyed | `assertNoBotObjectDestroyed(report, opts)`    | Bot structures not destroyed    |
 | Combat    | `assertObjectAttacking(report, objectId)`     | Attack occurred                 |
 | Combat    | `assertObjectNotAttacking(report, objectId)`  | No attack occurred              |
@@ -439,6 +454,7 @@ const world = await createWorld({
 });
 await world.run();
 
+const report = world.report;
 const m = report.metrics; // MetricsReport
 
 // Queries (entityType = 'rooms' | 'colonies' | 'bots' | 'world')
@@ -686,20 +702,20 @@ Declarative events by tick. Processed before `onTick`.
 const world = await createWorld({
   // ...
   events: [
-    { atTick: 10, action: 'spawnInvader', params: { x: 40, y: 40, room: 'W0N1' } },
-    { atTick: 20, action: 'spawnCreep', params: { room: 'W0N1', x: 25, y: 25, userId: botId, name: 'Defender' } },
+    { atTick: 10, action: 'spawnInvader', room: 'W0N1', params: { x: 40, y: 40 } },
+    { atTick: 20, action: 'spawnCreep', room: 'W0N1', params: { x: 25, y: 25, userId: botId, name: 'Defender' } },
   ],
 });
 ```
 
 `EventSpec`:
 
-| Field    | Type     | Description                                  |
-| -------- | -------- | -------------------------------------------- |
-| `atTick` | `number` | 0-based tick number                          |
-| `action` | `string` | Name of the registered handler               |
-| `params` | `Object` | Parameters; for `spawn*` needs `params.room` |
-| `room`   | `string` | Target room (passed to handler)              |
+| Field    | Type     | Description                                            |
+| -------- | -------- | ------------------------------------------------------ |
+| `atTick` | `number` | 0-based tick number                                    |
+| `action` | `string` | Name of the registered handler                         |
+| `params` | `Object` | Action parameters (e.g. `{ x, y, name }` for `spawn*`) |
+| `room`   | `string` | Target room (passed to handler)                        |
 
 ### registerEvent
 
@@ -742,18 +758,18 @@ Use when the public API is insufficient.
 
 `world.report` accumulates:
 
-| Field         | Type       | Contents                                                                |
-| ------------- | ---------- | ----------------------------------------------------------------------- |
-| `ticksRun`    | `number`   | Number of ticks executed                                                |
-| `errors`      | `string[]` | Lines with `[ERROR]` or matching `ERROR_PATTERNS` (ReferenceError etc.) |
-| `warnings`    | `string[]` | Lines with `[WARN]`                                                     |
-| `logs`        | `string[]` | Lines depending on `logLevel` (default `'all'`)                         |
-| `events`      | `Object[]` | Accumulated event-log entries with `tick`                               |
-| `finalRcl`    | `Object`   | `{ [roomName]: number }`                                                |
-| `finalMemory` | `Object`   | `{ [username]: Memory }`                                                |
-| `metrics`     | `Object`   | `{ rooms, colonies, bots, world }`                                      |
-| `wallClockMs` | `number`   | Wall clock time of the run                                              |
-| `stopReason`  | `string`   | Stop reason (`maxTicks`, `predicate`, `signal`, ...)                    |
+| Field         | Type            | Contents                                                                   |
+| ------------- | --------------- | -------------------------------------------------------------------------- |
+| `ticksRun`    | `number`        | Number of ticks executed                                                   |
+| `errors`      | `string[]`      | Lines with `[ERROR]` or matching `ERROR_PATTERNS` (ReferenceError etc.)    |
+| `warnings`    | `string[]`      | Lines with `[WARN]`                                                        |
+| `logs`        | `string[]`      | Lines depending on `logLevel` (default `'all'`)                            |
+| `events`      | `Object[]`      | Accumulated event-log entries with `tick`                                  |
+| `finalRcl`    | `Object`        | `{ [roomName]: number }`                                                   |
+| `finalMemory` | `Object`        | `{ [username]: Memory }`                                                   |
+| `metrics`     | `MetricsReport` | Time-series storage. Getters: `m.rooms`, `m.colonies`, `m.bots`, `m.world` |
+| `wallClockMs` | `number`        | Wall clock time of the run                                                 |
+| `stopReason`  | `string`        | Stop reason (`maxTicks`, `predicate`, `signal`, ...)                       |
 
 Parsing example:
 

@@ -231,8 +231,8 @@ waits for them to finish, and removes the cache directory. On timeout,
 `tree-kill`.
 
 `pruneCache` is an internal function, not exported to the public API.
-Called automatically when CLI starts. It cleans up the `cacheDir`, keeping
-the last `cacheKeep` directories (configurable in `screeps-integration.config.js`, default `./.cache`).
+Called automatically when CLI starts. It cleans up the `cacheDir` (default `./.cache`),
+keeping the last `cacheKeep` directories (default 5).
 
 ## 6. Profiling
 
@@ -344,18 +344,16 @@ screeps-integration-tests/
 ├── tests/                             # Unit tests of the framework (Jest)
 │   ├── assertions.test.js
 │   ├── buildCanonicalRoom.test.js
-│   ├── cli.test.js
 │   ├── config.test.js
-│   ├── console.test.js
 │   ├── memory.test.js
 │   ├── metricAssertions.test.js
 │   ├── metricRegression.test.js
 │   ├── metricsReport.test.js
 │   ├── roomFixture.test.js
 │   ├── spec.test.js
-│   ├── storageAdapter.test.js
 │   ├── world.test.js
-│   └── worldHelpers.test.js
+│   ├── worldHelpers.test.js
+│   └── …
 ├── examples/                          # Self-test examples
 │   ├── screeps-integration.config.js
 │   ├── mock-bot/
@@ -365,8 +363,10 @@ screeps-integration-tests/
 │   │   ├── _template.js
 │   │   ├── smoke-empty.scenario.js
 │   │   ├── metrics-multi-room.scenario.js
-│   │   └── world-lifecycle.scenario.js
+│   │   ├── world-lifecycle.scenario.js
+│   │   └── …
 │   └── fixtures/
+│       └── …
 ├── package.json
 └── jest.config.js
 ```

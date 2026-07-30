@@ -40,7 +40,7 @@ After world creation:
 - `world.rooms` — `Record<roomName, RoomStatus>`.
 - `world.bots` — `Record<username, Bot>`. There is **no** `world.bot` field.
 
-See also [`API-REFERENCE.md`](API-REFERENCE.md#createworld).
+See also [`API-REFERENCE.md`](API-REFERENCE.md#1-main-entry-point-createworld).
 
 ## Binding structures to a specific bot
 
@@ -91,7 +91,7 @@ const eventsW0N1 = await world.eventLog('W0N1');
 const eventsW0N2 = await world.eventLog('W0N2');
 ```
 
-Details — in [`API-REFERENCE.md`](API-REFERENCE.md#readmemorywritememory) and [`API-REFERENCE.md`](API-REFERENCE.md#eventlog).
+Details — in [`API-REFERENCE.md`](API-REFERENCE.md#bot-memory--execution) and [`API-REFERENCE.md`](API-REFERENCE.md#event-log).
 
 ## ID collisions
 

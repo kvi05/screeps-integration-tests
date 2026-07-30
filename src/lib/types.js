@@ -349,8 +349,8 @@
  * @typedef {Object} EventSpec
  * @property {number} atTick
  * @property {string} action              — action name ('spawnInvader', ...)
+ * @property {string} room                — target room name (passed to handler)
  * @property {Object} [params]             — action parameters
- * @property {string} [params.room]        — target room (required for spawn*)
  */
 
 // ─── World Report ──────────────────────────────────────────────────────────
