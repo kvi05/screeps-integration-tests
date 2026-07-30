@@ -12,6 +12,16 @@ const {
     rampart,
     link,
     terminal,
+    observer,
+    powerSpawn,
+    extractor,
+    lab,
+    nuker,
+    factory,
+    invaderCore,
+    powerBank,
+    portal,
+    keeperLair,
     source,
     controller,
     creep,
@@ -30,6 +40,16 @@ const {
     STRUCTURE_RAMPART,
     STRUCTURE_LINK,
     STRUCTURE_TERMINAL,
+    STRUCTURE_OBSERVER,
+    STRUCTURE_POWER_SPAWN,
+    STRUCTURE_EXTRACTOR,
+    STRUCTURE_LAB,
+    STRUCTURE_NUKER,
+    STRUCTURE_FACTORY,
+    STRUCTURE_INVADER_CORE,
+    STRUCTURE_POWER_BANK,
+    STRUCTURE_PORTAL,
+    STRUCTURE_KEEPER_LAIR,
 } = require('../src/constants/screepsConstants');
 
 describe('spec constructors', () => {
@@ -359,6 +379,277 @@ describe('spec constructors', () => {
             const r = rampart(10, 20, { hits: 50000 });
             expect(r.hits).toBe(50000);
             expect(r.hitsMax).toBe(300000000); // default from STRUCTURE_DEFAULTS
+        });
+    });
+
+    // ─── New structures (observer, powerSpawn, extractor, lab, nuker, factory,
+    //      invaderCore, powerBank, portal, keeperLair) ──────────────────────
+
+    describe('structure() defaults — new types', () => {
+        it('defaults for observer', () => {
+            const s = structure(STRUCTURE_OBSERVER, 10, 20);
+            expect(s.hits).toBe(500);
+            expect(s.hitsMax).toBe(500);
+            expect(s.notifyWhenAttacked).toBe(true);
+            expect(s.store).toBeUndefined();
+        });
+
+        it('defaults for powerSpawn', () => {
+            const s = structure(STRUCTURE_POWER_SPAWN, 10, 20);
+            expect(s.store).toEqual({ energy: 5000, power: 100 });
+            expect(s.storeCapacity).toBe(5000);
+            expect(s.hits).toBe(5000);
+            expect(s.hitsMax).toBe(5000);
+            expect(s.notifyWhenAttacked).toBe(true);
+        });
+
+        it('defaults for extractor', () => {
+            const s = structure(STRUCTURE_EXTRACTOR, 10, 20);
+            expect(s.hits).toBe(500);
+            expect(s.hitsMax).toBe(500);
+            expect(s.notifyWhenAttacked).toBe(true);
+            expect(s.store).toBeUndefined();
+        });
+
+        it('defaults for lab', () => {
+            const s = structure(STRUCTURE_LAB, 10, 20);
+            expect(s.store).toEqual({});
+            expect(s.storeCapacity).toBe(3000);
+            expect(s.hits).toBe(500);
+            expect(s.hitsMax).toBe(500);
+            expect(s.notifyWhenAttacked).toBe(true);
+        });
+
+        it('defaults for nuker', () => {
+            const s = structure(STRUCTURE_NUKER, 10, 20);
+            expect(s.store).toEqual({ energy: 0, G: 0 });
+            expect(s.storeCapacity).toBe(300000);
+            expect(s.hits).toBe(1000);
+            expect(s.hitsMax).toBe(1000);
+            expect(s.notifyWhenAttacked).toBe(true);
+        });
+
+        it('defaults for factory', () => {
+            const s = structure(STRUCTURE_FACTORY, 10, 20);
+            expect(s.store).toEqual({});
+            expect(s.storeCapacity).toBe(50000);
+            expect(s.hits).toBe(1000);
+            expect(s.hitsMax).toBe(1000);
+            expect(s.notifyWhenAttacked).toBe(true);
+        });
+
+        it('defaults for invaderCore', () => {
+            const s = structure(STRUCTURE_INVADER_CORE, 10, 20);
+            expect(s.hits).toBe(100000);
+            expect(s.hitsMax).toBe(100000);
+            expect(s.notifyWhenAttacked).toBeUndefined();
+            expect(s.store).toBeUndefined();
+            // note: userId is set by the constructor, not by structure() defaults
+        });
+
+        it('defaults for powerBank', () => {
+            const s = structure(STRUCTURE_POWER_BANK, 10, 20);
+            expect(s.hits).toBe(2000000);
+            expect(s.hitsMax).toBe(2000000);
+            expect(s.store).toBeUndefined();
+        });
+
+        it('defaults for portal (indestructible, no hits)', () => {
+            const s = structure(STRUCTURE_PORTAL, 10, 20);
+            expect(s.type).toBe(STRUCTURE_PORTAL);
+            expect(s.hits).toBeUndefined();
+            expect(s.hitsMax).toBeUndefined();
+            expect(s.store).toBeUndefined();
+        });
+
+        it('defaults for keeperLair', () => {
+            const s = structure(STRUCTURE_KEEPER_LAIR, 10, 20);
+            expect(s.hits).toBe(10000);
+            expect(s.hitsMax).toBe(10000);
+            expect(s.store).toBeUndefined();
+        });
+    });
+
+    describe('observer()', () => {
+        it('creates observer', () => {
+            const o = observer(10, 20);
+            expect(o.type).toBe(STRUCTURE_OBSERVER);
+            expect(o.hits).toBe(500);
+            expect(o.hitsMax).toBe(500);
+        });
+
+        it('observeRoom is passed via overrides', () => {
+            const o = observer(10, 20, { observeRoom: 'W1N1' });
+            expect(o.overrides).toEqual({ observeRoom: 'W1N1' });
+        });
+
+        it('observeRoom merges with existing overrides', () => {
+            const o = observer(10, 20, { observeRoom: 'W1N1', overrides: { custom: true } });
+            expect(o.overrides).toEqual({ custom: true, observeRoom: 'W1N1' });
+        });
+
+        it('userId is passed', () => {
+            const o = observer(10, 20, { userId: 'u1' });
+            expect(o.userId).toBe('u1');
+        });
+    });
+
+    describe('powerSpawn()', () => {
+        it('creates powerSpawn', () => {
+            const ps = powerSpawn(10, 20);
+            expect(ps.type).toBe(STRUCTURE_POWER_SPAWN);
+            expect(ps.store).toEqual({ energy: 5000, power: 100 });
+            expect(ps.storeCapacity).toBe(5000);
+            expect(ps.hits).toBe(5000);
+        });
+
+        it('power is passed via overrides', () => {
+            const ps = powerSpawn(10, 20, { power: 50 });
+            expect(ps.overrides).toEqual({ power: 50 });
+        });
+
+        it('energy can be overridden', () => {
+            const ps = powerSpawn(10, 20, { energy: 2000 });
+            expect(ps.store.energy).toBe(2000);
+        });
+    });
+
+    describe('extractor()', () => {
+        it('creates extractor', () => {
+            const e = extractor(10, 20);
+            expect(e.type).toBe(STRUCTURE_EXTRACTOR);
+            expect(e.hits).toBe(500);
+            expect(e.hitsMax).toBe(500);
+        });
+
+        it('cooldown is passed via overrides', () => {
+            const e = extractor(10, 20, { cooldown: 5 });
+            expect(e.overrides).toEqual({ cooldown: 5 });
+        });
+
+        it('userId is passed', () => {
+            const e = extractor(10, 20, { userId: 'u1' });
+            expect(e.userId).toBe('u1');
+        });
+    });
+
+    describe('lab()', () => {
+        it('creates lab', () => {
+            const l = lab(10, 20);
+            expect(l.type).toBe(STRUCTURE_LAB);
+            expect(l.store).toEqual({});
+            expect(l.storeCapacity).toBe(3000);
+            expect(l.hits).toBe(500);
+        });
+
+        it('cooldown and mineralType are passed via overrides', () => {
+            const l = lab(10, 20, { cooldown: 3, mineralType: 'H' });
+            expect(l.overrides).toEqual({ cooldown: 3, mineralType: 'H' });
+        });
+
+        it('energy can be placed in store', () => {
+            const l = lab(10, 20, { energy: 1000 });
+            expect(l.store.energy).toBe(1000);
+        });
+    });
+
+    describe('nuker()', () => {
+        it('creates nuker', () => {
+            const n = nuker(10, 20);
+            expect(n.type).toBe(STRUCTURE_NUKER);
+            expect(n.store).toEqual({ energy: 0, G: 0 });
+            expect(n.storeCapacity).toBe(300000);
+            expect(n.hits).toBe(1000);
+        });
+
+        it('cooldown is passed via overrides', () => {
+            const n = nuker(10, 20, { cooldown: 10000 });
+            expect(n.overrides).toEqual({ cooldown: 10000 });
+        });
+
+        it('energy and G can be set via overrides', () => {
+            const n = nuker(10, 20, { overrides: { cooldown: 0 } });
+            expect(n.overrides).toEqual({ cooldown: 0 });
+        });
+    });
+
+    describe('factory()', () => {
+        it('creates factory', () => {
+            const f = factory(10, 20);
+            expect(f.type).toBe(STRUCTURE_FACTORY);
+            expect(f.store).toEqual({});
+            expect(f.storeCapacity).toBe(50000);
+            expect(f.hits).toBe(1000);
+        });
+
+        it('level and cooldown are passed via overrides', () => {
+            const f = factory(10, 20, { level: 3, cooldown: 10 });
+            expect(f.overrides).toEqual({ level: 3, cooldown: 10 });
+        });
+
+        it('merges with existing overrides', () => {
+            const f = factory(10, 20, { level: 2, overrides: { custom: 'x' } });
+            expect(f.overrides).toEqual({ custom: 'x', level: 2 });
+        });
+    });
+
+    describe('invaderCore()', () => {
+        it('creates invaderCore with Invader userId', () => {
+            const ic = invaderCore(10, 20);
+            expect(ic.type).toBe(STRUCTURE_INVADER_CORE);
+            expect(ic.hits).toBe(100000);
+            expect(ic.hitsMax).toBe(100000);
+            expect(ic.userId).toBe('2'); // Invader faction
+        });
+
+        it('level and ticksToDeploy are passed via overrides', () => {
+            const ic = invaderCore(10, 20, { level: 2, ticksToDeploy: 100 });
+            expect(ic.overrides).toEqual({ level: 2, ticksToDeploy: 100 });
+        });
+    });
+
+    describe('powerBank()', () => {
+        it('creates powerBank (neutral)', () => {
+            const pb = powerBank(10, 20);
+            expect(pb.type).toBe(STRUCTURE_POWER_BANK);
+            expect(pb.hits).toBe(2000000);
+            expect(pb.hitsMax).toBe(2000000);
+            expect(pb.userId).toBeNull(); // neutral
+        });
+
+        it('power and ticksToDecay are passed via overrides', () => {
+            const pb = powerBank(10, 20, { power: 3000, ticksToDecay: 2000 });
+            expect(pb.overrides).toEqual({ power: 3000, ticksToDecay: 2000 });
+        });
+    });
+
+    describe('portal()', () => {
+        it('creates portal (neutral)', () => {
+            const p = portal(10, 20);
+            expect(p.type).toBe(STRUCTURE_PORTAL);
+            expect(p.hits).toBeUndefined();
+            expect(p.hitsMax).toBeUndefined();
+            expect(p.userId).toBeNull(); // neutral
+        });
+
+        it('destination and unstableDate are passed via overrides', () => {
+            const p = portal(10, 20, { destination: { x: 35, y: 35, room: 'W1N1' }, unstableDate: 50000 });
+            expect(p.overrides).toEqual({ destination: { x: 35, y: 35, room: 'W1N1' }, unstableDate: 50000 });
+        });
+    });
+
+    describe('keeperLair()', () => {
+        it('creates keeperLair with Source Keeper userId', () => {
+            const kl = keeperLair(10, 20);
+            expect(kl.type).toBe(STRUCTURE_KEEPER_LAIR);
+            expect(kl.hits).toBe(10000);
+            expect(kl.hitsMax).toBe(10000);
+            expect(kl.userId).toBe('3'); // Source Keeper faction
+        });
+
+        it('ticksToSpawn is passed via overrides', () => {
+            const kl = keeperLair(10, 20, { ticksToSpawn: 150 });
+            expect(kl.overrides).toEqual({ ticksToSpawn: 150 });
         });
     });
 
