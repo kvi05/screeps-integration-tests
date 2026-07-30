@@ -72,6 +72,7 @@ function applyRoomOverrides(fixture, overrides = {}) {
             ...fixture,
             structures: [...(fixture.structures || [])],
             creeps: [...(fixture.creeps || [])],
+            terrain: fixture.terrain ? { ...fixture.terrain } : undefined,
         };
     }
 
@@ -80,6 +81,7 @@ function applyRoomOverrides(fixture, overrides = {}) {
         controller: overrides.controller ? { ...fixture.controller, ...overrides.controller } : fixture.controller,
         structures: [...(fixture.structures || [])],
         creeps: [...(fixture.creeps || [])],
+        terrain: fixture.terrain ? { ...fixture.terrain } : undefined,
     };
 
     // exclude
@@ -131,6 +133,11 @@ function applyRoomOverrides(fixture, overrides = {}) {
     // hostiles
     if (overrides.hostiles && overrides.hostiles.length > 0) {
         result.hostiles = [...(fixture.hostiles || []), ...overrides.hostiles];
+    }
+
+    // terrain — overrides replace fixture terrain
+    if (overrides.terrain !== undefined) {
+        result.terrain = overrides.terrain;
     }
 
     return result;
