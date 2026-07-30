@@ -154,6 +154,24 @@ function registerRoomFixture(name, fixture) {
 }
 
 /**
+ * Removes a room fixture from the registry.
+ *
+ * Safe to call with a non-existent name — no error, silent no-op.
+ * Main use case: cleanup in scenarios that register fixtures inline
+ * (worker isolation makes this optional; see I2 in review notes).
+ *
+ * @param {string} name
+ * @returns {boolean} — true if the fixture existed and was removed
+ */
+function unregisterRoomFixture(name) {
+    if (name in ROOM_FIXTURES) {
+        delete ROOM_FIXTURES[name];
+        return true;
+    }
+    return false;
+}
+
+/**
  * Auto-load room fixtures from SIT_ROOM_FIXTURES_DIR.
  * Each *.room.js file must either call registerRoomFixture as a side-effect
  * or export { name, fixture }.
@@ -182,5 +200,6 @@ module.exports = {
     loadRoomFixture,
     applyRoomOverrides,
     registerRoomFixture,
+    unregisterRoomFixture,
     loadRoomFixturesFromDir,
 };

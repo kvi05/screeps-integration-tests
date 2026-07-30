@@ -358,6 +358,7 @@ const {
   loadRoomFixture,
   applyRoomOverrides,
   registerRoomFixture,
+  unregisterRoomFixture,
 } = require('screeps-integration-tests/room-fixtures');
 ```
 
@@ -373,6 +374,7 @@ controls where `*.memory.json` snapshots are located.
 | `loadRoomFixture(name)`                  | Load a fixture (returns `{ fixture }`) |
 | `applyRoomOverrides(fixture, overrides)` | Apply overrides                        |
 | `registerRoomFixture(name, fixture)`     | Register a fixture at runtime          |
+| `unregisterRoomFixture(name)`            | Remove a fixture from the registry     |
 
 ## 6. Memory fixtures API
 
