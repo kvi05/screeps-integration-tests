@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Custom terrain support:** rooms can now specify terrain via the optional `terrain` field
+  in `RoomSpecInput`, `RoomFixtureSpec`, or `RoomOverrides`. Three formats supported:
+  positional `{ walls, swamps }`, matrix `number[][]` 50×50, and callback `(matrix) => void`.
+  Border walls are automatically applied for correct multi-room exit behaviour.
+  - New sub-path export: `screeps-integration-tests/terrain` (`{ applyTerrainSpec }`)
+  - New helper: `applyTerrainSpec(terrainMatrix, terrainSpec)` — applies a terrain spec
+    to a TerrainMatrix in-place, auto-detecting the format
+  - New scenario: `examples/scenarios/terrain-custom.scenario.js` — 5 sub-tests
+    covering all terrain formats and fixture overrides
+  - New room fixture: `examples/fixtures/terrain-walls.room.js`
+
 ### Changed
 
 - **BREAKING:** `world.spawn(spec)` renamed to `world.spawnCreep(spec)`.
