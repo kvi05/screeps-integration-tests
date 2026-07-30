@@ -17,6 +17,7 @@
  * - `LOOK_*` — look constants
  * - `RESOURCE_ENERGY`, `RESOURCE_POWER` — resource types
  * - `INVADER_USER_ID` — Screeps invader user ID (`'2'`)
+ * - `SOURCE_KEEPER_USER_ID` — Source Keeper user ID (`'3'`)
  * - `TYPE_CREEPS` — `'creep'` (used in filters)
  * - `BOT_STRUCTURE_TYPES` — framework array of bot-owned structure types
  * - `TERRAIN_MASK_WALL`, `TERRAIN_MASK_SWAMP`, `TERRAIN_MASK_LAVA`
@@ -61,6 +62,16 @@ const {
     STRUCTURE_LINK,
     STRUCTURE_TERMINAL,
     STRUCTURE_CONTROLLER,
+    STRUCTURE_OBSERVER,
+    STRUCTURE_POWER_SPAWN,
+    STRUCTURE_EXTRACTOR,
+    STRUCTURE_LAB,
+    STRUCTURE_NUKER,
+    STRUCTURE_FACTORY,
+    STRUCTURE_INVADER_CORE,
+    STRUCTURE_POWER_BANK,
+    STRUCTURE_PORTAL,
+    STRUCTURE_KEEPER_LAIR,
     BOT_STRUCTURE_TYPES,
 
     // RESOURCE
@@ -79,6 +90,7 @@ const {
 
     // Framework-specific
     INVADER_USER_ID,
+    SOURCE_KEEPER_USER_ID,
 
     // Type names (for type === ... in filters)
     TYPE_CREEPS,
@@ -147,6 +159,16 @@ module.exports = {
     STRUCTURE_LINK,
     STRUCTURE_TERMINAL,
     STRUCTURE_CONTROLLER,
+    STRUCTURE_OBSERVER,
+    STRUCTURE_POWER_SPAWN,
+    STRUCTURE_EXTRACTOR,
+    STRUCTURE_LAB,
+    STRUCTURE_NUKER,
+    STRUCTURE_FACTORY,
+    STRUCTURE_INVADER_CORE,
+    STRUCTURE_POWER_BANK,
+    STRUCTURE_PORTAL,
+    STRUCTURE_KEEPER_LAIR,
     BOT_STRUCTURE_TYPES,
 
     // RESOURCE
@@ -165,6 +187,7 @@ module.exports = {
 
     // Framework-specific
     INVADER_USER_ID,
+    SOURCE_KEEPER_USER_ID,
 
     // Type names (for type === ... in filters)
     TYPE_CREEPS,
