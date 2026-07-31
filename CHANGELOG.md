@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)
+
 - **Cyclic dependency eliminated:** `terrain.js` moved from `builders/` to `runtime/`
   layer — it operates on `TerrainMatrix` (server abstraction), not on spec objects.
   Breaks the bottom-up `runtime → builders` dependency.
