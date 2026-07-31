@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)
+
+- **Cyclic dependency eliminated:** `terrain.js` moved from `builders/` to `runtime/`
+  layer — it operates on `TerrainMatrix` (server abstraction), not on spec objects.
+  Breaks the bottom-up `runtime → builders` dependency.
+- **Dead code removed:** `materializeBotCode()` — never called, was a leftover from
+  early designs. Bot code loading is handled entirely in `runtime/addBots`.
+  Removing it breaks the `builders → runtime` dependency.
+
 ## [2.0.0] - 2026-07-31
 
 ### Added

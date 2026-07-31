@@ -1,6 +1,6 @@
 'use strict';
 
-const { applyTerrainSpec } = require('../src/lib/builders/terrain');
+const { applyTerrainSpec } = require('../src/lib/runtime/terrain');
 const { TERRAIN_MASK_WALL, TERRAIN_MASK_SWAMP } = require('../src/constants/screepsConstants');
 
 // ─── Mock TerrainMatrix ─────────────────────────────────────────────────────

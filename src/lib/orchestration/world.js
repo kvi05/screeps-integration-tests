@@ -16,7 +16,7 @@ const { createWorldHelpers, getRoomRcl } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
 const { exportProfiles } = require('../runtime/profile');
 const { resolveDefaultUserId } = require('./resolveDefaults');
-const { applyTerrainSpec, getTerrainMatrixClass } = require('../builders/terrain');
+const { applyTerrainSpec, getTerrainMatrixClass } = require('../runtime/terrain');
 const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 const { FixtureError, BotError, FrameworkError } = require('../errors');
 
