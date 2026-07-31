@@ -18,6 +18,15 @@ PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-in
   early designs. Bot code loading is handled entirely in `runtime/addBots`.
   Removing it breaks the `builders → runtime` dependency.
 
+PR #30 [Fix/switch-to-prebuilt-server-mockup](https://github.com/kvi05/screeps-integration-tests/pull/30)
+
+- **`screeps-server-mockup` replaced with pre-built npm package:**
+  `@cool-andre/screeps-server-mockup@^1.5.2`. The new package ships with
+  pre-compiled `dist/` and no `prepare` script — **TypeScript is no longer
+  required** to install `screeps-integration-tests`.
+- All internal `require()` and JSDoc `@typedef` imports updated from
+  `screeps-server-mockup` to `@cool-andre/screeps-server-mockup`.
+
 ## [2.0.0] - 2026-07-31
 
 ### Added

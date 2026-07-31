@@ -20,8 +20,8 @@
 // ─── Server ─────────────────────────────────────────────────────────────────
 
 /**
- * ScreepsServer from screeps-server-mockup.
- * @typedef {import('screeps-server-mockup').ScreepsServer} ScreepsServer
+ * ScreepsServer from @cool-andre/screeps-server-mockup.
+ * @typedef {import('@cool-andre/screeps-server-mockup').ScreepsServer} ScreepsServer
  */
 
 /**
