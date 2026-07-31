@@ -71,7 +71,7 @@
         "node": ">=22.12.0"
     },
     "dependencies": {
-        "screeps-server-mockup": "github:screepers/screeps-server-mockup#703645f",
+        "@cool-andre/screeps-server-mockup": "^1.5.2",
         "tree-kill": "^1.2.2"
     },
     "devDependencies": {
