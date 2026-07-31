@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-31
+
 ### Added
 
 PR #26 [Feat/add custom terrain](https://github.com/kvi05/screeps-integration-tests/pull/26)
@@ -205,6 +207,7 @@ PR #20 [Docs/fix docs - #20](https://github.com/kvi05/screeps-integration-tests/
 - GitHub Actions CI with caching.
 - Full set of unit tests (Jest) and integration scenarios.
 
-[Unreleased]: https://github.com/kvi05/screeps-integration-tests/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/kvi05/screeps-integration-tests/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/kvi05/screeps-integration-tests/releases/tag/v2.0.0
 [1.1.0]: https://github.com/kvi05/screeps-integration-tests/releases/tag/v1.1.0
 [1.0.0]: https://github.com/kvi05/screeps-integration-tests/releases/tag/v1.0.0
