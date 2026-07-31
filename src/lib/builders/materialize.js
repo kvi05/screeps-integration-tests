@@ -34,11 +34,6 @@
  * @typedef {import('../types').ControllerSpec} ControllerSpec
  * @typedef {import('../types').CreepSpecCanonical} CreepSpecCanonical
  * @typedef {import('../types').RoomSpecCanonical} RoomSpecCanonical
- *
- * @typedef {Object} MaterializeBotCodeOpts
- * @property {'default'|'custom'} [code='default']
- * @property {Object} [modules]          — custom modules (for code='custom')
- * @property {string} [distDir]          — path to dist/ (for code='default')
  */
 
 const { STRUCTURE_SPAWN, STRUCTURE_POWER_SPAWN, STRUCTURE_INVADER_CORE } = require('../../constants/screepsConstants');
@@ -354,38 +349,6 @@ async function materializeCreeps(adapter, roomName, creeps) {
     return materializeMany(materializeCreep, adapter, roomName, creeps);
 }
 
-// ─── Materialize bot code ───────────────────────────────────────────────────
-
-/**
- * Loads bot code into `users.code`.
- *
- * @param {import('../storageAdapter').StorageAdapter} adapter
- * @param {string} userId                            — bot _id
- * @param {MaterializeBotCodeOpts} [opts]
- * @returns {Promise<void>}
- */
-async function materializeBotCode(adapter, userId, opts = {}) {
-    const { db } = adapter;
-    const strategy = opts.code || 'default';
-
-    let modules;
-    if (strategy === 'custom' && opts.modules) {
-        modules = opts.modules;
-    } else {
-        const path = require('path');
-        const { loadBotModules } = require('../runtime/loadBot');
-        const distDir = opts.distDir || process.env.BOT_DIST_DIR || path.join(__dirname, '..', '..', '..', 'dist');
-        modules = loadBotModules(distDir);
-    }
-
-    await db['users.code'].insert({
-        user: userId,
-        branch: 'default',
-        modules,
-        activeWorld: true,
-    });
-}
-
 // ─── Materialize room (full pipeline) ─────────────────────────────────────
 
 /**
@@ -442,6 +405,5 @@ module.exports = {
     materializeController,
     materializeCreep,
     materializeCreeps,
-    materializeBotCode,
     materializeRoom,
 };
