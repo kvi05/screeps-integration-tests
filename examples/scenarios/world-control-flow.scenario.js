@@ -153,7 +153,7 @@ async function run(opts = {}) {
 
         try {
             // Spawn a creep before run via the spawn method
-            const botId = world.bots[BOT].id;
+            const botId = world.botId(BOT);
             const creepId = await world.spawnCreep(
                 spec.creep(10, 10, {
                     roomName: ROOM,
