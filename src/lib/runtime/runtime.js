@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { ScreepsServer } = require('screeps-server-mockup');
+const { ScreepsServer } = require('@cool-andre/screeps-server-mockup');
 const { createStorageAdapter } = require('./storageAdapter');
 const { loadBotModules } = require('./loadBot');
 const { getFreePort } = require('./port');

@@ -86,7 +86,7 @@ async function getRcl(adapter, roomName) {
 /**
  * Advances the server by one tick and increments the tick counter.
  *
- * @param {import('screeps-server-mockup').ScreepsServer} server
+ * @param {import('@cool-andre/screeps-server-mockup').ScreepsServer} server
  * @param {WorldReport} report
  */
 async function doServerTick(server, report) {

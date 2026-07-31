@@ -187,11 +187,11 @@ function _validateCoord(x, y) {
  * Returns the TerrainMatrix class from screeps-server-mockup.
  * Cached after first call to avoid repeated internal-path requires.
  *
- * @returns {typeof import('screeps-server-mockup/dist/src/terrainMatrix').default}
+ * @returns {typeof import('@cool-andre/screeps-server-mockup/dist/src/terrainMatrix').default}
  */
 function getTerrainMatrixClass() {
     if (!_terrainMatrixClass) {
-        _terrainMatrixClass = require('screeps-server-mockup/dist/src/terrainMatrix').default;
+        _terrainMatrixClass = require('@cool-andre/screeps-server-mockup/dist/src/terrainMatrix').default;
     }
     return _terrainMatrixClass;
 }
