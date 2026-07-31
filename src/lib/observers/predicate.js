@@ -14,7 +14,7 @@
  * @property {Object<string,import('../types').Bot>} bots
  * @property {(username?: string) => Promise<Object>} readMemory
  * @property {(room: string) => Promise<Object[]>} getEventLog
- * @property {(room: string) => Promise<Object[]>} eventLog — alias for getEventLog (consistent with WorldInstance)
+ * @property {(room: string) => Promise<Object[]>} eventLog — deprecated alias for getEventLog (for backward compatibility in predicate callbacks)
  *
  * @typedef {Object} PredicateResult
  * @property {boolean} shouldStop

@@ -41,7 +41,7 @@
  *
  * @example
  * const { EVENT_OBJECT_DESTROYED } = require('screeps-integration-tests/events');
- * const events = await world.eventLog('W0N1');
+ * const events = await world.getEventLog('W0N1');
  * const destroyed = events.some(e => e.event === EVENT_OBJECT_DESTROYED);
  *
  * @module screeps-integration-tests/events

@@ -515,7 +515,7 @@
  * @property {ExecFn} exec                        — execute JS code in a bot
  * @property {SpawnCreepFn} spawnCreep            — spawn a creep (room required)
  * @property {BotIdFn} botId                      — _id of a bot by username/index/first
- * @property {EventLogFn} eventLog                   — read room event log
+ * @property {EventLogFn} getEventLog                — read room event log
  * @property {ReadMemoryFn} readMemory            — read bot Memory (by username)
  * @property {WriteMemoryFn} writeMemory          — update Memory (merge)
  * @property {RegisterEventFn} registerEvent      — register an event handler

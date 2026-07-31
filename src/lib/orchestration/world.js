@@ -383,7 +383,7 @@ async function createWorld(opts) {
             server,
             bots,
             worldInstance.readMemory,
-            worldInstance.eventLog,
+            worldInstance.getEventLog,
         );
 
         // Keep world.report current after each tick

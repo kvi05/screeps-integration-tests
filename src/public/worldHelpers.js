@@ -20,9 +20,9 @@
  * - `damageHitsStructure(id, amount)` — subtract hits (clamped to 0)
  * - `deleteStructure(id)` — remove a structure from the DB
  * - `createStructure(spec)` — create a structure from a spec
- * - `spawn(spec)` — create a creep via materialize (spec object)
+ * - `spawnCreep(spec)` — create a creep via materialize (spec object)
  * - `getRcl(roomName)` — read RCL of a room from DB
- * - `eventLog(room)` — read event log for a room
+ * - `getEventLog(room)` — read event log for a room
  * - `readMemory(botUsername?)` — read bot memory
  * - `writeMemory(botUsername?, patch)` — deep-merge patch into bot memory
  * - `exec(code, botUsername?)` — execute JS code in a bot's context

@@ -19,7 +19,7 @@
  * - `createStructure` — create a structure via materialize (spec object)
  * - `spawnCreep` — create a creep via materialize (spec object)
  * - `getRcl` — read RCL of a room from DB
- * - `eventLog` — read event log for a room
+ * - `getEventLog` — read event log for a room
  * - `readMemory` / `writeMemory` — bot memory operations
  * - `exec` — execute JS code in a bot's context
  * - `botId` — get bot _id by username, index, or first bot
@@ -242,7 +242,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
     /** @type {import('../types').EventLogFn} */
     async function getEventLog(room) {
         if (!room) {
-            throw new Error('eventLog: room is required');
+            throw new Error('getEventLog: room is required');
         }
         return readEventLog(adapter, room);
     }
@@ -406,7 +406,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         // Room queries
         getRcl: (roomName) => getRoomRcl(adapter, roomName),
         // Event log
-        eventLog: getEventLog,
+        getEventLog,
         // Bot memory & execution
         readMemory,
         writeMemory,
