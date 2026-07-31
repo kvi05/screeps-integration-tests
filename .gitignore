@@ -30,7 +30,10 @@ AGENTS.md
 opencode.json
 .github/agents
 .github/skills
+
 /docs/MOCK-SERVER-LIMITATIONS.md
+/plan
+/road
 
 # Environment
 .env
