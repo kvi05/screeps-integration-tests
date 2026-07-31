@@ -56,7 +56,7 @@ async function run(opts = {}) {
         //   world.setHitsStructure(id, hits) — set HP (0 to destroy cleanly)
         //   world.damageHitsStructure(id,dmg)— deal damage
         //   world.deleteStructure(id)        — remove a structure (directly from DB, bypassing standard mechanics)
-        //   world.eventLog(room)             — room events for the tick
+        //   world.getEventLog(room)          — room events for the tick
         //   world.readMemory(user?)          — read bot Memory
         //   world.writeMemory(user, patch)   — update Memory
 

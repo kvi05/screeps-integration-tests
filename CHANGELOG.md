@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+PR #31 [Refactor/inconsistent pairs](https://github.com/kvi05/screeps-integration-tests/pull/31)
+
+- **`spec.controller()` positional overload:** now accepts `spec.controller(x, y, opts)`
+  in addition to `spec.controller(opts)` — same signature as every other `spec.*`
+  constructor. Backward compatible; explicit `opts.x`/`opts.y` win over positional args.
+
 ### Changed
 
 PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)
@@ -26,6 +34,14 @@ PR #30 [Fix/switch-to-prebuilt-server-mockup](https://github.com/kvi05/screeps-i
   required** to install `screeps-integration-tests`.
 - All internal `require()` and JSDoc `@typedef` imports updated from
   `screeps-server-mockup` to `@cool-andre/screeps-server-mockup`.
+
+PR #31 [Refactor/inconsistent pairs](https://github.com/kvi05/screeps-integration-tests/pull/31)
+
+- **BREAKING:** `world.eventLog(room)` renamed to `world.getEventLog(room)` —
+  aligned with `getRcl` naming and the predicate-context method name. Predicate
+  callbacks keep `eventLog` as a **deprecated alias** for backward compatibility.
+- **Docs fixed:** JSDoc in `screeps-integration-tests/world-helpers` now documents
+  `spawnCreep(spec)` (was stale `spawn(spec)`).
 
 ## [2.0.0] - 2026-07-31
 

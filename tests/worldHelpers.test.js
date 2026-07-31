@@ -394,19 +394,19 @@ describe('createWorldHelpers', () => {
         });
     });
 
-    // ─── eventLog ────────────────────────────────────────────────────────
+    // ─── getEventLog ─────────────────────────────────────────────────────
 
-    describe('eventLog', () => {
+    describe('getEventLog', () => {
         it('calls readEventLog with adapter and room', async () => {
             const { readEventLog } = require('../src/lib/observers/eventLog');
             readEventLog.mockResolvedValue([{ event: 1, objectId: 'obj_1', data: {} }]);
-            const events = await helpers.eventLog('W0N1');
+            const events = await helpers.getEventLog('W0N1');
             expect(events).toEqual([{ event: 1, objectId: 'obj_1', data: {} }]);
             expect(readEventLog).toHaveBeenCalledWith(adapter, 'W0N1');
         });
 
         it('throws if room is not specified', async () => {
-            await expect(helpers.eventLog()).rejects.toThrow('eventLog: room is required');
+            await expect(helpers.getEventLog()).rejects.toThrow('getEventLog: room is required');
         });
     });
 });

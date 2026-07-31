@@ -734,12 +734,40 @@ function source(x, y, opts = {}) {
 /**
  * Creates a canonical controller spec.
  *
- * If `x`/`y` are not set — defaults to (35, 35).
+ * Supports two call signatures:
+ *   `controller(opts)`          — single options object (x/y default to 35,35)
+ *   `controller(x, y, opts?)`   — positional x/y with optional opts override
  *
- * @param {Object} [opts] — { x?, y?, id?, roomName?, level?, progress?, userId?, safeMode?, safeModeAvailable?, isPowerEnabled?, downgradeTime? }
+ * If `x`/`y` are not set — defaults to (35, 35).
+ * When both positional args and `opts.x`/`opts.y` are provided,
+ * the explicit opts fields take priority.
+ *
+ * @param {number|Object} [x]      — x coordinate, or full options object
+ * @param {number} [y]             — y coordinate (only when x is a number)
+ * @param {Object} [optsArg]       — { x?, y?, id?, roomName?, level?, progress?, userId?, safeMode?, safeModeAvailable?, isPowerEnabled?, downgradeTime? }
  * @returns {ControllerSpec}
+ *
+ * @example
+ * // Positional form (like other spec.* constructors)
+ * spec.controller(10, 20, { level: 3 });
+ *
+ * @example
+ * // Options form (backward compatible)
+ * spec.controller({ level: 1 });
  */
-function controller(opts = {}) {
+function controller(x, y, optsArg) {
+    // Overload detection: if first arg is a number → positional (x, y, opts)
+    /** @type {Object} */
+    let opts;
+    if (typeof x === 'number') {
+        opts = optsArg !== undefined ? { ...optsArg } : {};
+        // Positional args set defaults, but explicit opts.x/opts.y win
+        if (opts.x === undefined) opts.x = x;
+        if (opts.y === undefined && typeof y === 'number') opts.y = y;
+    } else {
+        opts = x || {};
+    }
+
     const spec = {
         x: opts.x !== undefined ? opts.x : 35,
         y: opts.y !== undefined ? opts.y : 35,

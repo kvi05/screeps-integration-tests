@@ -711,6 +711,45 @@ describe('spec constructors', () => {
                 downgradeTime: 5000,
             });
         });
+
+        it('supports positional (x, y) overload like other spec constructors', () => {
+            const c = controller(10, 20);
+            expect(c).toMatchObject({ x: 10, y: 20, level: 1, progress: 0, safeMode: 0 });
+        });
+
+        it('supports positional (x, y, opts) overload', () => {
+            const c = controller(10, 20, { level: 5, progress: 100 });
+            expect(c).toMatchObject({ x: 10, y: 20, level: 5, progress: 100 });
+        });
+
+        it('opts.x overrides positional x in overload', () => {
+            const c = controller(10, 20, { x: 30 });
+            expect(c).toMatchObject({ x: 30, y: 20 });
+        });
+
+        it('opts.y overrides positional y in overload', () => {
+            const c = controller(10, 20, { y: 40 });
+            expect(c).toMatchObject({ x: 10, y: 40 });
+        });
+
+        it('positional overload works with all extra fields', () => {
+            const c = controller(5, 8, {
+                level: 3,
+                id: 'ctrl-pos',
+                userId: 'user1',
+                roomName: 'E1S1',
+                downgradeTime: 100,
+            });
+            expect(c).toMatchObject({
+                x: 5,
+                y: 8,
+                level: 3,
+                id: 'ctrl-pos',
+                userId: 'user1',
+                roomName: 'E1S1',
+                downgradeTime: 100,
+            });
+        });
     });
 
     describe('creep()', () => {
