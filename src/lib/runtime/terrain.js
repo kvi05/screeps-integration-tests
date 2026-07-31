@@ -24,7 +24,7 @@
  * Custom terrain takes precedence over the plain default, but border walls
  * overwrite edge tiles to ensure correct exits between adjacent rooms.
  *
- * @module builders/terrain
+ * @module runtime/terrain
  */
 
 const { TERRAIN_MASK_WALL, TERRAIN_MASK_SWAMP } = require('../../constants/screepsConstants');

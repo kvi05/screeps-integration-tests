@@ -9,7 +9,7 @@ const { getFreePort } = require('./port');
 const { TestBot } = require('./testBot');
 const { createDispose } = require('./cleanup');
 const { computeAdjacentBorders } = require('./roomUtils');
-const { getTerrainMatrixClass } = require('../builders/terrain');
+const { getTerrainMatrixClass } = require('./terrain');
 
 /**
  * @typedef {import('../types').ScreepsServer} ScreepsServer
