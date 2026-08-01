@@ -43,6 +43,13 @@ PR #34 [Chore/docs jsdoc cleanup](https://github.com/kvi05/screeps-integration-t
 
 - Added one-line comments to files that did not have a description
 
+PR #35 [Fix/scenario contract and test coverage](https://github.com/kvi05/screeps-integration-tests/pull/35)
+
+- **New example scenario: `examples/scenarios/metrics-regression.scenario.js`**
+  — end-to-end demo of baseline regression checking with `MetricsReport` +
+  `MetricsRegression`: an identical baseline passes, a perturbed baseline
+  fails, and an absolute tolerance absorbs the difference.
+
 ### Changed
 
 PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)
@@ -70,6 +77,21 @@ PR #31 [Refactor/inconsistent pairs](https://github.com/kvi05/screeps-integratio
   callbacks keep `eventLog` as a **deprecated alias** for backward compatibility.
 - **Docs fixed:** JSDoc in `screeps-integration-tests/world-helpers` now documents
   `spawnCreep(spec)` (was stale `spawn(spec)`).
+
+### Fixed
+
+PR #35 [Fix/scenario contract and test coverage](https://github.com/kvi05/screeps-integration-tests/pull/35)
+
+- **Example scenarios now follow the scenario contract** — each `world.run()`
+  is validated with `assertBotWorked`:
+  - `room-exits` — all 4 case blocks validate the run; the inline bot writes
+    `Memory` every tick so the baseline assertion actually checks something
+    (an empty loop left `Memory` as `{}`, so the runs were effectively
+    unvalidated).
+  - `world-lifecycle` — final log corrected from `5/5` to `2/2` tests passed.
+  - `world-control-flow` — `world.registerEvent()` is now really exercised:
+    a custom event is scheduled via `opts.events` and asserted to fire
+    exactly once with the expected `room` and `params`.
 
 ## [2.0.0] - 2026-07-31
 
