@@ -100,7 +100,7 @@ async function addBots(opts) {
     const botsList = opts.bots || [];
     /** @type {Object<string,Bot>} */
     const bots = {};
-    /** @type {Object<string,import('./types').ResolvedBotSpec>} */
+    /** @type {Object<string,import('../types').ResolvedBotSpec>} */
     const resolvedBots = {};
 
     for (const b of botsList) {

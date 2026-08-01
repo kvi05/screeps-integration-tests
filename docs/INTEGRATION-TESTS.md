@@ -210,7 +210,7 @@ so parallel runs don't conflict.
 | Final state               | `report.finalMemory[username]`                     |
 | Tick-based data           | `onTick` + closure → `report.*`                    |
 | Snapshot at specific tick | `world.readMemory(username)` in `onTick`           |
-| DB object state           | `world.server.db` + closure                        |
+| DB object state           | `world.server.common.storage.db` + closure         |
 | Profiler                  | `report.profileText` and `report.profileCallgrind` |
 | Event log                 | `report.events`                                    |
 

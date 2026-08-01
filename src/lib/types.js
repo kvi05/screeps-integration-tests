@@ -598,7 +598,7 @@
 /**
  * @callback RegisterEventFn
  * @param {string} action
- * @param {(adapter: import('./storageAdapter').StorageAdapter, room: string, params: Object) => Promise<void>} handler
+ * @param {(adapter: import('./runtime/storageAdapter').StorageAdapter, room: string, params: Object) => Promise<void>} handler
  * @returns {void}
  */
 
