@@ -186,6 +186,7 @@ async function run(opts = {}) {
 
     // ─── Test E: opts.events + registerEvent ────────────────────────
     {
+        let customEventFired = 0;
         const world = await createWorld({
             rooms: [
                 {
@@ -213,12 +214,26 @@ async function run(opts = {}) {
                         ],
                     },
                 },
+                {
+                    atTick: 4,
+                    action: 'customEvent',
+                    room: ROOM,
+                    params: { marker: 'hello' },
+                },
             ],
         });
 
         try {
+            // Register a custom event handler via world.registerEvent.
+            world.registerEvent('customEvent', async (adapter, room, params) => {
+                customEventFired++;
+                assert.strictEqual(room, ROOM, 'custom event handler receives the room');
+                assert.strictEqual(params.marker, 'hello', 'custom event handler receives params');
+            });
+
             await world.run();
 
+            assert.strictEqual(customEventFired, 1, 'registered custom event fired exactly once');
             assertBotWorked(world.report);
             assertNoErrors(world.report);
         } finally {
