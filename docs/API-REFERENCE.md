@@ -219,6 +219,7 @@ const world = await createWorld({
 | `world.run()`                          | Run the scenario until `opts.ticks` / `until.maxTicks` / predicate |
 | `world.tick(n)`                        | Execute `n` ticks; respects `until.maxTicks`, ignores `opts.ticks` |
 | `world.exec(code, username?)`          | Execute JS code in bot context                                     |
+| `world.evalInBot(code, username?)`     | Evaluate JS code in bot context and resolve with the result        |
 | `world.spawnCreep(spec)`               | Create a creep. See `CreepSpecCanonical` (§14) for spec format.    |
 | `world.createStructure(spec)`          | Create a structure via spec (see §Helpers)                         |
 | `world.eventLog(room)`                 | Event log for the room for the current tick                        |
@@ -1079,6 +1080,7 @@ See [Event log](#event-log) section for usage examples.
 | `world.readMemory(username?)`        | Read bot Memory. If `username` omitted — the only bot.            |
 | `world.writeMemory(username, patch)` | Deep-merge `patch` into bot Memory.                               |
 | `world.exec(code, username?)`        | Execute JS code in bot context. If `username` omitted — only bot. |
+| `world.evalInBot(code, username?)`   | Evaluate JS code in bot context and resolve with the result.      |
 
 `writeMemory` merges patch over current memory: plain objects are merged recursively,
 arrays/primitives are replaced, `undefined` does not overwrite existing values.
@@ -1088,6 +1090,40 @@ const memory = await world.readMemory('bot');
 await world.writeMemory('bot', { test: { enabled: true } });
 await world.exec('Game.spawns["Spawn1"].spawnCreep([WORK, CARRY, MOVE], "Harvester1");');
 ```
+
+`evalInBot` is `exec` + result transport: it runs code in the bot's sandbox and
+returns the result back to the test. The code runs on the **next server tick**,
+so create the promise first, then tick the world, then await:
+
+```javascript
+const promise = world.evalInBot('Game.time');
+await world.tick(1);
+const gameTime = await promise; // number — data from the sandbox
+```
+
+Extract live game state the test doesn't know upfront, using the bot's own
+logic (Game objects, find, Memory…):
+
+```javascript
+const promise = world.evalInBot('Game.rooms.W0N1.controller.level');
+await world.tick(1);
+const level = await promise; // 1
+
+const p = world.evalInBot('JSON.stringify(Game.rooms.W0N1.find(FIND_MY_CREEPS).map(c => c.pos))');
+await world.tick(1);
+const creeps = await p; // array of creep positions
+```
+
+The engine serializes console results to strings, so `evalInBot` tries
+`JSON.parse` (returns the parsed value, otherwise the raw string). Note that a
+result string that is itself valid JSON (e.g. `'123'`, `'true'`) is coerced to
+the parsed value; use `String(...)` in the expression if you need it back as a
+string. To transport objects/arrays back, use `JSON.stringify(...)` in the
+expression. If the expression throws, the promise rejects with the actual
+error. If it returns a value that cannot be transported (circular object,
+BigInt…), the promise rejects with a hint to use `JSON.stringify(...)`. If no
+result arrives within 10s, the promise rejects with a hint to call
+`world.tick(n)` after `evalInBot`.
 
 ### Bot ID
 

@@ -22,6 +22,7 @@
  * - `getEventLog` — read event log for a room
  * - `readMemory` / `writeMemory` — bot memory operations
  * - `exec` — execute JS code in a bot's context
+ * - `evalInBot` — evaluate JS code in a bot and resolve with the result
  * - `botId` — get bot _id by username, index, or first bot
  * - `find` / `findOne` / `findIds` / `findId` — search in `rooms.objects`
  *
@@ -33,6 +34,46 @@ const { getBotMemory, setBotMemory, deepMergeMemory } = require('../builders/mem
 const { readEventLog } = require('../observers/eventLog');
 const { resolveDefaultUserId, defaultBot } = require('./resolveDefaults');
 const { FrameworkError, BotError } = require('../errors');
+
+/**
+ * Default timeout for `evalInBot` (ms). Guards against a promise that never
+ * resolves when the caller forgets to tick the world after submitting.
+ */
+const DEFAULT_EVAL_IN_BOT_TIMEOUT_MS = 10000;
+
+/**
+ * The engine serializes every console result via `String()` (see
+ * `@screeps/engine` `game/console.js`). Try to restore the original value:
+ * `JSON.parse` when possible, otherwise return the raw string. `undefined`
+ * results (statements without a value) map back to `undefined`.
+ *
+ * Note: a result string that is itself valid JSON is coerced to the parsed
+ * value — e.g. the string `'123'` becomes the number `123`, `'true'` becomes
+ * `true`, `'null'` becomes `null`. A string that is not valid JSON (e.g.
+ * `'hello'`) is returned as-is.
+ *
+ * @param {string} raw
+ * @returns {any}
+ */
+function parseConsoleResult(raw) {
+    if (typeof raw !== 'string') return raw;
+    if (raw === 'undefined') return undefined;
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return raw;
+    }
+}
+
+/**
+ * Shortens a string for error messages.
+ * @param {string} str
+ * @param {number} [max=80]
+ * @returns {string}
+ */
+function truncate(str, max = 80) {
+    return str.length > max ? `${str.slice(0, max)}...` : str;
+}
 
 /**
  * @typedef {import('../runtime/storageAdapter').StorageAdapter} StorageAdapter
@@ -123,6 +164,18 @@ async function getRoomRcl(adapter, roomName) {
  */
 function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = undefined) {
     const { db } = adapter;
+
+    /**
+     * Per-bot state for `evalInBot`: pending promises keyed by a unique
+     * per-command id, plus a lazily-attached `console` listener. Each command
+     * is wrapped so its result carries its id — results are matched by id,
+     * so they stay correct regardless of the order the engine reports them.
+     * @type {Map<string, {pendings: Map<number, Object>, listener: Function|null}>}
+     */
+    const evalInBotState = new Map();
+
+    /** Monotonic id generator for evalInBot commands (per world instance). */
+    let evalInBotSeq = 0;
 
     // ─── Controller ────────────────────────────────────────────────────────
 
@@ -298,6 +351,173 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
     }
 
     /**
+     * Evaluates JS code in the bot's context and resolves with the result —
+     * `exec` + result transport. The code runs on the **next server tick**,
+     * so create the promise first, tick the world, then await:
+     *
+     * @example
+     * const promise = world.evalInBot('Game.time');
+     * await world.tick(1);
+     * const gameTime = await promise; // number — data from the sandbox
+     *
+     * Extract live game state the test doesn't know upfront, using the bot's
+     * own logic (Game objects, find, Memory…):
+     *
+     * @example
+     * const promise = world.evalInBot('Game.rooms.W0N1.controller.level');
+     * await world.tick(1);
+     * const level = await promise; // 1
+     *
+     * @example
+     * const promise = world.evalInBot(
+     *     'JSON.stringify(Game.rooms.W0N1.find(FIND_MY_CREEPS).map(c => c.pos))',
+     * );
+     * await world.tick(1);
+     * const creeps = await promise; // array of creep positions
+     *
+     * The engine serializes console results to strings, so `evalInBot` tries
+     * `JSON.parse` (parsed value, otherwise the raw string) — note that a
+     * result string that is itself valid JSON (e.g. `'123'`, `'true'`) is
+     * coerced to the parsed value. To transport objects/arrays back, use
+     * `JSON.stringify(...)` in the expression. If the expression throws, the
+     * promise rejects with the actual error. If no result arrives within
+     * `DEFAULT_EVAL_IN_BOT_TIMEOUT_MS`, the promise rejects with a hint to
+     * tick the world.
+     *
+     * @param {string} code
+     * @param {string} [botUsername] — if omitted, uses the only bot (single-bot scenario)
+     * @returns {Promise<any>} result of the expression
+     */
+    function evalInBot(code, botUsername) {
+        if (!bots) {
+            throw new Error('evalInBot: bots not available (pass bots to createWorldHelpers)');
+        }
+        const username = botUsername || defaultBot(bots);
+        const bot = bots[username];
+        if (!bot) {
+            throw new Error(`evalInBot: bot "${username}" not found`);
+        }
+
+        let entry = evalInBotState.get(username);
+        if (!entry) {
+            entry = { pendings: new Map(), listener: null };
+            evalInBotState.set(username, entry);
+        }
+        if (!entry.listener) {
+            entry.listener = (log, results) => {
+                // Bot's own console.log output carries no REPL results —
+                // only submitted console commands do. Skip those events.
+                if (!results || results.length === 0) {
+                    return;
+                }
+                for (const raw of results) {
+                    let envelope;
+                    try {
+                        envelope = JSON.parse(raw);
+                    } catch {
+                        // Not one of our wrapped commands (raw `exec` result).
+                        continue;
+                    }
+                    if (!envelope || typeof envelope !== 'object' || envelope.__evalInBot === undefined) {
+                        continue;
+                    }
+                    const pending = entry.pendings.get(envelope.__evalInBot);
+                    if (!pending) {
+                        continue;
+                    }
+                    entry.pendings.delete(envelope.__evalInBot);
+                    clearTimeout(pending.timer);
+                    if (envelope.error !== undefined) {
+                        const detail = envelope.serializeError
+                            ? `the expression returned a value that cannot be transported (${truncate(String(envelope.error))}) — use JSON.stringify(...) in the expression to send objects/arrays`
+                            : truncate(String(envelope.error));
+                        pending.reject(new Error(`evalInBot: expression failed: ${detail}`));
+                    } else {
+                        pending.resolve(parseConsoleResult(envelope.result));
+                    }
+                }
+            };
+            bot.on('console', entry.listener);
+        }
+
+        // Wrap the user code so that the result (or error) travels back
+        // tagged with a unique id. This keeps results correct even when the
+        // engine reports console results out of submission order, and it
+        // captures expression errors in-band instead of relying on the
+        // engine's separate error channel. `eval` is used so that both
+        // expressions and statements (e.g. `throw ...`) are supported. The
+        // wrapper's own `JSON.stringify` is guarded separately, so an
+        // unserializable value (circular object, BigInt…) is reported with a
+        // transport hint instead of a raw, confusing error.
+        const id = ++evalInBotSeq;
+        const wrappedCode =
+            `(() => { try { const __r = eval(${JSON.stringify(code)}); ` +
+            `try { return JSON.stringify({ __evalInBot: ${id}, result: __r }); } ` +
+            `catch (__s) { return JSON.stringify({ __evalInBot: ${id}, serializeError: true, error: String(__s && __s.stack || __s) }); } } ` +
+            `catch (__e) { return JSON.stringify({ __evalInBot: ${id}, error: String(__e && __e.stack || __e) }); } })()`;
+
+        const promise = new Promise((resolve, reject) => {
+            const pending = {
+                resolve,
+                reject,
+                // `unref()` — a pending timer must not keep the process alive
+                // after the world is disposed (worker isolation already calls
+                // process.exit, this is a belt-and-suspenders measure).
+                timer: setTimeout(() => {
+                    entry.pendings.delete(id);
+                    reject(
+                        new Error(
+                            `evalInBot: timed out waiting for the result of "${truncate(code)}". ` +
+                                'The expression runs on the next tick — call `world.tick(n)` after evalInBot.',
+                        ),
+                    );
+                }, DEFAULT_EVAL_IN_BOT_TIMEOUT_MS).unref(),
+            };
+            entry.pendings.set(id, pending);
+            bot.console(wrappedCode).catch((err) => {
+                entry.pendings.delete(id);
+                clearTimeout(pending.timer);
+                reject(err);
+            });
+        });
+        // The promise may reject during world.tick(n) — before the caller has
+        // a chance to await it. Attach a no-op handler to avoid Node's
+        // "unhandled rejection" crash; the caller still observes the rejection.
+        promise.catch(() => {});
+        return promise;
+    }
+
+    /**
+     * Releases `evalInBot` resources: removes the lazily-attached console
+     * listener from each bot and rejects any still-pending promises (their
+     * internal no-op `.catch` already swallows the rejection). Called from
+     * `world.dispose()`.
+     *
+     * Exposed as a non-enumerable property so `...helpers` spread in
+     * `world.js` does not leak it onto the public `world` object.
+     */
+    function disposeEvalInBot() {
+        for (const [username, entry] of evalInBotState) {
+            if (entry.listener) {
+                const bot = bots && bots[username];
+                if (bot && typeof bot.off === 'function') {
+                    bot.off('console', entry.listener);
+                }
+            }
+            for (const pending of entry.pendings.values()) {
+                clearTimeout(pending.timer);
+                pending.reject(
+                    new Error(
+                        'evalInBot: world disposed before the result arrived — call world.tick(n) and await the promise before dispose.',
+                    ),
+                );
+            }
+            entry.pendings.clear();
+        }
+        evalInBotState.clear();
+    }
+
+    /**
      * Returns bot _id by username, index, or the first bot.
      *
      * @param {string|number} [bot] — bot username (string) or index (number, 0-based)
@@ -393,7 +613,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         return doc ? doc._id : null;
     }
 
-    return {
+    const helpers = {
         // Controller
         setTicksToDowngrade,
         // Structures
@@ -411,6 +631,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         readMemory,
         writeMemory,
         exec,
+        evalInBot,
         botId,
         // find
         find,
@@ -418,6 +639,16 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         findIds,
         findId,
     };
+
+    // Internal lifecycle hook — hidden from `...helpers` spread (and thus
+    // from the public `world` object), but reachable by world.js's dispose().
+    Object.defineProperty(helpers, 'disposeEvalInBot', {
+        value: disposeEvalInBot,
+        enumerable: false,
+        writable: true,
+        configurable: true,
+    });
+    return helpers;
 }
 
 module.exports = { createWorldHelpers, getRoomRcl };

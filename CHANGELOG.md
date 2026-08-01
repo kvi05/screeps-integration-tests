@@ -28,6 +28,17 @@ PR #32 [Feat/understandable mistake if not 'memory fixture'](https://github.com/
   - Eliminates the manual `hasMemoryFixture` + `return { skipped: true }`
     boilerplate in scenarios.
 
+PR #33 [Feat/eval in bot](https://github.com/kvi05/screeps-integration-tests/pull/33)
+
+- **`world.evalInBot(code, username?)`:** evaluate JS code in a bot's context
+  and resolve with the result. The code runs via the bot console on the next
+  server tick, so the pattern is `const p = world.evalInBot('Game.time'); await
+world.tick(1); const data = await p;`. Results are transported as a
+  JSON envelope matched by a unique id (order-independent), and JSON-encoded
+  strings are parsed back into values. Errors thrown by the expression reject
+  the promise; pending calls time out after 10s with a hint to call
+  `world.tick(n)`.
+
 ### Changed
 
 PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)

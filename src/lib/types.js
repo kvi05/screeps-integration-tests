@@ -519,6 +519,7 @@
  * @property {RunFn} run                          — main run, returns WorldReport
  * @property {TickFn} tick                        — execute `n` ticks
  * @property {ExecFn} exec                        — execute JS code in a bot
+ * @property {EvalInBotFn} evalInBot              — evaluate JS code in a bot and resolve with the result
  * @property {SpawnCreepFn} spawnCreep            — spawn a creep (room required)
  * @property {BotIdFn} botId                      — _id of a bot by username/index/first
  * @property {EventLogFn} getEventLog                — read room event log
@@ -560,6 +561,13 @@
  * @param {string} code
  * @param {string} [username]
  * @returns {Promise<void>}
+ */
+
+/**
+ * @callback EvalInBotFn
+ * @param {string} code
+ * @param {string} [username]
+ * @returns {Promise<any>}
  */
 
 /**
