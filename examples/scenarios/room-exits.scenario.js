@@ -2,6 +2,7 @@
 
 const assert = require('node:assert');
 const { createWorld, spec } = require('screeps-integration-tests');
+const { assertBotWorked } = require('screeps-integration-tests/assertions');
 
 /**
  * Scenario: room-exits.
@@ -26,7 +27,7 @@ async function run(opts = {}) {
                 {
                     username: 'bot',
                     rooms: roomsInput[0].name,
-                    modules: { main: 'module.exports.loop = function() {};' },
+                    modules: { main: 'module.exports.loop = function() { Memory.__tick = Game.time; };' },
                 },
             ],
             ticks,
@@ -92,6 +93,7 @@ async function run(opts = {}) {
             assert.strictEqual(ex['W0N2'][TOP], undefined, 'W0N2.TOP should not exist');
             assert.strictEqual(ex['W0N2'][LEFT], undefined, 'W0N2.LEFT should not exist');
             assert.strictEqual(ex['W0N2'][RIGHT], undefined, 'W0N2.RIGHT should not exist');
+            assertBotWorked(world.report);
         } finally {
             await world.dispose();
         }
@@ -123,6 +125,7 @@ async function run(opts = {}) {
             assert.strictEqual(ex['W1N1'][TOP], undefined, 'W1N1.TOP should not exist');
             assert.strictEqual(ex['W1N1'][BOTTOM], undefined, 'W1N1.BOTTOM should not exist');
             assert.strictEqual(ex['W1N1'][LEFT], undefined, 'W1N1.LEFT should not exist');
+            assertBotWorked(world.report);
         } finally {
             await world.dispose();
         }
@@ -148,6 +151,7 @@ async function run(opts = {}) {
             // Both rooms are isolated — no exits at all
             assert.deepStrictEqual(ex['W0N1'], {}, 'W0N1 should have no exits');
             assert.deepStrictEqual(ex['W5N5'], {}, 'W5N5 should have no exits');
+            assertBotWorked(world.report);
         } finally {
             await world.dispose();
         }
@@ -180,6 +184,7 @@ async function run(opts = {}) {
             const route = mRoute ? mRoute[1] : '<NOT_FOUND>';
             // findRoute returns an array of moves [{exit, room}] or ERR_NO_PATH (-2)
             assert.ok(route.startsWith('['), `findRoute should return an array of moves, got: ${route}`);
+            assertBotWorked(world.report);
         } finally {
             await world.dispose();
         }

@@ -122,7 +122,7 @@ async function run(opts = {}) {
         }
     }
 
-    console.log('PASS: world-lifecycle (5/5 tests passed)');
+    console.log('PASS: world-lifecycle (2/2 tests passed)');
     return {};
 }
 
