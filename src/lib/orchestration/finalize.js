@@ -38,11 +38,11 @@
  *   finalMemory, finalRcl, profileText, profileCallgrind are filled
  * @param {number} startTime         — Date.now() captured at world creation
  * @param {Object<string,Bot>} bots  — bot instances keyed by username
- * @param {import('./storageAdapter').StorageAdapter} adapter
+ * @param {import('../runtime/storageAdapter').StorageAdapter} adapter
  * @param {Object<string,RoomStatus>} roomStatus
  * @param {Object<string,ResolvedBotSpec>} resolvedBots
- * @param {(adapter: import('./storageAdapter').StorageAdapter, username: string) => Promise<Object>} getBotMemoryFn
- * @param {(adapter: import('./storageAdapter').StorageAdapter, roomName: string) => Promise<number>} getRclFn
+ * @param {(adapter: import('../runtime/storageAdapter').StorageAdapter, username: string) => Promise<Object>} getBotMemoryFn
+ * @param {(adapter: import('../runtime/storageAdapter').StorageAdapter, roomName: string) => Promise<number>} getRclFn
  * @returns {Promise<WorldReport>}
  */
 async function finalizeReport(report, startTime, bots, adapter, roomStatus, resolvedBots, getBotMemoryFn, getRclFn) {

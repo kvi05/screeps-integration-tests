@@ -21,7 +21,7 @@
 const DEFAULT_TOLERANCE = 0;
 /** @type {number} */
 const DEFAULT_RELATIVE_TOLERANCE = 0;
-/** @type {import('./types').RegressionDirection} */
+/** @type {RegressionDirection} */
 const DEFAULT_REGRESSION_DIRECTION = 'both';
 /** @type {'average'|'latest'|'sum'|'delta'} */
 const DEFAULT_AGGREGATOR = 'average';
@@ -50,7 +50,7 @@ const DEFAULT_AGGREGATOR = 'average';
 
 class MetricsRegression {
     /**
-     * @param {import('./types').MetricsReport} baselineMetricsReport — baseline report
+     * @param {import('../types').MetricsReport} baselineMetricsReport — baseline report
      */
     constructor(baselineMetricsReport) {
         /** @private */
@@ -60,7 +60,7 @@ class MetricsRegression {
     /**
      * Compares a metric between the current report and baseline.
      *
-     * @param {import('./types').MetricsReport} currentReport — current report
+     * @param {import('../types').MetricsReport} currentReport — current report
      * @param {MetricEntityType} entityType
      * @param {string} entityId
      * @param {string} metricName
@@ -124,7 +124,7 @@ class MetricsRegression {
      * @param {MetricSeries} series
      * @param {string} metricName
      * @param {CompareOpts['aggregator']} aggregator
-     * @param {import('./types').MetricsReport} metricsReport — for calling average/sum/delta
+     * @param {import('../types').MetricsReport} metricsReport — for calling average/sum/delta
      * @returns {number|undefined}
      */
     _aggregate(series, metricName, aggregator, metricsReport) {

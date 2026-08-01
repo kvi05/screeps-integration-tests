@@ -1,6 +1,10 @@
 'use strict';
 
 /**
+ * Console capture: collects bot console output and classifies error/warning lines.
+ */
+
+/**
  * JavaScript error patterns that the engine may log WITHOUT an [ERROR] prefix.
  * Used to detect errors in lines from report.logs.
  */

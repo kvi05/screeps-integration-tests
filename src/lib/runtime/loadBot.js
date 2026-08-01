@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Loads a bot's `dist/*.js` files into a module map for `addBot`.
+ */
+
 const path = require('path');
 const { safeReaddir, safeReadFile } = require('../errors');
 

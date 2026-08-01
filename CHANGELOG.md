@@ -39,6 +39,10 @@ world.tick(1); const data = await p;`. Results are transported as a
   the promise; pending calls time out after 10s with a hint to call
   `world.tick(n)`.
 
+PR #34 [Chore/docs jsdoc cleanup](https://github.com/kvi05/screeps-integration-tests/pull/34)
+
+- Added one-line comments to files that did not have a description
+
 ### Changed
 
 PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)

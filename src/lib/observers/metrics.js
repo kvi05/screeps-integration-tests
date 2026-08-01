@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Collects and samples time-series metrics from room state each tick.
+ */
+
 const {
     STRUCTURE_SPAWN,
     STRUCTURE_TOWER,

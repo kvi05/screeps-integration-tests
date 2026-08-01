@@ -1,5 +1,10 @@
 'use strict';
 
+/**
+ * `createWorld` — the main entry point: builds the server, materialises rooms,
+ * runs ticks, and produces the final report.
+ */
+
 const path = require('path');
 const { prepareServer, addBots } = require('../runtime/runtime');
 const { materializeRoom } = require('../builders');
@@ -105,10 +110,10 @@ async function doServerTick(server, report) {
  * Runs all per-room observations for a single tick: event log, owners
  * snapshot, metrics sampling, and RCL tracking.
  *
- * @param {import('./storageAdapter').StorageAdapter} adapter
- * @param {Object<string, import('./types').RoomStatus>} roomStatus
+ * @param {import('../runtime/storageAdapter').StorageAdapter} adapter
+ * @param {Object<string, import('../types').RoomStatus>} roomStatus
  * @param {WorldReport} report
- * @param {import('./types').MetricsOpts} metricsConfig
+ * @param {import('../types').MetricsOpts} metricsConfig
  * @param {number} tickNum
  */
 async function observeAllRooms(adapter, roomStatus, report, metricsConfig, tickNum) {
@@ -182,14 +187,14 @@ function createEmptyReport() {
  * Iterates over `roomInputs`, calls `buildCanonicalRoom` to resolve
  * fixtures/overrides, then `materializeRoom` to write to the DB.
  *
- * @param {import('./types').RoomSpecInput[]} roomInputs
- * @param {import('./storageAdapter').StorageAdapter} adapter
+ * @param {import('../types').RoomSpecInput[]} roomInputs
+ * @param {import('../runtime/storageAdapter').StorageAdapter} adapter
  * @param {string} [defaultBotUserId] — _id of the first bot for default structure ownership
  * @param {Object<string, string>} [roomToBotUserId] — per-room bot user id lookup
- * @returns {Promise<Object<string, import('./types').RoomStatus>>}
+ * @returns {Promise<Object<string, import('../types').RoomStatus>>}
  */
 async function materializeRooms(roomInputs, adapter, defaultBotUserId, roomToBotUserId) {
-    /** @type {Object<string, import('./types').RoomStatus>} */
+    /** @type {Object<string, import('../types').RoomStatus>} */
     const roomStatus = {};
     for (const roomInput of roomInputs) {
         const name = roomInput.name;
@@ -229,11 +234,11 @@ async function materializeRooms(roomInputs, adapter, defaultBotUserId, roomToBot
  *
  * Called after `server.start()` so that console events can be received.
  *
- * @param {Object<string, import('./types').Bot>} bots
- * @param {Object<string, import('./types').ResolvedBotSpec>} resolvedBots
- * @param {import('./storageAdapter').StorageAdapter} adapter
+ * @param {Object<string, import('../types').Bot>} bots
+ * @param {Object<string, import('../types').ResolvedBotSpec>} resolvedBots
+ * @param {import('../runtime/storageAdapter').StorageAdapter} adapter
  * @param {Object} opts — WorldOpts (uses `.memory`, `.memoryOverrides`)
- * @param {import('./types').WorldReport} report
+ * @param {import('../types').WorldReport} report
  * @param {string} globalLogLevel
  * @param {number} maxConsoleLines
  */

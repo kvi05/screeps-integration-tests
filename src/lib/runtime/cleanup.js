@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Server cleanup: stops mockup server processes and prunes the cache directory.
+ */
+
 const fs = require('fs');
 const path = require('path');
 
@@ -85,10 +89,10 @@ async function waitForProcessExit(proc, timeoutMs) {
  * removes the cache directory. This prevents storage/engine
  * process leaks and port conflicts between sequential runs.
  *
- * @param {import('./types').ScreepsServer} server
+ * @param {import('../types').ScreepsServer} server
  * @param {import('./storageAdapter').StorageAdapter} adapter
  * @param {string} cacheDir
- * @returns {import('./types').DisposeFn}
+ * @returns {import('../types').DisposeFn}
  */
 function createDispose(server, adapter, cacheDir) {
     return async () => {

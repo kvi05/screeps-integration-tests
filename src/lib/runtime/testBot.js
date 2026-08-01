@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Minimal bot object for the runtime with EventEmitter-based console subscription.
+ */
+
 const { EventEmitter } = require('events');
 
 /**

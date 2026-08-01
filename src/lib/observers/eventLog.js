@@ -1,6 +1,10 @@
 'use strict';
 
 /**
+ * Reads and filters the per-room event log from `rooms.events` for a tick.
+ */
+
+/**
  * Event constants from `@screeps/common/lib/constants.js`.
  * @see https://docs.screeps.com/api/#Constants
  */

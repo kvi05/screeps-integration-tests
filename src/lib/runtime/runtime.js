@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Runtime layer: server preparation, bot registration, and the runtime factory.
+ */
+
 const fs = require('fs');
 const path = require('path');
 const { ScreepsServer } = require('@cool-andre/screeps-server-mockup');
@@ -100,7 +104,7 @@ async function addBots(opts) {
     const botsList = opts.bots || [];
     /** @type {Object<string,Bot>} */
     const bots = {};
-    /** @type {Object<string,import('./types').ResolvedBotSpec>} */
+    /** @type {Object<string,import('../types').ResolvedBotSpec>} */
     const resolvedBots = {};
 
     for (const b of botsList) {
