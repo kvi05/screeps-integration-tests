@@ -12,10 +12,12 @@ const BOT = 'bot';
  *
  * Verifies: world.evalInBot — evaluates JS code in the bot's context and
  * resolves with the result on the next tick (promise is created BEFORE the
- * tick and awaited AFTER it), JSON transport for objects/arrays, FIFO
- * ordering of multiple pending calls, error propagation for throwing
- * expressions, and noise immunity — `console.log` commands submitted via
- * `world.exec` on the same tick must not affect the returned value.
+ * tick and awaited AFTER it), JSON transport for objects/arrays, multiple
+ * pending calls resolved by a unique id (order-independent), error
+ * propagation for throwing expressions, a transport hint for unserializable
+ * (cyclic) results, `undefined` mapping, and noise immunity — `console.log`
+ * commands submitted via `world.exec` on the same tick must not affect the
+ * returned value.
  *
  * Run: npm run test:integration -- --only eval-in-bot
  *
@@ -76,6 +78,25 @@ async function run(opts = {}) {
         const errPromise = world.evalInBot('throw new Error("eval boom")');
         await world.tick(1);
         await assert.rejects(errPromise, /evalInBot: expression failed/, 'throwing expression rejects');
+
+        // ─── Transport failure: unserializable result gets a hint ─
+        // The wrapper transports results via JSON.stringify, so a cyclic
+        // value (here a self-referencing object) cannot be transported and
+        // the promise must reject with a hint to use JSON.stringify(...).
+        const circularPromise = world.evalInBot('(() => { const o = {}; o.self = o; return o; })()');
+        await world.tick(1);
+        // The embedded engine stack trace contains newlines, so match across
+        // line boundaries ([\s\S] instead of .).
+        await assert.rejects(
+            circularPromise,
+            /cannot be transported[\s\S]*use JSON\.stringify/,
+            'cyclic result produces a transport hint',
+        );
+
+        // ─── Undefined result maps back to undefined ─────────
+        const undefPromise = world.evalInBot('undefined');
+        await world.tick(1);
+        assert.strictEqual(await undefPromise, undefined, 'undefined result maps back to undefined');
 
         // Let the bot run a few more ticks for a healthy report.
         await world.tick(2);
