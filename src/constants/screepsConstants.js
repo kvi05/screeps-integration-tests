@@ -95,6 +95,8 @@ const STRUCTURE_POWER_BANK = 'powerBank';
 const STRUCTURE_PORTAL = 'portal';
 /** @type {string} */
 const STRUCTURE_KEEPER_LAIR = 'keeperLair';
+/** @type {string} */
+const STRUCTURE_CONSTRUCTION_SITE = 'constructionSite';
 
 /** @type {string[]} */
 const BOT_STRUCTURE_TYPES = [
@@ -214,6 +216,8 @@ const SOURCE_KEEPER_USER_ID = '3';
 
 /** @type {string} */
 const TYPE_CREEPS = 'creep';
+/** @type {string} */
+const TYPE_POWER_CREEPS = 'powerCreep';
 
 // ─── Object export ──────────────────────────────────────────────────────────
 
@@ -257,6 +261,7 @@ module.exports = {
     STRUCTURE_POWER_BANK,
     STRUCTURE_PORTAL,
     STRUCTURE_KEEPER_LAIR,
+    STRUCTURE_CONSTRUCTION_SITE,
     BOT_STRUCTURE_TYPES,
 
     // RESOURCE
@@ -279,6 +284,7 @@ module.exports = {
 
     // Type names (for type === ... in filters)
     TYPE_CREEPS,
+    TYPE_POWER_CREEPS,
 
     // Error codes
     OK,
