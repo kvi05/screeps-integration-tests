@@ -185,7 +185,7 @@ const world = await createWorld({
   ],
   bots: [{ username: 'bot', rooms: ['W0N1'] }],
   ticks: 10,
-  metrics: { every: 1, rooms: true },
+  metrics: { every: 1, rooms: true, bots: true },
 });
 
 await world.run();
@@ -206,7 +206,14 @@ assert.ok(snapshot.W0N1 && snapshot.W0N2);
 // Aggregation (average, sum, delta, rate) — single API for any entity
 const r1 = m.room('W0N1');
 console.log('avg RCL:', m.average(r1, 'rcl'));
-// For bots (when implemented): m.average(m.bot('bot1'), 'cpu')
+
+// Bot metrics (opt-in via metrics.bots): cpuUsage / bucket / cpuLimit
+ma.latestAtLeast('bots', 'bot', 'cpuLimit', 100);
+console.log('avg CPU:', m.average(m.bot('bot'), 'cpuUsage'));
+
+// New room metrics: construction sites + total energy
+ma.latestAtLeast('rooms', 'W0N1', 'constructionSiteCount', 0);
+ma.latestAtLeast('rooms', 'W0N1', 'totalEnergy', 0);
 
 // CSV in one line (no separate import needed)
 const csv = m.toCsv({ entityTypes: ['rooms'] });
