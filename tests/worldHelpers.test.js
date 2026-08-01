@@ -93,16 +93,24 @@ function createMockBot(username, id) {
 function wrap(code, id) {
     return (
         `(() => { try { const __r = eval(${JSON.stringify(code)}); ` +
-        `return JSON.stringify({ __evalInBot: ${id}, result: __r }); } ` +
+        `try { return JSON.stringify({ __evalInBot: ${id}, result: __r }); } ` +
+        `catch (__s) { return JSON.stringify({ __evalInBot: ${id}, serializeError: true, error: String(__s && __s.stack || __s) }); } } ` +
         `catch (__e) { return JSON.stringify({ __evalInBot: ${id}, error: String(__e && __e.stack || __e) }); } })()`
     );
 }
 
-/** Builds a console result envelope as the engine would emit it (JSON string). */
-function envelope(id, result, error) {
+/**
+ * Builds a console result envelope as the engine would emit it (JSON string).
+ * `serializeError` marks the error as a transport failure of the wrapper's
+ * own `JSON.stringify` (circular object, BigInt…).
+ */
+function envelope(id, result, error, serializeError) {
     const obj = { __evalInBot: id };
     if (error !== undefined) {
         obj.error = error;
+        if (serializeError) {
+            obj.serializeError = true;
+        }
     } else {
         obj.result = result;
     }
@@ -596,6 +604,19 @@ describe('evalInBot', () => {
         await expect(promise).resolves.toBe('hello world');
     });
 
+    it('coerces a result string that is itself valid JSON (number/bool/null)', async () => {
+        // The engine String()-serializes results, so the string `'123'`
+        // travels as the value "123" — parseConsoleResult must coerce it
+        // back to a number (same for 'true' -> true, 'null' -> null).
+        const pNumber = helpers.evalInBot('"123"');
+        const pBool = helpers.evalInBot('"true"');
+        const pNull = helpers.evalInBot('"null"');
+        bot.emit('console', [], [envelope(1, '123'), envelope(2, 'true'), envelope(3, 'null')]);
+        await expect(pNumber).resolves.toBe(123);
+        await expect(pBool).resolves.toBe(true);
+        await expect(pNull).resolves.toBeNull();
+    });
+
     it('maps a missing result back to undefined', async () => {
         const promise = helpers.evalInBot('undefined');
         bot.emit('console', [], [envelope(1, undefined)]);
@@ -611,6 +632,26 @@ describe('evalInBot', () => {
         await expect(p1).resolves.toBe(10);
         await expect(p2).resolves.toBe(20);
         await expect(p3).resolves.toBe(30);
+    });
+
+    it('routes results per bot and ignores envelopes from other bots', async () => {
+        const botA = createMockBot('alpha', 'bot_a');
+        const botB = createMockBot('beta', 'bot_b');
+        const multiHelpers = createWorldHelpers(adapter, 'bot_a', {}, { alpha: botA, beta: botB });
+
+        const pA = multiHelpers.evalInBot('1', 'alpha'); // id 1
+        const pB = multiHelpers.evalInBot('2', 'beta'); // id 2
+
+        expect(botA.console).toHaveBeenCalledWith(wrap('1', 1));
+        expect(botB.console).toHaveBeenCalledWith(wrap('2', 2));
+
+        // Envelopes arriving on the wrong bot's console must be ignored;
+        // each bot's listener only resolves its own pending calls.
+        botA.emit('console', [], [envelope(2, 20), envelope(1, 10)]);
+        botB.emit('console', [], [envelope(1, 10), envelope(2, 20)]);
+
+        await expect(pA).resolves.toBe(10);
+        await expect(pB).resolves.toBe(20);
     });
 
     it('ignores console events without results (bot log noise)', async () => {
@@ -642,6 +683,60 @@ describe('evalInBot', () => {
         const promise = helpers.evalInBot('throw new Error("boom")');
         bot.emit('console', [], [envelope(1, undefined, 'Error: boom')]);
         await expect(promise).rejects.toThrow('evalInBot: expression failed: Error: boom');
+    });
+
+    it('rejects with a transport hint when the result cannot be serialized', async () => {
+        const promise = helpers.evalInBot('Game.spawns');
+        bot.emit('console', [], [envelope(1, undefined, 'TypeError: Converting circular structure to JSON', true)]);
+        await expect(promise).rejects.toThrow('cannot be transported');
+        await expect(promise).rejects.toThrow('use JSON.stringify(...)');
+    });
+
+    it('rejects with the error when submitting to the bot console fails', async () => {
+        bot.console.mockRejectedValueOnce(new Error('console transport down'));
+        const promise = helpers.evalInBot('Game.time');
+        // The submit failure must reject the promise and clean up the
+        // pending entry (no stray timer / listener state).
+        await expect(promise).rejects.toThrow('console transport down');
+    });
+
+    it('disposeEvalInBot is safe to call when nothing is pending (idempotent)', () => {
+        expect(() => helpers.disposeEvalInBot()).not.toThrow();
+        expect(() => helpers.disposeEvalInBot()).not.toThrow();
+    });
+
+    it('disposeEvalInBot tolerates bots without an off() method', async () => {
+        // Minimal bots may only implement on() — dispose must not throw and
+        // must still reject pending calls.
+        const rawBot = createMockBot('myBot', 'bot_123');
+        rawBot.off = undefined;
+        const rawHelpers = createWorldHelpers(adapter, 'bot_123', {}, { myBot: rawBot });
+
+        const promise = rawHelpers.evalInBot('Game.time');
+        expect(() => rawHelpers.disposeEvalInBot()).not.toThrow();
+        await expect(promise).rejects.toThrow('world disposed before the result arrived');
+    });
+
+    it('supports new evalInBot calls after disposeEvalInBot', async () => {
+        helpers.disposeEvalInBot();
+        // Fresh state: the listener is re-attached lazily and ids restart.
+        const promise = helpers.evalInBot('Game.time');
+        bot.emit('console', [], [envelope(1, 42)]);
+        await expect(promise).resolves.toBe(42);
+    });
+
+    it('does not leak disposeEvalInBot through the helpers spread', () => {
+        expect(typeof helpers.disposeEvalInBot).toBe('function');
+        // Non-enumerable, so `...helpers` spread in world.js stays clean.
+        expect(Object.keys(helpers)).not.toContain('disposeEvalInBot');
+    });
+
+    it('disposeEvalInBot removes the console listener and rejects pending calls', async () => {
+        const promise = helpers.evalInBot('Game.time');
+        helpers.disposeEvalInBot();
+        // Listener is gone: emitting the envelope must not resolve the promise.
+        bot.emit('console', [], [envelope(1, 99)]);
+        await expect(promise).rejects.toThrow('world disposed before the result arrived');
     });
 
     it('throws synchronously if bots are not available', () => {
