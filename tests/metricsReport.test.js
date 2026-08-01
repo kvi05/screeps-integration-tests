@@ -337,8 +337,14 @@ describe('MetricsReport', () => {
             expect(cfg).toEqual({ every: 0, rooms: true, colonies: false, bots: false, world: false });
         });
 
+        it('enables bot metrics when metrics.bots is true', () => {
+            const cfg = MetricsReport.resolveConfig({ metrics: { bots: true } });
+            expect(cfg).toEqual({ every: 0, rooms: true, colonies: false, bots: true, world: false });
+        });
+
         it('throws on unimplemented types', () => {
             expect(() => MetricsReport.resolveConfig({ metrics: { colonies: true } })).toThrow(/colonies/);
+            expect(() => MetricsReport.resolveConfig({ metrics: { world: true } })).toThrow(/world/);
         });
     });
 

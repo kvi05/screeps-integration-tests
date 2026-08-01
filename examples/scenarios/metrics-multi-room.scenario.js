@@ -40,11 +40,33 @@ async function run(opts = {}) {
         ticks,
         profiling: opts.profiling,
         logLevel: 'error',
-        metrics: { every: 1, rooms: true },
+        metrics: { every: 1, rooms: true, bots: true },
     });
 
     try {
         const { report } = world;
+
+        // Insert construction sites directly into the DB before the run so
+        // that the construction-site room metrics can be verified. The mock
+        // bot never builds, so progress stays unchanged.
+        const { db } = world.server.common.storage;
+        await db['rooms.objects'].insert({
+            type: 'constructionSite',
+            room: ROOM_1,
+            x: 10,
+            y: 10,
+            progress: 0,
+            progressTotal: 100,
+        });
+        await db['rooms.objects'].insert({
+            type: 'constructionSite',
+            room: ROOM_1,
+            x: 11,
+            y: 10,
+            progress: 40,
+            progressTotal: 200,
+        });
+
         await world.run();
 
         assertBotWorked(report);
@@ -71,9 +93,24 @@ async function run(opts = {}) {
         assert.ok(snapshot[ROOM_1], `snapshot at tick 5 should include ${ROOM_1}`);
         assert.ok(snapshot[ROOM_2], `snapshot at tick 5 should include ${ROOM_2}`);
 
+        // New room metrics: construction sites + total energy.
+        ma.reached('rooms', ROOM_1, 'constructionSiteCount', 2);
+        // (100-0) + (200-40) = 260
+        ma.latestAtLeast('rooms', ROOM_1, 'constructionSiteTotalLeftProgress', 260);
+        ma.latestAtLeast('rooms', ROOM_1, 'totalEnergy', 0);
+
+        // Bot metrics (opt-in via metrics.bots): CPU usage, bucket, limit.
+        const b = m.bot(BOT_USERNAME);
+        assert.strictEqual(b.length, ticks, `${BOT_USERNAME}: expected ${ticks} samples`);
+        ma.latestAtLeast('bots', BOT_USERNAME, 'cpuLimit', 100);
+        const latestBot = b[b.length - 1];
+
+        assert.strictEqual(latestBot.cpuUsage, 1, 'cpuUsage should be a number');
+        assert.strictEqual(latestBot.bucket, 10000, 'bucket should be a number');
+        assert.strictEqual(latestBot.cpuLimit, 100, 'cpuLimit should be a number');
+
         // Report structure is stable (MetricsReport getters).
         assert.deepStrictEqual(m.colonies, {}, 'colonies should be an empty object');
-        assert.deepStrictEqual(m.bots, {}, 'bots should be an empty object');
         assert.ok(Array.isArray(m.world), 'world should be an array');
 
         console.log(`PASS: metrics-multi-room (${report.ticksRun} ticks)`);
