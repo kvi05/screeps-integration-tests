@@ -48,7 +48,10 @@ const RUNNER_SCRIPT = path.join(__dirname, '..', 'src', 'runScenario.js');
  */
 function pipeChildStreams(child) {
     if (child.stdout) {
-        child.stdout.pipe(process.stdout);
+        // Forward manually instead of pipe(): `pipe()` registers 4 listeners
+        // (unpipe/error/close/finish) on `process.stdout` per worker, which
+        // trips MaxListenersExceededWarning once 11+ workers run concurrently.
+        child.stdout.on('data', (chunk) => process.stdout.write(chunk));
     }
 
     if (!child.stderr) {
