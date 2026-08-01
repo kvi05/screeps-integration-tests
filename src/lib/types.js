@@ -490,25 +490,6 @@
  * @property {boolean} [world=false]   — collect world metrics (not yet supported)
  */
 
-/**
- * Context for a metric collector.
- *
- * @typedef {Object} MetricCollectorContext
- * @property {ScreepsServer} server
- * @property {number} tick
- * @property {string} [roomName]
- * @property {string} [botUsername]
- * @property {WorldReport} report
- */
-
-/**
- * Metric collector returns a plain object with metrics.
- *
- * @callback MetricCollector
- * @param {MetricCollectorContext} context
- * @returns {Object<string, number>|Promise<Object<string, number>>}
- */
-
 // ─── World Instance ────────────────────────────────────────────────────────
 
 /**
