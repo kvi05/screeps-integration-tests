@@ -142,9 +142,13 @@ function deepMergeMemory(target, ...sources) {
  * Normalizes a single bot's initial memory source.
  *
  * Supported forms:
- * - `'fixture-name'`
- * - `{ fixture: 'fixture-name' }`
- * - inline object Memory
+ * - `'fixture-name'` — loads `*.memory.json` by name
+ * - `{ fixture: 'fixture-name', ...overrides }` — loads fixture + merges extra keys
+ * - inline object Memory — used as-is
+ *
+ * **Reserved key:** `fixture` is a framework-level key and is **not** passed
+ * through to bot Memory. If your bot's Memory happens to have a top-level `fixture`
+ * key, put it in `memoryOverrides` instead of `memory`.
  *
  * @param {string|BotMemory|undefined|null} source
  * @param {string} contextLabel
@@ -243,7 +247,52 @@ function resolveInitialMemoryByBot(botNames, memory, memoryOverrides) {
     return resolved;
 }
 
+/**
+ * Extracts fixture names from a `memory` option value.
+ *
+ * Supports all valid shapes:
+ * - string: `'rcl3-stable'`
+ * - object with `.fixture`: `{ fixture: 'rcl3-stable', ...overrides }`
+ * - per-bot map: `{ bot1: 'fix1', bot2: { fixture: 'fix2' } }`
+ * - inline memory object (no `.fixture`): returns `[]`
+ * - `undefined` / `null`: returns `[]`
+ *
+ * **Reserved key:** `fixture` is a framework-level key. An object with a
+ * `.fixture` string property is always treated as a fixture reference — the
+ * `fixture` key itself is never considered inline Memory data. If your bot
+ * stores data under a `Memory.fixture` key, use `memoryOverrides` to inject it.
+ *
+ * Used for early validation in `createWorld()` — check fixture existence
+ * before starting the server.
+ *
+ * @param {string|Object<string,*>|undefined|null} source
+ * @returns {string[]}
+ */
+function collectMemoryFixtureNames(source) {
+    if (source === undefined || source === null) {
+        return [];
+    }
+    if (typeof source === 'string') {
+        return [source];
+    }
+    if (typeof source !== 'object' || Array.isArray(source)) {
+        return [];
+    }
+    // Object with explicit `.fixture` field
+    if (typeof source.fixture === 'string') {
+        return [source.fixture];
+    }
+    // Walk values: some may be fixture strings, some inline objects
+    /** @type {string[]} */
+    const names = [];
+    for (const value of Object.values(source)) {
+        names.push(...collectMemoryFixtureNames(value));
+    }
+    return names;
+}
+
 module.exports = {
+    resolveMemoryFixturesDir,
     setBotMemory,
     getBotMemory,
     loadMemoryFixture,
@@ -253,4 +302,5 @@ module.exports = {
     resolveMemorySource,
     normalizePerBotMemoryOption,
     resolveInitialMemoryByBot,
+    collectMemoryFixtureNames,
 };

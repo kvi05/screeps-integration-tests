@@ -15,6 +15,19 @@ PR #31 [Refactor/inconsistent pairs](https://github.com/kvi05/screeps-integratio
   in addition to `spec.controller(opts)` — same signature as every other `spec.*`
   constructor. Backward compatible; explicit `opts.x`/`opts.y` win over positional args.
 
+PR #32 [Feat/understandable mistake if not 'memory fixture'](https://github.com/kvi05/screeps-integration-tests/pull/32)
+
+- **Early memory fixture validation:** `createWorld` now checks that memory
+  fixtures referenced in the `memory` option exist **before** starting the server
+  (fail-early). Missing fixture → a clear `FixtureError` with the expected file
+  path and fix instructions is thrown before any server resources are allocated.
+  No extra options needed — the framework infers fixture names from the `memory`
+  field itself.
+  - New helper `collectMemoryFixtureNames()` extracts fixture names from any
+    valid `memory` shape (string, `{ fixture }`, per-bot map).
+  - Eliminates the manual `hasMemoryFixture` + `return { skipped: true }`
+    boilerplate in scenarios.
+
 ### Changed
 
 PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)

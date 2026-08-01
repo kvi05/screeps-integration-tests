@@ -236,16 +236,16 @@ function printSummary(results) {
         const timeStr = time !== undefined ? ` (${Math.round(time / 1000)}s)` : '';
         console.log(`  ${icon} ${name}${timeStr}`);
         if (error) {
-            // Show the first meaningful lines of the error (up to 6).
+            // Show the first meaningful lines of the error (up to 10).
             // FrameworkError.toString() produces multi-line formatted messages;
             // raw errors have a stack trace — the first few lines are the most useful.
             const errorLines = error.trim().split('\n');
-            const showLines = errorLines.slice(0, 6);
+            const showLines = errorLines.slice(0, 10);
             for (const line of showLines) {
                 console.log(`       ${line.trim()}`);
             }
-            if (errorLines.length > 6) {
-                console.log(`       ... (${errorLines.length - 6} more lines)`);
+            if (errorLines.length > 10) {
+                console.log(`       ... (${errorLines.length - 10} more lines)`);
             }
         }
         if (result?.frameworkWarnings?.length > 0) {

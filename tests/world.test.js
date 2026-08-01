@@ -1,18 +1,43 @@
 'use strict';
 
 /**
- * Unit tests for world.js — public API and helper functions.
+ * Unit tests for world subsystem — createWorld, buildCanonicalRoom,
+ * and helper functions.
  *
  * Cover:
+ * - createWorld: memory fixture validation (missing/existing fixtures,
+ *   inline memory, multi-bot fail-fast).
  * - buildCanonicalRoom: neutral structures,
  *   fixture + overrides pipeline, hostiles userId='2',
  *   inline fixture, creeps userId, controller edge cases.
  * - resolveDistDir / resolveCacheBase (pure functions).
  *
- * @file Unit tests for world.js
+ * @file Unit tests for world subsystem
  */
 
+const { createWorld, spec } = require('../src');
 const { buildCanonicalRoom, resolveDistDir, resolveCacheBase } = require('../src/lib/orchestration/world');
+const { FixtureError } = require('../src/lib/errors');
+const { collectMemoryFixtureNames } = require('../src/lib/builders/memory');
+
+// ── Mocks for createWorld memory fixture validation ────────────────────────
+
+// Mock hasMemoryFixture for deterministic tests — only 'existing-fixture' is present
+jest.mock('../src/lib/builders/memory', () => {
+    const actual = jest.requireActual('../src/lib/builders/memory');
+    return {
+        ...actual,
+        hasMemoryFixture: jest.fn((name) => {
+            return name === 'existing-fixture';
+        }),
+    };
+});
+
+// Prevent real server startup — createWorld will throw early on fixtures or later on server mock
+jest.mock('../src/lib/runtime/runtime', () => ({
+    prepareServer: jest.fn().mockRejectedValue(new Error('server blocked by test')),
+    addBots: jest.fn().mockRejectedValue(new Error('server blocked by test')),
+}));
 
 describe('buildCanonicalRoom', () => {
     describe('neutral structures (W3 regression)', () => {
@@ -397,5 +422,135 @@ describe('resolveDistDir / resolveCacheBase', () => {
             process.env.SIT_CACHE_DIR = '/env/cache';
             expect(resolveCacheBase({ cacheDir: '/opts/cache' })).toBe('/opts/cache');
         });
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// createWorld memory fixture validation
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('createWorld memory fixture validation', () => {
+    const BASE_OPTS = {
+        rooms: [{ name: 'W0N1', controller: spec.controller({ level: 1 }) }],
+    };
+
+    // ── Missing fixtures ──────────────────────────────────────────────
+
+    it('throws FixtureError when `memory` string fixture is missing', async () => {
+        await expect(createWorld({ ...BASE_OPTS, memory: 'nonexistent-fixture' })).rejects.toThrow(FixtureError);
+    });
+
+    it('throws FixtureError when `memory` object with `.fixture` is missing', async () => {
+        await expect(createWorld({ ...BASE_OPTS, memory: { fixture: 'nonexistent-fixture' } })).rejects.toThrow(
+            FixtureError,
+        );
+    });
+
+    it('error has code MISSING_MEMORY_FIXTURE', async () => {
+        expect.assertions(2);
+        try {
+            await createWorld({ ...BASE_OPTS, memory: 'nonexistent-fixture' });
+        } catch (e) {
+            expect(e).toBeInstanceOf(FixtureError);
+            expect(e.code).toBe('MISSING_MEMORY_FIXTURE');
+        }
+    });
+
+    it('error message includes the fixture name', async () => {
+        expect.assertions(1);
+        try {
+            await createWorld({ ...BASE_OPTS, memory: 'my-special-fixture' });
+        } catch (e) {
+            expect(e.toString()).toContain('my-special-fixture');
+        }
+    });
+
+    // ── No fixtures (no error expected from fixture check) ────────────
+
+    it('does NOT throw when `memory` is undefined', async () => {
+        await expect(createWorld(BASE_OPTS)).rejects.not.toThrow(FixtureError);
+    });
+
+    it('does NOT throw when `memory` is inline (no fixture)', async () => {
+        await expect(createWorld({ ...BASE_OPTS, memory: { colonies: { W0N1: { rcl: 1 } } } })).rejects.not.toThrow(
+            FixtureError,
+        );
+    });
+
+    it('does NOT throw when the referenced fixture exists', async () => {
+        // 'existing-fixture' is mocked to exist → passes fixture check,
+        // then fails on server setup (expected)
+        await expect(createWorld({ ...BASE_OPTS, memory: 'existing-fixture' })).rejects.not.toThrow(FixtureError);
+    });
+
+    // ── Multi-bot ─────────────────────────────────────────────────────
+
+    it('throws on the FIRST missing fixture (fail-fast)', async () => {
+        expect.assertions(1);
+        try {
+            await createWorld({
+                ...BASE_OPTS,
+                memory: { bot1: 'existing-fixture', bot2: 'missing-one', bot3: 'missing-two' },
+            });
+        } catch (e) {
+            // Should mention the first missing fixture in the map
+            expect(e.toString()).toContain('missing-one');
+        }
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// collectMemoryFixtureNames — pure function unit tests
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('collectMemoryFixtureNames', () => {
+    it('returns [name] for a string', () => {
+        expect(collectMemoryFixtureNames('rcl3-stable')).toEqual(['rcl3-stable']);
+    });
+
+    it('returns [name] for an object with .fixture string', () => {
+        expect(collectMemoryFixtureNames({ fixture: 'rcl3-stable' })).toEqual(['rcl3-stable']);
+    });
+
+    it('returns [name] for an object with .fixture + overrides', () => {
+        expect(collectMemoryFixtureNames({ fixture: 'rcl3-stable', colonies: { W0N1: {} } })).toEqual(['rcl3-stable']);
+    });
+
+    it('returns [] for an inline memory object (no .fixture)', () => {
+        expect(collectMemoryFixtureNames({ colonies: { W0N1: { rcl: 1 } } })).toEqual([]);
+    });
+
+    it('returns [] for undefined', () => {
+        expect(collectMemoryFixtureNames(undefined)).toEqual([]);
+    });
+
+    it('returns [] for null', () => {
+        expect(collectMemoryFixtureNames(null)).toEqual([]);
+    });
+
+    it('extracts fixture names from a per-bot map', () => {
+        expect(
+            collectMemoryFixtureNames({
+                bot1: 'fix-a',
+                bot2: { fixture: 'fix-b' },
+            }),
+        ).toEqual(['fix-a', 'fix-b']);
+    });
+
+    it('ignores inline entries in a per-bot map', () => {
+        expect(
+            collectMemoryFixtureNames({
+                bot1: 'fix-a',
+                bot2: { colonies: { W0N1: {} } },
+            }),
+        ).toEqual(['fix-a']);
+    });
+
+    it('returns [] for an empty object', () => {
+        expect(collectMemoryFixtureNames({})).toEqual([]);
+    });
+
+    it('returns [] for an array (invalid shape)', () => {
+        expect(collectMemoryFixtureNames(['something'])).toEqual([]);
     });
 });

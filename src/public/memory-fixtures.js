@@ -23,11 +23,7 @@
  * | `getBotMemory(server, userId)` | Read Memory directly from storage (env) |
  *
  * @example
- * const { hasMemoryFixture, loadMemoryFixture } = require('screeps-integration-tests/memory-fixtures');
- * if (!hasMemoryFixture('rcl3-stable')) {
- *     console.log('SKIP: fixture not found');
- *     return { skipped: true };
- * }
+ * const { loadMemoryFixture } = require('screeps-integration-tests/memory-fixtures');
  * const memory = loadMemoryFixture('rcl3-stable');
  *
  * @module screeps-integration-tests/memory-fixtures
