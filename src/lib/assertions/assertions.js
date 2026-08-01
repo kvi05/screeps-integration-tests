@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Assertion helpers for bot behaviour: RCL, errors, and event-log checks.
+ */
+
 const assert = require('node:assert');
 const { EVENT_ATTACK, filterByType, filterDestroyed } = require('../observers/eventLog');
 

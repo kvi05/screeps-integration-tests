@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Runtime layer: server preparation, bot registration, and the runtime factory.
+ */
+
 const fs = require('fs');
 const path = require('path');
 const { ScreepsServer } = require('@cool-andre/screeps-server-mockup');

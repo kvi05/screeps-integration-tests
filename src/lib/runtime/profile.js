@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Profiler export: triggers profiler finalisation and writes text/callgrind profiles.
+ */
+
 const fs = require('fs');
 const path = require('path');
 

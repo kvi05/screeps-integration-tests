@@ -1,6 +1,8 @@
 'use strict';
 
 /**
+ * @file Ownership snapshot: maps object `_id` → `user` for assertion lookups.
+ *
  * Event log stores only `objectId` (attacker/destroyed) and `data.targetId`,
  * but does NOT store `user` (owner). So that assertions can check "which exact
  * object took damage/attacked", we need to link the object's `_id` to its `user` —

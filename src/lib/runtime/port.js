@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Allocates a free TCP port on 127.0.0.1 for each mockup server.
+ */
+
 const net = require('net');
 
 /**

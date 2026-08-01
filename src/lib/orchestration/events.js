@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Event registry: user-registered handlers dispatched against scheduled events.
+ */
+
 const { materializeCreep } = require('../builders');
 const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 

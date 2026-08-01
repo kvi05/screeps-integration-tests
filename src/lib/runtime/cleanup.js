@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * Server cleanup: stops mockup server processes and prunes the cache directory.
+ */
+
 const fs = require('fs');
 const path = require('path');
 

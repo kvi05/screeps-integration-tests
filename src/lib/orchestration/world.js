@@ -1,5 +1,10 @@
 'use strict';
 
+/**
+ * `createWorld` — the main entry point: builds the server, materialises rooms,
+ * runs ticks, and produces the final report.
+ */
+
 const path = require('path');
 const { prepareServer, addBots } = require('../runtime/runtime');
 const { materializeRoom } = require('../builders');

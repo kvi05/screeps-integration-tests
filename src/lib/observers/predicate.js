@@ -1,6 +1,8 @@
 'use strict';
 
 /**
+ * @file Predicate evaluation for `until` completion conditions.
+ *
  * @typedef {import('../types').ScreepsServer} ScreepsServer
  * @typedef {import('../types').WorldInstance} WorldInstance
  * @typedef {import('../types').WorldReport} WorldReport

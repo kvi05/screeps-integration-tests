@@ -1,5 +1,9 @@
 'use strict';
 
+/**
+ * @file Bot Memory fixture helpers: load, save, and deep-merge Memory snapshots.
+ */
+
 const fs = require('fs');
 const path = require('path');
 const { assertFile, FixtureError } = require('../errors');
