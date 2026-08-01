@@ -3,7 +3,14 @@
 const path = require('path');
 const { prepareServer, addBots } = require('../runtime/runtime');
 const { materializeRoom } = require('../builders');
-const { setBotMemory, getBotMemory, resolveInitialMemoryByBot } = require('../builders/memory');
+const {
+    setBotMemory,
+    getBotMemory,
+    resolveInitialMemoryByBot,
+    resolveMemoryFixturesDir,
+    hasMemoryFixture,
+    collectMemoryFixtureNames,
+} = require('../builders/memory');
 const { loadRoomFixture, applyRoomOverrides, ROOM_FIXTURES } = require('../fixtures/roomFixture');
 const { readEventLog, accumulateEvents } = require('../observers/eventLog');
 const { collectMetrics, sampleMetrics } = require('../observers/metrics');
@@ -277,6 +284,17 @@ async function createWorld(opts) {
                     how: `Replace \`room: ...\` with \`${hint}\`.`,
                 });
             }
+        }
+    }
+
+    // Validate memory fixtures referenced in `opts.memory` — fail early
+    const memoryFixtureNames = collectMemoryFixtureNames(opts.memory);
+    for (const fixtureName of memoryFixtureNames) {
+        if (!hasMemoryFixture(fixtureName)) {
+            const fixturesDir = resolveMemoryFixturesDir();
+            throw new FixtureError('MISSING_MEMORY_FIXTURE', fixtureName, {}, [
+                `Expected file: ${path.join(fixturesDir, `${fixtureName}.memory.json`)}`,
+            ]);
         }
     }
 

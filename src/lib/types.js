@@ -223,8 +223,12 @@
  *
  * Supported forms:
  * - string with fixture name;
- * - `{ fixture: '<name>' }`;
+ * - `{ fixture: '<name>', ...overrides }` — loads fixture + merges extra keys;
  * - inline object Memory.
+ *
+ * **Reserved key:** `fixture` is a framework-level key and is **not** passed
+ * through to bot Memory — it is consumed to locate the `*.memory.json` file.
+ * If your bot stores data under `Memory.fixture`, inject it via `memoryOverrides`.
  *
  * @typedef {string|MemoryFixtureRef|Object<string,*>} MemoryInput
  */
@@ -298,7 +302,9 @@
  * @typedef {Object} WorldOpts
  * @property {RoomSpecInput[]} rooms                                — required, at least 1
  * @property {BotSpec[]} [bots=[]]                                 — bots (empty = botless scenario)
- * @property {MemoryInput|MemoryByBot} [memory]                    — initial Memory: shorthand for single-bot or explicit map by username
+ * @property {MemoryInput|MemoryByBot} [memory]                    — initial Memory: shorthand for single-bot or explicit map by username.
+ *                                                                   **Important:** the `fixture` key is reserved (see {@link MemoryInput}).
+ *                                                                   Missing fixtures are validated early — before the server starts.
  * @property {Object<string,*>|MemoryByBot} [memoryOverrides]      — deep-merge patches on top of `memory`; without base memory, they become the initial memory themselves
  *
  * @property {number} [ticks=100]                                  — tick limit (unless `until.maxTicks` is set)
