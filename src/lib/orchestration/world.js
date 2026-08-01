@@ -18,7 +18,7 @@ const {
 } = require('../builders/memory');
 const { loadRoomFixture, applyRoomOverrides, ROOM_FIXTURES } = require('../fixtures/roomFixture');
 const { readEventLog, accumulateEvents } = require('../observers/eventLog');
-const { collectMetrics, sampleMetrics } = require('../observers/metrics');
+const { collectMetrics, sampleMetrics, collectBotMetrics, sampleBotMetrics } = require('../observers/metrics');
 const { MetricsReport } = require('../assertions/metricsReport');
 const { checkStopCondition } = require('../observers/predicate');
 const { snapshotOwners, mergeOwners } = require('../observers/ownership');
@@ -154,6 +154,34 @@ async function observeAllRooms(adapter, roomStatus, report, metricsConfig, tickN
         }
 
         roomStatus[name].ticks++;
+    }
+}
+
+/**
+ * Runs all per-bot observations for a single tick: bot metrics sampling.
+ *
+ * Bot metrics are opt-in (`metrics.bots: true`) and respect the same
+ * `metrics.every` sampling interval as room metrics.
+ *
+ * @param {import('../runtime/storageAdapter').StorageAdapter} adapter
+ * @param {Object<string, import('../types').Bot>} bots
+ * @param {WorldReport} report
+ * @param {import('../types').MetricsOpts} metricsConfig
+ * @param {number} tickNum
+ */
+async function observeAllBots(adapter, bots, report, metricsConfig, tickNum) {
+    if (!metricsConfig.bots || metricsConfig.every <= 0 || tickNum % metricsConfig.every !== 0) {
+        return;
+    }
+    for (const [username, bot] of Object.entries(bots)) {
+        try {
+            const metrics = await collectBotMetrics(adapter, bot.id);
+            if (metrics) {
+                sampleBotMetrics(report.metrics, username, metrics, tickNum);
+            }
+        } catch (e) {
+            report.frameworkWarnings.push(`metrics bot ${username} tick ${tickNum}: ${e.message ?? String(e)}`);
+        }
     }
 }
 
@@ -389,6 +417,7 @@ async function createWorld(opts) {
 
         await doServerTick(server, report);
         await observeAllRooms(adapter, roomStatus, report, metricsConfig, tickNum);
+        await observeAllBots(adapter, bots, report, metricsConfig, tickNum);
 
         // Events (declarative)
         await dispatchEvents(opts.events, tickNum, adapter);
@@ -626,6 +655,7 @@ module.exports = {
     createWorld,
     buildCanonicalRoom,
     // For unit tests
+    observeAllBots,
     resolveDistDir,
     resolveCacheBase,
 };
