@@ -2,12 +2,12 @@
 
 ## Distribution & Publishing
 
-- [ ] Publish the package to npm
+- [x] Publish the package to npm
 
 ## CLI & Tooling
 
 - [ ] Implement `npx screeps-integration-tests capture <name>` as a proper subcommand (currently capture is a standalone `src/tools/capture-fixture.js`)
-- [ ] Add CI
+- [x] Add CI
 
 ## API & Architecture
 
@@ -20,7 +20,7 @@
 ## Metrics
 
 - [ ] Add per-entity metrics
-- [ ] Flatten the metrics collection script into a flat structure
+- [ ] Add a script to convert the bot code into a flat structure
 - [ ] Native Excel export for metrics, more tooling for downstream analysis/comparison
 - [ ] Improved bot metric regression control in scenarios
 
