@@ -292,9 +292,8 @@ async function createWorld(opts) {
     for (const fixtureName of memoryFixtureNames) {
         if (!hasMemoryFixture(fixtureName)) {
             const fixturesDir = resolveMemoryFixturesDir();
-            throw new FixtureError('MISSING_MEMORY_FIXTURE', fixtureName, {}, [
-                `Expected file: ${path.join(fixturesDir, `${fixtureName}.memory.json`)}`,
-            ]);
+            const expectedPath = path.join(fixturesDir, `${fixtureName}.memory.json`);
+            throw new FixtureError('MISSING_MEMORY_FIXTURE', expectedPath);
         }
     }
 
