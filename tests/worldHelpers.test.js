@@ -1,5 +1,7 @@
 'use strict';
 
+const { EventEmitter } = require('events');
+
 const { createWorldHelpers } = require('../src/lib/orchestration/worldHelpers');
 
 // Mock materialize to avoid touching the real DB.
@@ -74,6 +76,38 @@ function createFakeAdapter(objects) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Creates a mock bot that mimics TestBot's EventEmitter interface:
+ * emits `('console', log, results, id, username)` and accepts `console(code)`.
+ */
+function createMockBot(username, id) {
+    const bot = new EventEmitter();
+    bot.id = id;
+    bot.username = username;
+    bot.console = jest.fn(() => Promise.resolve());
+    return bot;
+}
+
+/** Builds the wrapped command that evalInBot submits to the bot console. */
+function wrap(code, id) {
+    return (
+        `(() => { try { const __r = eval(${JSON.stringify(code)}); ` +
+        `return JSON.stringify({ __evalInBot: ${id}, result: __r }); } ` +
+        `catch (__e) { return JSON.stringify({ __evalInBot: ${id}, error: String(__e && __e.stack || __e) }); } })()`
+    );
+}
+
+/** Builds a console result envelope as the engine would emit it (JSON string). */
+function envelope(id, result, error) {
+    const obj = { __evalInBot: id };
+    if (error !== undefined) {
+        obj.error = error;
+    } else {
+        obj.result = result;
+    }
+    return JSON.stringify(obj);
+}
 
 describe('createWorldHelpers', () => {
     /** @type {Object} */
@@ -519,5 +553,103 @@ describe('createWorldHelpers with bots', () => {
             const noBotHelpers = createWorldHelpers(adapter, defaultBotUserId);
             expect(() => noBotHelpers.botId()).toThrow('bots not available');
         });
+    });
+});
+
+// ─── evalInBot ────────────────────────────────────────────────────────────────
+
+describe('evalInBot', () => {
+    let helpers;
+    let adapter;
+    let bot;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        adapter = createFakeAdapter([]);
+        bot = createMockBot('myBot', 'bot_123');
+        helpers = createWorldHelpers(adapter, 'bot_123', {}, { myBot: bot });
+    });
+
+    it('submits the wrapped code via bot.console', async () => {
+        const promise = helpers.evalInBot('Game.time');
+        expect(bot.console).toHaveBeenCalledWith(wrap('Game.time', 1));
+        bot.emit('console', [], [envelope(1, 12345)]);
+        await expect(promise).resolves.toBe(12345);
+    });
+
+    it('defaults to the only bot if username is omitted', async () => {
+        const promise = helpers.evalInBot('Game.time');
+        expect(bot.console).toHaveBeenCalledWith(wrap('Game.time', 1));
+        bot.emit('console', [], [envelope(1, 7)]);
+        await expect(promise).resolves.toBe(7);
+    });
+
+    it('parses JSON-encoded results (objects/arrays)', async () => {
+        const promise = helpers.evalInBot('JSON.stringify({ ok: true, n: 3 })');
+        bot.emit('console', [], [envelope(1, '{"ok":true,"n":3}')]);
+        await expect(promise).resolves.toEqual({ ok: true, n: 3 });
+    });
+
+    it('returns the raw string when the result is not valid JSON', async () => {
+        const promise = helpers.evalInBot('"hello world"');
+        bot.emit('console', [], [envelope(1, 'hello world')]);
+        await expect(promise).resolves.toBe('hello world');
+    });
+
+    it('maps a missing result back to undefined', async () => {
+        const promise = helpers.evalInBot('undefined');
+        bot.emit('console', [], [envelope(1, undefined)]);
+        await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('resolves multiple pending calls by id, regardless of result order', async () => {
+        const p1 = helpers.evalInBot('1');
+        const p2 = helpers.evalInBot('2');
+        const p3 = helpers.evalInBot('3');
+        // Results arrive out of submission order — ids still match correctly.
+        bot.emit('console', [], [envelope(3, 30), envelope(1, 10), envelope(2, 20)]);
+        await expect(p1).resolves.toBe(10);
+        await expect(p2).resolves.toBe(20);
+        await expect(p3).resolves.toBe(30);
+    });
+
+    it('ignores console events without results (bot log noise)', async () => {
+        const promise = helpers.evalInBot('Game.time');
+        bot.emit('console', ['tick log'], []);
+        bot.emit('console', [], [envelope(1, 99)]);
+        await expect(promise).resolves.toBe(99);
+    });
+
+    it('ignores extra results that are not evalInBot envelopes (raw exec)', async () => {
+        const promise = helpers.evalInBot('Game.time');
+        bot.emit('console', [], ['1', '2']);
+        bot.emit('console', [], [envelope(1, 99)]);
+        await expect(promise).resolves.toBe(99);
+    });
+
+    it('rejects with a hint when the result does not arrive in time', async () => {
+        jest.useFakeTimers();
+        try {
+            const promise = helpers.evalInBot('Game.time');
+            jest.advanceTimersByTime(10001);
+            await expect(promise).rejects.toThrow('call `world.tick(n)` after evalInBot');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('rejects with the engine error when the expression throws', async () => {
+        const promise = helpers.evalInBot('throw new Error("boom")');
+        bot.emit('console', [], [envelope(1, undefined, 'Error: boom')]);
+        await expect(promise).rejects.toThrow('evalInBot: expression failed: Error: boom');
+    });
+
+    it('throws synchronously if bots are not available', () => {
+        const noBotHelpers = createWorldHelpers(adapter, 'bot_123');
+        expect(() => noBotHelpers.evalInBot('Game.time')).toThrow('bots not available');
+    });
+
+    it('throws synchronously if the bot username is not found', () => {
+        expect(() => helpers.evalInBot('Game.time', 'ghost')).toThrow('bot "ghost" not found');
     });
 });
