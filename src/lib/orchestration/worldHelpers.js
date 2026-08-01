@@ -421,7 +421,10 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
                     entry.pendings.delete(envelope.__evalInBot);
                     clearTimeout(pending.timer);
                     if (envelope.error !== undefined) {
-                        pending.reject(new Error(`evalInBot: expression failed: ${truncate(String(envelope.error))}`));
+                        const detail = envelope.serializeError
+                            ? `the expression returned a value that cannot be transported (${truncate(String(envelope.error))}) — use JSON.stringify(...) in the expression to send objects/arrays`
+                            : truncate(String(envelope.error));
+                        pending.reject(new Error(`evalInBot: expression failed: ${detail}`));
                     } else {
                         pending.resolve(parseConsoleResult(envelope.result));
                     }
@@ -435,17 +438,24 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         // engine reports console results out of submission order, and it
         // captures expression errors in-band instead of relying on the
         // engine's separate error channel. `eval` is used so that both
-        // expressions and statements (e.g. `throw ...`) are supported.
+        // expressions and statements (e.g. `throw ...`) are supported. The
+        // wrapper's own `JSON.stringify` is guarded separately, so an
+        // unserializable value (circular object, BigInt…) is reported with a
+        // transport hint instead of a raw, confusing error.
         const id = ++evalInBotSeq;
         const wrappedCode =
             `(() => { try { const __r = eval(${JSON.stringify(code)}); ` +
-            `return JSON.stringify({ __evalInBot: ${id}, result: __r }); } ` +
+            `try { return JSON.stringify({ __evalInBot: ${id}, result: __r }); } ` +
+            `catch (__s) { return JSON.stringify({ __evalInBot: ${id}, serializeError: true, error: String(__s && __s.stack || __s) }); } } ` +
             `catch (__e) { return JSON.stringify({ __evalInBot: ${id}, error: String(__e && __e.stack || __e) }); } })()`;
 
         const promise = new Promise((resolve, reject) => {
             const pending = {
                 resolve,
                 reject,
+                // `unref()` — a pending timer must not keep the process alive
+                // after the world is disposed (worker isolation already calls
+                // process.exit, this is a belt-and-suspenders measure).
                 timer: setTimeout(() => {
                     entry.pendings.delete(id);
                     reject(
@@ -454,7 +464,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
                                 'The expression runs on the next tick — call `world.tick(n)` after evalInBot.',
                         ),
                     );
-                }, DEFAULT_EVAL_IN_BOT_TIMEOUT_MS),
+                }, DEFAULT_EVAL_IN_BOT_TIMEOUT_MS).unref(),
             };
             entry.pendings.set(id, pending);
             bot.console(wrappedCode).catch((err) => {
@@ -468,6 +478,36 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         // "unhandled rejection" crash; the caller still observes the rejection.
         promise.catch(() => {});
         return promise;
+    }
+
+    /**
+     * Releases `evalInBot` resources: removes the lazily-attached console
+     * listener from each bot and rejects any still-pending promises (their
+     * internal no-op `.catch` already swallows the rejection). Called from
+     * `world.dispose()`.
+     *
+     * Exposed as a non-enumerable property so `...helpers` spread in
+     * `world.js` does not leak it onto the public `world` object.
+     */
+    function disposeEvalInBot() {
+        for (const [username, entry] of evalInBotState) {
+            if (entry.listener) {
+                const bot = bots && bots[username];
+                if (bot && typeof bot.off === 'function') {
+                    bot.off('console', entry.listener);
+                }
+            }
+            for (const pending of entry.pendings.values()) {
+                clearTimeout(pending.timer);
+                pending.reject(
+                    new Error(
+                        'evalInBot: world disposed before the result arrived — call world.tick(n) and await the promise before dispose.',
+                    ),
+                );
+            }
+            entry.pendings.clear();
+        }
+        evalInBotState.clear();
     }
 
     /**
@@ -566,7 +606,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         return doc ? doc._id : null;
     }
 
-    return {
+    const helpers = {
         // Controller
         setTicksToDowngrade,
         // Structures
@@ -592,6 +632,16 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
         findIds,
         findId,
     };
+
+    // Internal lifecycle hook — hidden from `...helpers` spread (and thus
+    // from the public `world` object), but reachable by world.js's dispose().
+    Object.defineProperty(helpers, 'disposeEvalInBot', {
+        value: disposeEvalInBot,
+        enumerable: false,
+        writable: true,
+        configurable: true,
+    });
+    return helpers;
 }
 
 module.exports = { createWorldHelpers, getRoomRcl };

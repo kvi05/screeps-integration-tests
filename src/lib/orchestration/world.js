@@ -495,6 +495,10 @@ async function createWorld(opts) {
      * @type {DisposeFn}
      */
     async function dispose() {
+        // Release evalInBot state (console listeners, pending timers) before
+        // stopping the server. `helpers` is initialized below, before any
+        // caller can invoke dispose().
+        helpers.disposeEvalInBot();
         await runtime.dispose();
     }
 
