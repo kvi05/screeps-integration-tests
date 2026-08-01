@@ -4,9 +4,8 @@
  * @file Public API — main entry point of the `screeps-integration-tests` package.
  *
  * Responsibility:
- *   Exposes the three fundamental building blocks of every test scenario:
- *   `createWorld` (orchestration), `spec` (declarative world description),
- *   and `buildCanonicalRoom` (low-level room builder, rarely needed).
+ *   Exposes the two fundamental building blocks of every test scenario:
+ *   `createWorld` (orchestration) and `spec` (declarative world description).
  *
  *   All other helpers are grouped by domain and accessed via sub-path exports:
  *
@@ -33,11 +32,10 @@
  * @module screeps-integration-tests
  */
 
-const { createWorld, buildCanonicalRoom } = require('./lib/orchestration/world');
+const { createWorld } = require('./lib/orchestration/world');
 const { spec } = require('./lib/builders');
 
 module.exports = {
     createWorld,
-    buildCanonicalRoom,
     spec,
 };

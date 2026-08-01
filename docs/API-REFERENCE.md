@@ -32,7 +32,6 @@ documents reference this one; duplication is kept to a minimum.
 | `screeps-integration-tests/metric-assertions` | `{ MetricsAssert }`                           |
 | `screeps-integration-tests/memory-fixtures`   | `{ loadMemoryFixture, … }`                    |
 | `screeps-integration-tests/room-fixtures`     | `{ getRoomFixture, … }`                       |
-| `screeps-integration-tests/terrain`           | `{ applyTerrainSpec }`                        |
 | `screeps-integration-tests/world-helpers`     | `{ createWorldHelpers }`                      |
 | `screeps-integration-tests/events`            | `{ EVENT_ATTACK, EVENT_OBJECT_DESTROYED, … }` |
 | `screeps-integration-tests/errors`            | `{ FrameworkError, … }`                       |

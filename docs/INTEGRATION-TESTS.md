@@ -288,7 +288,7 @@ screeps-integration-tests/
 ├── bin/
 │   └── screeps-integration-tests.js   # CLI runner
 ├── src/
-│   ├── index.js                       # Public API (createWorld, spec, buildCanonicalRoom)
+│   ├── index.js                       # Public API (createWorld, spec)
 │   ├── public/                        # Sub-path exports
 │   │   ├── assertions.js              #   screeps-integration-tests/assertions
 │   │   ├── constants.js               #   screeps-integration-tests/constants
