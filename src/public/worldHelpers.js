@@ -26,6 +26,7 @@
  * - `readMemory(botUsername?)` — read bot memory
  * - `writeMemory(botUsername?, patch)` — deep-merge patch into bot memory
  * - `exec(code, botUsername?)` — execute JS code in a bot's context
+ * - `evalInBot(code, botUsername?)` — evaluate JS code in a bot's context and resolve with the result
  * - `botId(bot?)` — get bot _id by username, index, or first bot
  * - `find(query)` — query `rooms.objects` collection (returns mapped objects)
  * - `findOne(query, opts)` — find first matching object

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`world.evalInBot(code, username?)`:** evaluate JS code in a bot's context
+  and resolve with the result. The code runs via the bot console on the next
+  server tick, so the pattern is `const p = world.evalInBot('Game.time'); await
+world.tick(1); const data = await p;`. Results are transported as a
+  JSON envelope matched by a unique id (order-independent), and JSON-encoded
+  strings are parsed back into values. Errors thrown by the expression reject
+  the promise; pending calls time out after 10s with a hint to call
+  `world.tick(n)`.
+
 PR #31 [Refactor/inconsistent pairs](https://github.com/kvi05/screeps-integration-tests/pull/31)
 
 - **`spec.controller()` positional overload:** now accepts `spec.controller(x, y, opts)`
