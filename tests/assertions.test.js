@@ -65,21 +65,21 @@ describe('assertions', () => {
             const report = makeEmptyReport();
             report.ticksRun = 0;
             report.finalMemory = { bot: { test: true } };
-            expect(() => assertBotWorked(report)).toThrow(/ни одного тика/);
+            expect(() => assertBotWorked(report)).toThrow(/did not make a single tick/);
         });
 
         it('fails with empty finalMemory', () => {
             const report = makeEmptyReport();
             report.ticksRun = 10;
             report.finalMemory = {};
-            expect(() => assertBotWorked(report)).toThrow(/ни одного бота/);
+            expect(() => assertBotWorked(report)).toThrow(/no bots in finalMemory/);
         });
 
         it('fails with empty bot memory', () => {
             const report = makeEmptyReport();
             report.ticksRun = 10;
             report.finalMemory = { bot: {} };
-            expect(() => assertBotWorked(report)).toThrow(/пуста/);
+            expect(() => assertBotWorked(report)).toThrow(/empty after run/);
         });
 
         it('checks all bots', () => {
@@ -93,7 +93,7 @@ describe('assertions', () => {
             const report = makeEmptyReport();
             report.ticksRun = 10;
             report.finalMemory = { bot1: { rooms: {} }, bot2: {} };
-            expect(() => assertBotWorked(report)).toThrow(/пуста/);
+            expect(() => assertBotWorked(report)).toThrow(/empty after run/);
         });
 
         it('includes assertNoErrors check', () => {
@@ -121,12 +121,12 @@ describe('assertions', () => {
         it('fails when RCL < expected', () => {
             const report = makeEmptyReport();
             report.finalRcl = { W0N1: 2 };
-            expect(() => assertRclAtLeast(report, 'W0N1', 3)).toThrow(/< ожидаемого/);
+            expect(() => assertRclAtLeast(report, 'W0N1', 3)).toThrow(/< expected/);
         });
 
         it('fails when room is missing', () => {
             const report = makeEmptyReport();
-            expect(() => assertRclAtLeast(report, 'W0N1', 1)).toThrow(/не найдена/);
+            expect(() => assertRclAtLeast(report, 'W0N1', 1)).toThrow(/not found in report/);
         });
     });
 
@@ -140,7 +140,7 @@ describe('assertions', () => {
         it('fails when RCL >= max', () => {
             const report = makeEmptyReport();
             report.finalRcl = { W0N1: 3 };
-            expect(() => assertRclBelow(report, 'W0N1', 3)).toThrow(/>= ожидаемого/);
+            expect(() => assertRclBelow(report, 'W0N1', 3)).toThrow(/>= expected/);
         });
 
         it('passes when room is missing (value 0)', () => {
@@ -159,7 +159,7 @@ describe('assertions', () => {
         it('fails when no destructions', () => {
             const report = makeEmptyReport();
             report.events = [];
-            expect(() => assertObjectDestroyed(report)).toThrow(/НЕ был разрушен/);
+            expect(() => assertObjectDestroyed(report)).toThrow(/was NOT destroyed/);
         });
 
         it('filters by object type', () => {
@@ -169,7 +169,7 @@ describe('assertions', () => {
                 { tick: 2, event: 2, objectId: 'obj2', data: { type: 'spawn' } },
             ];
             expect(() => assertObjectDestroyed(report, { types: ['spawn'] })).not.toThrow();
-            expect(() => assertObjectDestroyed(report, { types: ['extension'] })).toThrow(/НЕ был разрушен/);
+            expect(() => assertObjectDestroyed(report, { types: ['extension'] })).toThrow(/was NOT destroyed/);
         });
 
         it('filters by id', () => {
@@ -189,7 +189,7 @@ describe('assertions', () => {
         it('fails when destructions are present', () => {
             const report = makeEmptyReport();
             report.events = [{ tick: 1, event: 2, objectId: 'obj1' }];
-            expect(() => assertObjectNotDestroyed(report)).toThrow(/разрушены/);
+            expect(() => assertObjectNotDestroyed(report)).toThrow(/objects destroyed/);
         });
     });
 
@@ -212,7 +212,7 @@ describe('assertions', () => {
         it('assertObjectNotAttacking fails when attack is present', () => {
             const report = makeEmptyReport();
             report.events = [{ tick: 1, event: 1, objectId: 'attacker' }];
-            expect(() => assertObjectNotAttacking(report, 'attacker')).toThrow(/аттаковал/);
+            expect(() => assertObjectNotAttacking(report, 'attacker')).toThrow(/attacked/);
             expect(() => assertObjectNotAttacking(report, 'other')).not.toThrow();
         });
     });
@@ -228,7 +228,7 @@ describe('assertions', () => {
         it('assertObjectNotDamaged', () => {
             const report = makeEmptyReport();
             report.events = [{ tick: 1, event: 1, objectId: 'a', data: { targetId: 'target' } }];
-            expect(() => assertObjectNotDamaged(report, 'target')).toThrow(/получил урон/);
+            expect(() => assertObjectNotDamaged(report, 'target')).toThrow(/received damage/);
             expect(() => assertObjectNotDamaged(report, 'other')).not.toThrow();
         });
     });
@@ -253,7 +253,7 @@ describe('assertions', () => {
 
             it('fails when no bot object took damage', () => {
                 const report = makeReportWithEvents([]);
-                expect(() => assertBotUserDamaged(report, botUserId)).toThrow(/НЕ получил урона/);
+                expect(() => assertBotUserDamaged(report, botUserId)).toThrow(/received damage/);
             });
         });
 
@@ -267,7 +267,7 @@ describe('assertions', () => {
                 const report = makeReportWithEvents([
                     { tick: 1, event: 1, objectId: 'enemy1', data: { targetId: 'defender1' } },
                 ]);
-                expect(() => assertBotUserNotDamaged(report, botUserId)).toThrow(/получили урон/);
+                expect(() => assertBotUserNotDamaged(report, botUserId)).toThrow(/received damage/);
             });
         });
 
@@ -279,7 +279,7 @@ describe('assertions', () => {
 
             it('fails when bot did not attack', () => {
                 const report = makeReportWithEvents([]);
-                expect(() => assertBotUserAttacking(report, botUserId)).toThrow(/НЕ нанес урона/);
+                expect(() => assertBotUserAttacking(report, botUserId)).toThrow(/dealt damage/);
             });
         });
 
@@ -291,7 +291,7 @@ describe('assertions', () => {
 
             it('fails when bot attacked', () => {
                 const report = makeReportWithEvents([{ tick: 1, event: 1, objectId: 'attacker1' }]);
-                expect(() => assertBotUserNotAttacking(report, botUserId)).toThrow(/нанесли урон/);
+                expect(() => assertBotUserNotAttacking(report, botUserId)).toThrow(/dealt damage/);
             });
 
             it('shows attack count in error message', () => {

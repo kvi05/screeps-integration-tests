@@ -21,7 +21,7 @@ describe('MetricsAssert', () => {
 
         it('fails if there are no samples', () => {
             const ma = new MetricsAssert(makeMetrics());
-            expect(() => ma.hasSamples('rooms', 'W99N99')).toThrow(/нет сэмплов/);
+            expect(() => ma.hasSamples('rooms', 'W99N99')).toThrow(/no samples for/);
         });
     });
 
@@ -33,17 +33,17 @@ describe('MetricsAssert', () => {
 
         it('fails when actual < expected', () => {
             const ma = new MetricsAssert(makeMetrics());
-            expect(() => ma.latestAtLeast('rooms', 'W0N1', 'rcl', 4)).toThrow(/rcl=3.*< ожидаемого 4/);
+            expect(() => ma.latestAtLeast('rooms', 'W0N1', 'rcl', 4)).toThrow(/rcl=3.*< expected 4/);
         });
 
         it('fails if expected is not a number', () => {
             const ma = new MetricsAssert(makeMetrics());
-            expect(() => ma.latestAtLeast('rooms', 'W0N1', 'rcl', '3')).toThrow(/должен быть числом/);
+            expect(() => ma.latestAtLeast('rooms', 'W0N1', 'rcl', '3')).toThrow(/must be a number/);
         });
 
         it('fails if there are no samples', () => {
             const ma = new MetricsAssert(makeMetrics());
-            expect(() => ma.latestAtLeast('rooms', 'W99N99', 'rcl', 1)).toThrow(/нет сэмплов/);
+            expect(() => ma.latestAtLeast('rooms', 'W99N99', 'rcl', 1)).toThrow(/no samples for/);
         });
     });
 
@@ -55,7 +55,7 @@ describe('MetricsAssert', () => {
 
         it('fails when actual >= expected', () => {
             const ma = new MetricsAssert(makeMetrics());
-            expect(() => ma.latestBelow('rooms', 'W0N1', 'energy', 1500)).toThrow(/energy=1500.*>= ожидаемого 1500/);
+            expect(() => ma.latestBelow('rooms', 'W0N1', 'energy', 1500)).toThrow(/energy=1500.*>= expected 1500/);
         });
     });
 
@@ -67,7 +67,7 @@ describe('MetricsAssert', () => {
 
         it('fails if metric never reached the value', () => {
             const ma = new MetricsAssert(makeMetrics());
-            expect(() => ma.reached('rooms', 'W0N2', 'rcl', 2)).toThrow(/ни разу не достигла 2/);
+            expect(() => ma.reached('rooms', 'W0N2', 'rcl', 2)).toThrow(/never reached 2/);
         });
     });
 
@@ -82,12 +82,12 @@ describe('MetricsAssert', () => {
             m.append('rooms', 'W0N1', 100, { energy: 2000 });
             m.append('rooms', 'W0N1', 200, { energy: 1000 });
             const ma = new MetricsAssert(m);
-            expect(() => ma.monotonic('rooms', 'W0N1', 'energy')).toThrow(/убыла с 2000 до 1000/);
+            expect(() => ma.monotonic('rooms', 'W0N1', 'energy')).toThrow(/decreased from 2000 to 1000/);
         });
 
         it('fails if there are no samples', () => {
             const ma = new MetricsAssert(makeMetrics());
-            expect(() => ma.monotonic('rooms', 'W99N99', 'rcl')).toThrow(/нет сэмплов/);
+            expect(() => ma.monotonic('rooms', 'W99N99', 'rcl')).toThrow(/no samples for/);
         });
     });
 });
