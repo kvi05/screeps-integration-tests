@@ -47,6 +47,11 @@ const DEFAULT_EVAL_IN_BOT_TIMEOUT_MS = 10000;
  * `JSON.parse` when possible, otherwise return the raw string. `undefined`
  * results (statements without a value) map back to `undefined`.
  *
+ * Note: a result string that is itself valid JSON is coerced to the parsed
+ * value — e.g. the string `'123'` becomes the number `123`, `'true'` becomes
+ * `true`, `'null'` becomes `null`. A string that is not valid JSON (e.g.
+ * `'hello'`) is returned as-is.
+ *
  * @param {string} raw
  * @returns {any}
  */
@@ -371,11 +376,13 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
      * const creeps = await promise; // array of creep positions
      *
      * The engine serializes console results to strings, so `evalInBot` tries
-     * `JSON.parse` (parsed value, otherwise the raw string). To transport
-     * objects/arrays back, use `JSON.stringify(...)` in the expression. If
-     * the expression throws, the promise rejects with the actual error. If
-     * no result arrives within `DEFAULT_EVAL_IN_BOT_TIMEOUT_MS`, the promise
-     * rejects with a hint to tick the world.
+     * `JSON.parse` (parsed value, otherwise the raw string) — note that a
+     * result string that is itself valid JSON (e.g. `'123'`, `'true'`) is
+     * coerced to the parsed value. To transport objects/arrays back, use
+     * `JSON.stringify(...)` in the expression. If the expression throws, the
+     * promise rejects with the actual error. If no result arrives within
+     * `DEFAULT_EVAL_IN_BOT_TIMEOUT_MS`, the promise rejects with a hint to
+     * tick the world.
      *
      * @param {string} code
      * @param {string} [botUsername] — if omitted, uses the only bot (single-bot scenario)

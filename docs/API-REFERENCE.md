@@ -1092,8 +1092,8 @@ await world.exec('Game.spawns["Spawn1"].spawnCreep([WORK, CARRY, MOVE], "Harvest
 ```
 
 `evalInBot` is `exec` + result transport: it runs code in the bot's sandbox and
-returns the result out. The code runs on the **next server tick**, so create
-the promise first, then tick the world, then await:
+returns the result back to the test. The code runs on the **next server tick**,
+so create the promise first, then tick the world, then await:
 
 ```javascript
 const promise = world.evalInBot('Game.time');
@@ -1115,11 +1115,15 @@ const creeps = await p; // array of creep positions
 ```
 
 The engine serializes console results to strings, so `evalInBot` tries
-`JSON.parse` (returns the parsed value, otherwise the raw string). To transport
-objects/arrays back, use `JSON.stringify(...)` in the expression. If the
-expression throws, the promise rejects with the actual error. If no result
-arrives within 10s, the promise rejects with a hint to call `world.tick(n)`
-after `evalInBot`.
+`JSON.parse` (returns the parsed value, otherwise the raw string). Note that a
+result string that is itself valid JSON (e.g. `'123'`, `'true'`) is coerced to
+the parsed value; use `String(...)` in the expression if you need it back as a
+string. To transport objects/arrays back, use `JSON.stringify(...)` in the
+expression. If the expression throws, the promise rejects with the actual
+error. If it returns a value that cannot be transported (circular object,
+BigInt…), the promise rejects with a hint to use `JSON.stringify(...)`. If no
+result arrives within 10s, the promise rejects with a hint to call
+`world.tick(n)` after `evalInBot`.
 
 ### Bot ID
 
