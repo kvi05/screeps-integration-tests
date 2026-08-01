@@ -15,7 +15,7 @@
  * @example
  * const { computeAdjacentBorders } = require('./roomUtils');
  * const adjacent = computeAdjacentBorders(['W0N1', 'W0N2']);
- * // adjacent['W0N1'] = { top: false, bottom: true, left: false, right: false }
+ * // adjacent['W0N1'] = { top: true, bottom: false, left: false, right: false }
  *
  * @module runtime/roomUtils
  */
