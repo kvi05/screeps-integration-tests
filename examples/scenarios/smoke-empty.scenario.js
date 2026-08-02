@@ -18,14 +18,7 @@ const { assertBotWorked, assertNoErrors } = require('screeps-integration-tests/a
 async function run(opts = {}) {
     const ticks = parseInt(process.env.TEST_TICKS || '30', 10);
     const world = await createWorld({
-        rooms: [
-            {
-                name: 'W0N1',
-                controller: spec.controller({ level: 1 }),
-                sources: [spec.source(15, 15), spec.source(35, 35)],
-                structures: [spec.spawn(25, 25)],
-            },
-        ],
+        rooms: [spec.baseRoom('W0N1')],
         bots: [{ username: 'bot', rooms: 'W0N1' }],
         ticks,
         profiling: opts.profiling,

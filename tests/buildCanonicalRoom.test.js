@@ -109,6 +109,45 @@ describe('buildCanonicalRoom', () => {
         });
     });
 
+    describe('spec.baseRoom()', () => {
+        it('materialises the standard RCL1 room', async () => {
+            const canonical = await buildCanonicalRoom(spec.baseRoom('W0N1'), 'W0N1', 'bot123');
+
+            expect(canonical.name).toBe('W0N1');
+            expect(canonical.controller).toMatchObject({ level: 1, roomName: 'W0N1', userId: 'bot123' });
+            expect(canonical.sources).toHaveLength(2);
+            expect(canonical.structures).toHaveLength(1);
+            expect(canonical.structures[0]).toMatchObject({ type: 'spawn', roomName: 'W0N1', userId: 'bot123' });
+        });
+
+        it('applies roomOverrides from baseRoom opts', async () => {
+            const canonical = await buildCanonicalRoom(
+                spec.baseRoom('W0N1', {
+                    controller: { level: 2 },
+                    append: [spec.tower(20, 20)],
+                    creeps: [spec.creep(25, 24, { name: 'harvester1' })],
+                    hostiles: [spec.invader(40, 40)],
+                }),
+                'W0N1',
+                'bot456',
+            );
+
+            expect(canonical.controller).toMatchObject({ level: 2, roomName: 'W0N1', userId: 'bot456' });
+            expect(canonical.structures).toHaveLength(2); // spawn + appended tower
+            expect(canonical.structures[1]).toMatchObject({ type: 'tower', userId: 'bot456' });
+            expect(canonical.creeps).toHaveLength(1);
+            expect(canonical.creeps[0]).toMatchObject({ name: 'harvester1', userId: 'bot456' });
+            expect(canonical.hostiles).toHaveLength(1);
+            expect(canonical.hostiles[0].userId).toBe('2');
+        });
+
+        it('exclude removes the default spawn', async () => {
+            const canonical = await buildCanonicalRoom(spec.baseRoom('W0N1', { exclude: ['spawn'] }), 'W0N1', 'bot789');
+
+            expect(canonical.structures).toHaveLength(0);
+        });
+    });
+
     describe('fixture-based', () => {
         it('preserves controller level from fixture', async () => {
             const canonical = await buildCanonicalRoom(

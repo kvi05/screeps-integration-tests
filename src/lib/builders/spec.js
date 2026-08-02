@@ -791,6 +791,46 @@ function controller(x, y, optsArg) {
 }
 
 /**
+ * Creates a standard RCL1 base room spec.
+ *
+ * Returns a ready-to-use room input for `createWorld({ rooms: [...] })`:
+ * a controller at level 1 (32,32), two sources at (15,15)/(35,35) and one
+ * spawn at (25,25). Customise via `opts` — a `RoomOverrides` object applied
+ * through the existing `roomOverrides` mechanism (same vocabulary as room
+ * fixtures), so only the fields that differ from the defaults are specified.
+ *
+ * @param {string} name — room name ('W0N1')
+ * @param {import('../types').RoomOverrides} [opts] — overrides on top of the defaults
+ * @returns {import('../types').RoomSpecInput}
+ *
+ * @example
+ * // Standard room, nothing customised
+ * rooms: [spec.baseRoom('W0N1')]
+ *
+ * @example
+ * // RCL2 + a tower + a bot creep
+ * rooms: [spec.baseRoom('W0N1', {
+ *   controller: { level: 2 },
+ *   append: [spec.tower(20, 20)],
+ *   creeps: [spec.creep(25, 24, { name: 'harvester1' })],
+ * })]
+ */
+function baseRoom(name = 'W0N1', opts = {}) {
+    const room = {
+        name,
+        controller: controller({ level: 1, x: 32, y: 32 }),
+        sources: [source(15, 15), source(35, 35)],
+        structures: [spawn(25, 25)],
+    };
+
+    if (opts && Object.keys(opts).length > 0) {
+        room.roomOverrides = opts;
+    }
+
+    return room;
+}
+
+/**
  * Creates a canonical creep spec.
  *
  * @param {number} x
@@ -885,6 +925,7 @@ module.exports = {
     keeperLair,
     source,
     controller,
+    baseRoom,
     creep,
     invader,
     dummyTarget,
