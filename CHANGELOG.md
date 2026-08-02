@@ -71,6 +71,16 @@ PR #37 [Feat/add flag version](https://github.com/kvi05/screeps-integration-test
 - **CLI `--version` (-v) flag:** `screeps-integration-tests --version` prints the
   package version. The flag is also listed in the `--help` output.
 
+PR #38 [Feat/add spec.baseRoom](https://github.com/kvi05/screeps-integration-tests/pull/38)
+
+- **`spec.baseRoom(name, opts)`:** returns a ready-to-use standard RCL1 base
+  room (controller level 1, two sources, one spawn) for
+  `createWorld({ rooms: [...] })` — available out of the box via the main
+  `spec` export, no extra import. Customise via the same `RoomOverrides`
+  vocabulary used by room fixtures (`controller` merge, `append`, `exclude`,
+  `creeps`, `hostiles`, `terrain`) — only the fields that differ from the
+  defaults need to be specified.
+
 ### Changed
 
 PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)
