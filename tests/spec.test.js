@@ -24,6 +24,7 @@ const {
     keeperLair,
     source,
     controller,
+    baseRoom,
     creep,
     invader,
     dummyTarget,
@@ -943,6 +944,47 @@ describe('spec constructors', () => {
         it('storeCapacityResource is ignored (simple mode)', () => {
             const t = terminal(10, 20, { storeCapacityResource: { energy: 150000 } });
             expect(t.storeCapacityResource).toBeUndefined();
+        });
+    });
+
+    describe('baseRoom()', () => {
+        it('returns a standard RCL1 room input', () => {
+            const room = baseRoom('W0N1');
+            expect(room.name).toBe('W0N1');
+            expect(room.controller).toMatchObject({ level: 1, x: 32, y: 32 });
+            expect(room.sources).toHaveLength(2);
+            expect(room.sources[0]).toMatchObject({ x: 15, y: 15 });
+            expect(room.sources[1]).toMatchObject({ x: 35, y: 35 });
+            expect(room.structures).toHaveLength(1);
+            expect(room.structures[0]).toMatchObject({ type: STRUCTURE_SPAWN, x: 25, y: 25 });
+        });
+
+        it('omits roomOverrides when no opts are given', () => {
+            const room = baseRoom('W0N1');
+            expect(room.roomOverrides).toBeUndefined();
+        });
+
+        it('passes opts through as roomOverrides without touching defaults', () => {
+            const towerSpec = { type: STRUCTURE_TOWER, x: 20, y: 20 };
+            const room = baseRoom('W0N1', {
+                controller: { level: 2 },
+                append: [towerSpec],
+                creeps: [{ name: 'harvester1' }],
+            });
+            // defaults stay intact
+            expect(room.controller.level).toBe(1);
+            expect(room.structures).toHaveLength(1);
+            // overrides are delegated to the existing roomOverrides mechanism
+            expect(room.roomOverrides).toEqual({
+                controller: { level: 2 },
+                append: [towerSpec],
+                creeps: [{ name: 'harvester1' }],
+            });
+        });
+
+        it('throws a clear error when name is missing', () => {
+            expect(() => baseRoom()).toThrow(/room name is required/);
+            expect(() => baseRoom('')).toThrow(/room name is required/);
         });
     });
 });
