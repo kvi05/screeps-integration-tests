@@ -98,7 +98,7 @@ const world = await createWorld({
 | `profiling`       | `boolean=false`                  | Enable callgrind profiling, see [Profiler](https://github.com/screepers/screeps-profiler) |
 | `logLevel`        | `'all' \| 'error' \| 'warn'`     | Threshold for `report.logs` (default `'all'`)                                             |
 | `maxConsoleLines` | `number=10000`                   | Total limit of `errors + warnings + logs` lines                                           |
-| `metrics`         | `MetricsOpts`                    | `{ every, rooms }` (only `rooms` implemented)                                             |
+| `metrics`         | `MetricsOpts`                    | `{ every, rooms, bots }` (`colonies`/`world` not implemented)                             |
 | `until`           | `UntilOpts`                      | Hard stop condition                                                                       |
 | `onTick`          | `(world, tick) => Promise<void>` | Callback on each tick, called after bot-tick and before predicate                         |
 | `events`          | `EventSpec[]`                    | Declarative events by tick                                                                |
@@ -495,7 +495,7 @@ metrics: { every: 1, rooms: true }
 | `every`    | `number`  | Sampling interval in ticks (`0` — disabled) |
 | `rooms`    | `boolean` | Collect room metrics (default `true`)       |
 | `colonies` | `boolean` | **Not implemented** — throws an error       |
-| `bots`     | `boolean` | **Not implemented** — throws an error       |
+| `bots`     | `boolean` | Collect bot metrics (default `false`)       |
 | `world`    | `boolean` | **Not implemented** — throws an error       |
 
 ### CSV export
@@ -651,25 +651,40 @@ if (!result.passed) {
 Collected by the observer every `metrics.every` ticks. Field names are used
 in aggregation methods, assertions, and CSV export.
 
-| Field             | Type                      | Description                                    |
-| ----------------- | ------------------------- | ---------------------------------------------- |
-| `rcl`             | `number`                  | Controller level (0–8).                        |
-| `rclProgress`     | `number`                  | Progress to the next level.                    |
-| `energyAvailable` | `number`                  | Energy in spawns + extensions.                 |
-| `energyCapacity`  | `number`                  | Total capacity of spawns and extensions.       |
-| `spawnCount`      | `number`                  | Number of spawns in the room.                  |
-| `spawnHits`       | `{name, hits, hitsMax}[]` | HP of each spawn.                              |
-| `towerCount`      | `number`                  | Number of towers.                              |
-| `towerEnergy`     | `number`                  | Total energy in towers.                        |
-| `towerCapacity`   | `number`                  | Total capacity of towers.                      |
-| `extensionCount`  | `number`                  | Number of extensions.                          |
-| `creepCount`      | `number`                  | Total number of creeps in the room.            |
-| `creepsByRole`    | `{[role]: count}`         | Creeps by role (from name: `role_N` → `role`). |
-| `storageEnergy`   | `number`                  | Energy in storage.                             |
-| `containerEnergy` | `number`                  | Total energy in containers.                    |
-| `totalHits`       | `number`                  | Total HP of all room objects.                  |
+| Field                               | Type                      | Description                                                                                            |
+| ----------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `rcl`                               | `number`                  | Controller level (0–8).                                                                                |
+| `rclProgress`                       | `number`                  | Progress to the next level.                                                                            |
+| `energyAvailable`                   | `number`                  | Energy in spawns + extensions.                                                                         |
+| `energyCapacity`                    | `number`                  | Total capacity of spawns and extensions.                                                               |
+| `spawnCount`                        | `number`                  | Number of spawns in the room.                                                                          |
+| `spawnHits`                         | `{name, hits, hitsMax}[]` | HP of each spawn.                                                                                      |
+| `towerCount`                        | `number`                  | Number of towers.                                                                                      |
+| `towerEnergy`                       | `number`                  | Total energy in towers.                                                                                |
+| `towerCapacity`                     | `number`                  | Total capacity of towers.                                                                              |
+| `extensionCount`                    | `number`                  | Number of extensions.                                                                                  |
+| `creepCount`                        | `number`                  | Total number of creeps in the room.                                                                    |
+| `creepsByRole`                      | `{[role]: count}`         | Creeps by role (from name: `role_N` → `role`).                                                         |
+| `storageEnergy`                     | `number`                  | Energy in storage.                                                                                     |
+| `containerEnergy`                   | `number`                  | Total energy in containers.                                                                            |
+| `constructionSiteCount`             | `number`                  | Number of construction sites.                                                                          |
+| `constructionSiteTotalLeftProgress` | `number`                  | Total progress left on all construction sites (`progressTotal - progress`).                            |
+| `totalEnergy`                       | `number`                  | Total energy stored in all non-creep objects with a `store` (extensions, links, tombstones, ruins, …). |
+| `totalHits`                         | `number`                  | Total HP of all room objects.                                                                          |
 
 > `creepsByRole` in CSV expands into separate columns `creepsByRole.<role>`.
+
+### Bot metrics fields (`bots`)
+
+Collected every `metrics.every` ticks when `metrics.bots` is `true`. Series are
+keyed by bot username. Values come from the `users` collection written by the
+game engine each tick.
+
+| Field      | Type     | Description                                         |
+| ---------- | -------- | --------------------------------------------------- |
+| `cpuUsage` | `number` | CPU used by the bot in the last tick.               |
+| `bucket`   | `number` | CPU bucket (available CPU, capped at `CPU_BUCKET`). |
+| `cpuLimit` | `number` | CPU limit per tick (default 100).                   |
 
 ## 9. onTick, events and registerEvent
 
@@ -935,7 +950,7 @@ All examples in this doc use `spec.creep()`, `spec.invader()` or
     every?: number,       // sampling interval (0 = disabled, default 0)
     rooms?: boolean,      // collect room metrics (default true)
     colonies?: boolean,   // not yet supported — throws an error
-    bots?: boolean,       // not yet supported — throws an error
+    bots?: boolean,       // collect bot metrics (default false)
     world?: boolean,      // not yet supported — throws an error
 }
 ```

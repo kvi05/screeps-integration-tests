@@ -446,6 +446,9 @@
  * @property {Object<string,number>} creepsByRole
  * @property {number} storageEnergy
  * @property {number} containerEnergy
+ * @property {number} constructionSiteCount
+ * @property {number} constructionSiteTotalLeftProgress
+ * @property {number} totalEnergy — energy in all non-creep objects with a `store` (incl. tombstones, ruins)
  * @property {number} totalHits
  */
 
@@ -454,6 +457,19 @@
  * @property {string} name
  * @property {number} hits
  * @property {number} hitsMax
+ */
+
+/**
+ * Bot metrics without the `tick` field (added by the recorder).
+ *
+ * Collected from the `users` collection, which the engine updates after
+ * every tick: `lastUsedCpu` (CPU used in the last tick), `cpuAvailable`
+ * (CPU bucket) and `cpu` (CPU limit).
+ *
+ * @typedef {Object} BotMetrics
+ * @property {number} cpuUsage       — CPU used by the bot in the last tick
+ * @property {number} bucket         — CPU bucket (available CPU)
+ * @property {number} cpuLimit       — CPU limit per tick
  */
 
 /**
@@ -486,7 +502,7 @@
  * @property {number} [every=0]        — sample every N ticks (0 = off)
  * @property {boolean} [rooms=true]    — collect room metrics
  * @property {boolean} [colonies=false] — collect colony metrics (not yet supported)
- * @property {boolean} [bots=false]    — collect bot metrics (not yet supported)
+ * @property {boolean} [bots=false]    — collect bot metrics (default false)
  * @property {boolean} [world=false]   — collect world metrics (not yet supported)
  */
 

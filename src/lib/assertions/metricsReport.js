@@ -42,6 +42,8 @@ const MAP_ENTITY_TYPES = ['rooms', 'colonies', 'bots'];
 const DEFAULT_METRICS_EVERY = 0;
 /** @type {boolean} */
 const DEFAULT_METRICS_ROOMS = true;
+/** @type {boolean} */
+const DEFAULT_METRICS_BOTS = false;
 
 class MetricsReport {
     constructor() {
@@ -60,7 +62,7 @@ class MetricsReport {
     /**
      * Resolves metrics collection settings from `WorldOpts`.
      *
-     * The `colonies`, `bots`, `world` flags are not yet supported.
+     * The `colonies` and `world` flags are not yet supported.
      *
      * @param {WorldOpts} opts
      * @returns {{every:number, rooms:boolean, colonies:boolean, bots:boolean, world:boolean}}
@@ -69,13 +71,11 @@ class MetricsReport {
         const metricsOpts = opts.metrics || {};
         const every = metricsOpts.every !== undefined ? metricsOpts.every : DEFAULT_METRICS_EVERY;
         const rooms = metricsOpts.rooms !== undefined ? metricsOpts.rooms : DEFAULT_METRICS_ROOMS;
+        const bots = metricsOpts.bots !== undefined ? metricsOpts.bots : DEFAULT_METRICS_BOTS;
 
         const unsupported = [];
         if (metricsOpts.colonies) {
             unsupported.push('colonies');
-        }
-        if (metricsOpts.bots) {
-            unsupported.push('bots');
         }
         if (metricsOpts.world) {
             unsupported.push('world');
@@ -84,7 +84,7 @@ class MetricsReport {
             throw new Error(`metrics.${unsupported.join(', ')} not yet supported in the integration framework`);
         }
 
-        return { every, rooms, colonies: false, bots: false, world: false };
+        return { every, rooms, colonies: false, bots, world: false };
     }
 
     // ── Getters (for access via world.report.metrics.rooms and toJSON) ──

@@ -19,6 +19,7 @@
  * - `INVADER_USER_ID` — Screeps invader user ID (`'2'`)
  * - `SOURCE_KEEPER_USER_ID` — Source Keeper user ID (`'3'`)
  * - `TYPE_CREEPS` — `'creep'` (used in filters)
+ * - `TYPE_POWER_CREEPS` — `'powerCreep'` (used in filters)
  * - `BOT_STRUCTURE_TYPES` — framework array of bot-owned structure types
  * - `TERRAIN_MASK_WALL`, `TERRAIN_MASK_SWAMP`, `TERRAIN_MASK_LAVA`
  *
@@ -72,6 +73,7 @@ const {
     STRUCTURE_POWER_BANK,
     STRUCTURE_PORTAL,
     STRUCTURE_KEEPER_LAIR,
+    STRUCTURE_CONSTRUCTION_SITE,
     BOT_STRUCTURE_TYPES,
 
     // RESOURCE
@@ -94,6 +96,7 @@ const {
 
     // Type names (for type === ... in filters)
     TYPE_CREEPS,
+    TYPE_POWER_CREEPS,
 
     // Error codes
     OK,
@@ -169,6 +172,7 @@ module.exports = {
     STRUCTURE_POWER_BANK,
     STRUCTURE_PORTAL,
     STRUCTURE_KEEPER_LAIR,
+    STRUCTURE_CONSTRUCTION_SITE,
     BOT_STRUCTURE_TYPES,
 
     // RESOURCE
@@ -191,6 +195,7 @@ module.exports = {
 
     // Type names (for type === ... in filters)
     TYPE_CREEPS,
+    TYPE_POWER_CREEPS,
 
     // Error codes
     OK,

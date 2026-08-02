@@ -46,6 +46,7 @@ neighboring files:
 │  │  │  │                                            │  │  │  │
 │  │  │  │  world.run() / world.tick(n)               │  │  │  │
 │  │  │  │  ├─ doServerTick() + observeAllRooms()     │  │  │  │
+│  │  │  │  │   └─ + observeAllBots() (if bots)       │  │  │  │
 │  │  │  │  ├─ dispatchEvents() (declarative)         │  │  │  │
 │  │  │  │  ├─ onTick callback                        │  │  │  │
 │  │  │  │  └─ checkStopCondition() → stop?           │  │  │  │
@@ -108,6 +109,8 @@ the mockup server's global environment.
    │   │   │    so accumulateEvents appends each tick's entries)
    │   │   ├─ snapshotOwners → mergeOwners
    │   │   └─ collectMetrics → sampleMetrics → report.metrics.rooms
+   │   ├─ for each bot (if metrics.bots):
+   │   │   └─ collectBotMetrics → sampleBotMetrics → report.metrics.bots
    │   ├─ events (declarative spawns)
    │   ├─ onTick callback
    │   ├─ predicate check → shouldStop?

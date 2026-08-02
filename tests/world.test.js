@@ -11,12 +11,18 @@
  *   fixture + overrides pipeline, hostiles userId='2',
  *   inline fixture, creeps userId, controller edge cases.
  * - resolveDistDir / resolveCacheBase (pure functions).
+ * - observeAllBots: sampling gating and per-bot metrics collection.
  *
  * @file Unit tests for world subsystem
  */
 
 const { createWorld, spec } = require('../src');
-const { buildCanonicalRoom, resolveDistDir, resolveCacheBase } = require('../src/lib/orchestration/world');
+const {
+    buildCanonicalRoom,
+    resolveDistDir,
+    resolveCacheBase,
+    observeAllBots,
+} = require('../src/lib/orchestration/world');
 const { FixtureError } = require('../src/lib/errors');
 const { collectMemoryFixtureNames } = require('../src/lib/builders/memory');
 
@@ -552,5 +558,85 @@ describe('collectMemoryFixtureNames', () => {
 
     it('returns [] for an array (invalid shape)', () => {
         expect(collectMemoryFixtureNames(['something'])).toEqual([]);
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// observeAllBots — per-tick bot metrics sampling
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('observeAllBots', () => {
+    const bots = { bot1: { id: 'u1' }, bot2: { id: 'u2' } };
+
+    function createReport() {
+        return { metrics: { append: jest.fn() }, frameworkWarnings: [] };
+    }
+
+    function createAdapter(users) {
+        return {
+            db: {
+                users: {
+                    findOne: jest.fn(async (query) => users.find((u) => u._id === query._id) || null),
+                },
+            },
+        };
+    }
+
+    it('does nothing when metrics.bots is false', async () => {
+        const report = createReport();
+        await observeAllBots({}, bots, report, { bots: false, every: 1 }, 5);
+        expect(report.metrics.append).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when every is 0 or tick is not a sampling tick', async () => {
+        const report = createReport();
+        await observeAllBots({}, bots, report, { bots: true, every: 0 }, 5);
+        await observeAllBots({}, bots, report, { bots: true, every: 2 }, 5);
+        expect(report.metrics.append).not.toHaveBeenCalled();
+    });
+
+    it('samples bot metrics for each bot on a sampling tick', async () => {
+        const adapter = createAdapter([
+            { _id: 'u1', username: 'bot1', lastUsedCpu: 1, cpuAvailable: 10000, cpu: 100 },
+            { _id: 'u2', username: 'bot2', lastUsedCpu: 2, cpuAvailable: 9000, cpu: 100 },
+        ]);
+        const report = createReport();
+        await observeAllBots(adapter, bots, report, { bots: true, every: 1 }, 5);
+        expect(adapter.db.users.findOne).toHaveBeenCalledWith({ _id: 'u1' });
+        expect(adapter.db.users.findOne).toHaveBeenCalledWith({ _id: 'u2' });
+        expect(report.metrics.append).toHaveBeenCalledWith('bots', 'bot1', 5, {
+            cpuUsage: 1,
+            bucket: 10000,
+            cpuLimit: 100,
+        });
+        expect(report.metrics.append).toHaveBeenCalledWith('bots', 'bot2', 5, {
+            cpuUsage: 2,
+            bucket: 9000,
+            cpuLimit: 100,
+        });
+    });
+
+    it('skips a bot whose user row is missing', async () => {
+        const adapter = createAdapter([{ _id: 'u1', username: 'bot1' }]);
+        const report = createReport();
+        await observeAllBots(adapter, bots, report, { bots: true, every: 1 }, 5);
+        expect(report.metrics.append).toHaveBeenCalledTimes(1);
+        expect(report.metrics.append).toHaveBeenCalledWith('bots', 'bot1', 5, {
+            cpuUsage: 0,
+            bucket: 0,
+            cpuLimit: 0,
+        });
+    });
+
+    it('records a frameworkWarning and continues when collection fails', async () => {
+        const adapter = {
+            db: { users: { findOne: jest.fn().mockRejectedValue(new Error('boom')) } },
+        };
+        const report = createReport();
+        await observeAllBots(adapter, bots, report, { bots: true, every: 1 }, 5);
+        expect(report.metrics.append).not.toHaveBeenCalled();
+        expect(report.frameworkWarnings).toHaveLength(2);
+        expect(report.frameworkWarnings[0]).toContain('metrics bot bot1 tick 5');
+        expect(report.frameworkWarnings[1]).toContain('metrics bot bot2 tick 5');
     });
 });
