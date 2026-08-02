@@ -59,6 +59,7 @@ async function run(opts = {}) {
         //   world.getEventLog(room)          — room events for the tick
         //   world.readMemory(user?)          — read bot Memory
         //   world.writeMemory(user, patch)   — update Memory
+        //   world.evalInBot(code)            — eval JS in bot context, get result (promise)
 
         // ─── Actions ─────────────────────────────────────────────────────
         await world.run();
