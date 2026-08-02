@@ -319,6 +319,43 @@ spec.source(15, 15, { roomName: 'W0N1', energy: 3000 });
 spec.controller({ roomName: 'W0N1', level: 3, safeMode: 20000, userId: botId });
 ```
 
+### Rooms
+
+| Function                    | Purpose                 |
+| --------------------------- | ----------------------- |
+| `spec.baseRoom(name, opts)` | Standard RCL1 base room |
+
+`spec.baseRoom(name)` returns a ready-to-use room input for `createWorld({ rooms: [*baseRoom*] })`
+`opts` creates a `roomOverrides` field, which is returned in the object
+
+```javascript
+spec.baseRoom('W0N1');
+/*
+{
+  name: 'W0N1',
+  controller: controller({ level: 1, x: 32, y: 32 }),
+  sources: [source(15, 15), source(35, 35)],
+  structures: [spawn(25, 25)],
+}
+*/
+
+
+
+
+// RCL2 + a tower + a bot creep
+spec.baseRoom('W0N1', {
+  controller: { level: 2 },
+  append: [spec.tower(20, 20)],
+  creeps: [spec.creep(25, 24, { name: 'harvester1' })],
+}),
+/*
+{
+  ...
+  roomOverrides: {controller: { level: 2 }, ...}
+}
+*/
+```
+
 ### Creeps
 
 | Function                       | Purpose                 |
