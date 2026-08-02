@@ -134,7 +134,7 @@ npx screeps-integration-tests --only smoke-empty
 The name is the file name without `.scenario.js`.
 
 Main flags: `--only`, `--profiling`, `--bail`, `--timeout`, `--jobs`,
-`--build`. Full list and defaults — in
+`--build`, `--version`. Full list and defaults — in
 [CONFIG.md](./CONFIG.md).
 
 > **Profiling:** the `--profiling` flag requires that the bot project has

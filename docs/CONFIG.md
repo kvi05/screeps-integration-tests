@@ -90,6 +90,8 @@ npx screeps-integration-tests --build
 
 | Flag                        | Description                                               |
 | --------------------------- | --------------------------------------------------------- |
+| `--help`/ `-h`              | -                                                         |
+| `--version`/ `-v`           | Print the framework version                               |
 | `--config <path>`           | Path to config                                            |
 | `--scenariosDir <dir>`      | Directory with scenarios                                  |
 | `--distDir <dir>`           | Bot `dist/` directory (flat compiled `.js` modules)       |
