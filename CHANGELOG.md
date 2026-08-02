@@ -50,6 +50,22 @@ PR #35 [Fix/scenario contract and test coverage](https://github.com/kvi05/screep
   `MetricsRegression`: an identical baseline passes, a perturbed baseline
   fails, and an absolute tolerance absorbs the difference.
 
+PR #36 [Feat: bot metrics (CPU/bucket/limit) + construction-site & total-energy room metrics](https://github.com/kvi05/screeps-integration-tests/pull/36)
+
+- **New room metrics:** `constructionSiteCount` (number of construction
+  sites), `constructionSiteTotalLeftProgress` (total `progressTotal - progress`
+  across all construction sites) and `totalEnergy` (energy stored in all
+  non-creep objects — spawns, extensions, towers, storage, containers, links,
+  …).
+- **New `bots` metric entity (opt-in):** `metrics.bots: true` collects a
+  per-bot time-series with `cpuUsage` (CPU used in the last tick), `bucket`
+  (CPU bucket, capped) and `cpuLimit` (CPU limit per tick) from the `users`
+  collection written by the engine. Works with the existing `MetricsReport`
+  API (`m.bot(name)`, `m.bots`, `latestBot`, CSV export, assertions) —
+  previously `bots: true` threw an error.
+- **New `TYPE_POWER_CREEPS` constant:** `'powerCreep'` — object type of power
+  creeps in `rooms.objects` (exported from `screeps-integration-tests/constants`).
+
 ### Changed
 
 PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)
