@@ -141,7 +141,7 @@ a community-maintained test harness that runs the official open-source Screeps s
   next tick:
   ```javascript
   await world.exec();
-  await world.tick(2); // The command will only execute on the 2nd tick
+  await world.tick(1);
   ```
 - **`Storage connection lost`:** when many worlds run back-to-back in one
   scenario, you may see `Storage connection lost` in stderr. This is a known

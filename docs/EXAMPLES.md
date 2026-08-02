@@ -270,7 +270,7 @@ assert.ok(spawned);
 
 ## 8. memoryOverrides and direct DB access
 
-**Introduces:** `memoryOverrides`, per-bot memory map, `world.server.common.storage.db`.
+**Introduces:** `memoryOverrides`, per-bot memory map, `world.exec` / `world.evalInBot`, `world.server.common.storage.db`.
 
 ```javascript
 const world = await createWorld({
@@ -298,10 +298,22 @@ await world.run();
 const { db } = world.server.common.storage;
 const creeps = await db['rooms.objects'].find({ room: 'W0N1', type: 'creep' });
 console.log(`spawned ${creeps.length} creeps`);
+
+// …or ask the bot itself. `exec` runs JS in the bot's context (no result);
+// `evalInBot` does the same but resolves with the returned value on the next tick.
+await world.exec('Memory.__inspected = true');
+const rclPromise = world.evalInBot('Game.rooms.W0N1.controller.level');
+await world.tick(1);
+const rcl = await rclPromise; // 2
 ```
 
 > `memoryOverrides` is deep-merged on top of `memory`. Arrays and primitives
 > are replaced, plain objects are merged recursively.
+>
+> `world.exec(code)` runs JS in the bot's context without returning a result;
+> `world.evalInBot(code)` is the same call but resolves with the returned value
+> on the **next** tick. Create the promise, then `world.tick(n)`, then await it. \
+> Use it to read live game state the test doesn't know upfront (`Game`, `find`, `Memory`…).
 
 ## 9. Profiling
 
