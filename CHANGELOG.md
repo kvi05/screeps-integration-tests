@@ -66,6 +66,11 @@ PR #36 [Feat: bot metrics (CPU/bucket/limit) + construction-site & total-energy 
 - **New `TYPE_POWER_CREEPS` constant:** `'powerCreep'` — object type of power
   creeps in `rooms.objects` (exported from `screeps-integration-tests/constants`).
 
+PR #37 [Feat/add flag version](https://github.com/kvi05/screeps-integration-tests/pull/37)
+
+- **CLI `--version` (-v) flag:** `screeps-integration-tests --version` prints the
+  package version. The flag is also listed in the `--help` output.
+
 ### Changed
 
 PR #29 [Fix/eliminating cyclic dependencies](https://github.com/kvi05/screeps-integration-tests/pull/29)

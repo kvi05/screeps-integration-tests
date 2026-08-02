@@ -24,7 +24,7 @@ const { fork, spawn } = require('child_process');
 const treeKill = require('tree-kill');
 const { once } = require('events');
 
-const { resolveConfig, printHelpAndExit } = require('../src/lib/config/config');
+const { resolveConfig, printHelpAndExit, printVersionAndExit } = require('../src/lib/config/config');
 const { saveCallgrind } = require('../src/lib/runtime/profile');
 const { pruneCache } = require('../src/lib/runtime/cleanup');
 const { assertDir, FrameworkError } = require('../src/lib/errors');
@@ -298,6 +298,9 @@ async function main() {
     } catch (err) {
         if (err.name === 'HelpRequested') {
             printHelpAndExit();
+        }
+        if (err.name === 'VersionRequested') {
+            printVersionAndExit();
         }
         if (err instanceof FrameworkError) {
             console.error(`\n${err.toString()}`);

@@ -25,6 +25,15 @@ describe('config resolveConfig', () => {
         return filePath;
     }
 
+    describe('resolveConfig --version', () => {
+        it('throws VersionRequested when --version is present', () => {
+            const { resolveConfig } = require('../src/lib/config/config');
+            expect(() => resolveConfig(['--version'], tmpDir, {})).toThrow(
+                expect.objectContaining({ name: 'VersionRequested' }),
+            );
+        });
+    });
+
     describe('resolveConfig priority', () => {
         it('uses built-in defaults with empty arguments', () => {
             const { resolveConfig } = require('../src/lib/config/config');

@@ -9,6 +9,7 @@
  *   --key=value     (same)
  *   positional      (in order)
  *   --help          (auto-generated from schema)
+ *   --version|-v       (print version and exit)
  *
  * Type validation, range checks (min/max), unknown options — fail-fast.
  *
@@ -31,6 +32,19 @@ class HelpRequested extends Error {
         super(helpText);
         this.name = 'HelpRequested';
         this.helpText = helpText;
+    }
+}
+
+/**
+ * Signals that the CLI version was requested via `--version`.
+ *
+ * Thrown before any parsing happens, mirroring `HelpRequested` for `--help`.
+ * The CLI runner catches this to print the package version and exit 0.
+ */
+class VersionRequested extends Error {
+    constructor() {
+        super('Version requested');
+        this.name = 'VersionRequested';
     }
 }
 
@@ -146,11 +160,14 @@ function validateNumber(key, value, opt) {
  * @param {string} [schema.usage]
  * @param {string[]} argv — process.argv.slice(2)
  * @returns {{ positional: Object<string,*>, options: Object<string,*> }}
- * @throws {HelpRequested|Error}
+ * @throws {HelpRequested|VersionRequested|Error}
  */
 function parseArgs(schema, argv) {
     if (argv.includes('--help') || argv.includes('-h')) {
         throw new HelpRequested(generateHelp(schema));
+    }
+    if (argv.includes('--version') || argv.includes('-v')) {
+        throw new VersionRequested();
     }
 
     const positional = {};
@@ -276,4 +293,4 @@ function parseArgs(schema, argv) {
     return { positional, options };
 }
 
-module.exports = { parseArgs, generateHelp, HelpRequested };
+module.exports = { parseArgs, generateHelp, HelpRequested, VersionRequested };

@@ -3,7 +3,8 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { parseArgs, HelpRequested } = require('./cli');
+const { parseArgs, HelpRequested, VersionRequested } = require('./cli');
+const { version: PACKAGE_VERSION } = require('../../../package.json');
 const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('../errors');
 
 /**
@@ -75,6 +76,9 @@ const CLI_SCHEMA = {
         timeout: { type: 'int', min: 1, description: 'Per-scenario timeout (ms)' },
         jobs: { type: 'int', min: 1, description: 'Number of parallel scenario workers' },
         build: { type: 'bool', description: 'Run buildCommand before scenarios' },
+        // Only affects the `--help` output: `--version` is intercepted by
+        // parseArgs() before any parsing happens, so this option is never set.
+        version: { type: 'bool', description: 'Print the framework version' },
     },
 };
 
@@ -202,6 +206,7 @@ function resolvePaths(cfg, configDir) {
  * @param {Partial<FrameworkConfig>} [overrides] - Explicit overrides for testing
  * @returns {{ config: FrameworkConfig, configPath: string|null }}
  * @throws {HelpRequested} When `--help` is present in argv
+ * @throws {VersionRequested} When `--version` is present in argv
  * @throws {MissingFileError} When `--config` points to a non-existent file
  * @throws {ConfigError} When CLI args are invalid, config file has syntax errors, or config is malformed
  * @throws {FrameworkError} When config loading fails for other reasons
@@ -215,7 +220,7 @@ function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overri
     try {
         ({ options: cliOptions } = parseArgs(CLI_SCHEMA, argv));
     } catch (err) {
-        if (err instanceof HelpRequested) {
+        if (err instanceof HelpRequested || err instanceof VersionRequested) {
             throw err;
         }
         throw new ConfigError('CLI_PARSE_ERROR', null, {
@@ -270,9 +275,20 @@ function printHelpAndExit() {
     process.exit(0);
 }
 
+/**
+ * Prints the framework version (from package.json) and exits the process.
+ *
+ * @returns {never}
+ */
+function printVersionAndExit() {
+    console.log(`v${PACKAGE_VERSION}`);
+    process.exit(0);
+}
+
 module.exports = {
     DEFAULTS,
     CLI_SCHEMA,
     resolveConfig,
     printHelpAndExit,
+    printVersionAndExit,
 };

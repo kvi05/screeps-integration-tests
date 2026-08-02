@@ -1,6 +1,6 @@
 'use strict';
 
-const { parseArgs, generateHelp, HelpRequested } = require('../src/lib/config/cli');
+const { parseArgs, generateHelp, HelpRequested, VersionRequested } = require('../src/lib/config/cli');
 
 describe('cli parseArgs', () => {
     const schema = {
@@ -24,6 +24,16 @@ describe('cli parseArgs', () => {
 
         it('throws HelpRequested on -h', () => {
             expect(() => parseArgs(schema, ['-h'])).toThrow(HelpRequested);
+        });
+    });
+
+    describe('--version', () => {
+        it('throws VersionRequested on --version', () => {
+            expect(() => parseArgs(schema, ['--version'])).toThrow(VersionRequested);
+        });
+
+        it('throws VersionRequested on -v', () => {
+            expect(() => parseArgs(schema, ['-v'])).toThrow(VersionRequested);
         });
     });
 
@@ -170,12 +180,16 @@ describe('generateHelp', () => {
             title: 'My Tool',
             usage: 'my-tool <name>',
             positional: [{ name: 'name', required: true, description: 'the name' }],
-            options: { verbose: { type: 'bool', description: 'be verbose' } },
+            options: {
+                verbose: { type: 'bool', description: 'be verbose' },
+                version: { type: 'bool', description: 'print version' },
+            },
         });
         expect(help).toContain('My Tool');
         expect(help).toContain('my-tool <name>');
         expect(help).toContain('the name');
         expect(help).toContain('be verbose');
+        expect(help).toContain('--version');
     });
 
     it('does not add sections if they are absent', () => {
