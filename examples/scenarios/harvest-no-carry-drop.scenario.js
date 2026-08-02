@@ -98,16 +98,10 @@ async function run(opts = {}) {
             assert.strictEqual(creep.store.energy, 0, 'A: creep without CARRY should have 0 energy in store');
 
             // No dropped resources on the ground — mock server limitation
-            await world.exec(`
-                Memory.__droppedCount = Game.rooms['${ROOM}'].find(${FIND_DROPPED_RESOURCES}).length;
-            `);
+            const droppedCountPromise = world.evalInBot(`Game.rooms['${ROOM}'].find(${FIND_DROPPED_RESOURCES}).length`);
             await world.tick(1);
-            const mem = await world.readMemory();
-            assert.strictEqual(
-                mem.__droppedCount,
-                0,
-                'A: no energy dropped on ground (mock server does NOT auto-drop)',
-            );
+            const droppedCount = await droppedCountPromise;
+            assert.strictEqual(droppedCount, 0, 'A: no energy dropped on ground (mock server does NOT auto-drop)');
 
             assertBotWorked(world.report);
             console.log('  ✓ A: No-CARRY harvest → energy lost (no auto-drop)');
@@ -177,16 +171,10 @@ async function run(opts = {}) {
             );
 
             // No dropped resources
-            await world.exec(`
-                Memory.__droppedCount = Game.rooms['${ROOM}'].find(${FIND_DROPPED_RESOURCES}).length;
-            `);
+            const droppedCountPromise = world.evalInBot(`Game.rooms['${ROOM}'].find(${FIND_DROPPED_RESOURCES}).length`);
             await world.tick(1);
-            const mem = await world.readMemory();
-            assert.strictEqual(
-                mem.__droppedCount,
-                0,
-                'B: no energy dropped on ground (mock server does NOT auto-drop)',
-            );
+            const droppedCount = await droppedCountPromise;
+            assert.strictEqual(droppedCount, 0, 'B: no energy dropped on ground (mock server does NOT auto-drop)');
 
             assertBotWorked(world.report);
             console.log('  ✓ B: Full-CARRY harvest → energy lost (no auto-drop)');

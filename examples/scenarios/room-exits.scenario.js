@@ -36,29 +36,16 @@ async function run(opts = {}) {
         });
     }
 
-    // Sends all describeExits requests in one batch, then one run().
-    // Returns map { roomName -> parsed exits | null | '<NOT_FOUND>' }.
+    // Sends all describeExits requests in one batch, then one tick.
+    // Returns map { roomName -> parsed exits | null }.
     async function readExits(world, roomNames) {
-        const code = roomNames
-            .map((r) => `console.log('__EX_${r}__=' + JSON.stringify(Game.map.describeExits('${r}')));`)
-            .join('\n');
-        await world.exec(code);
-        await world.run();
-        const logs = (world.report.logs || []).map((l) => l.message || l).join('\n');
-        const joined = logs.replace(/&#x22;/g, '"');
+        const promises = roomNames.map((r) => world.evalInBot(`JSON.stringify(Game.map.describeExits('${r}'))`));
+        await world.tick(1);
+        const values = await Promise.all(promises);
         const result = {};
-        for (const r of roomNames) {
-            const m = joined.match(new RegExp(`__EX_${r}__=(\\{.*?\\}|null|undefined)`));
-            if (!m) {
-                result[r] = '<NOT_FOUND>';
-                continue;
-            }
-            try {
-                result[r] = m[1] === 'undefined' || m[1] === 'null' ? null : JSON.parse(m[1]);
-            } catch {
-                result[r] = m[1];
-            }
-        }
+        roomNames.forEach((r, i) => {
+            result[r] = values[i];
+        });
         return result;
     }
 
@@ -173,17 +160,18 @@ async function run(opts = {}) {
             },
         ]);
         try {
-            await world.exec("console.log('__ROUTE_V__=' + JSON.stringify(Game.map.findRoute('W0N1','W0N2')));");
-            await world.exec(
-                "console.log('__ROUTE_FIND_EX__=' + JSON.stringify(Game.rooms['W0N1'].findExitTo('W0N2')));",
-            );
-            await world.run();
-            const logs = (world.report.logs || []).map((l) => l.message || l).join('\n');
-            const joined = logs.replace(/&#x22;/g, '"');
-            const mRoute = joined.match(/__ROUTE_V__=(\[.*?\]|null|-?\d+|undefined)/);
-            const route = mRoute ? mRoute[1] : '<NOT_FOUND>';
+            const routePromise = world.evalInBot(`JSON.stringify(Game.map.findRoute('W0N1', 'W0N2'))`);
+            const exitPromise = world.evalInBot(`JSON.stringify(Game.rooms['W0N1'].findExitTo('W0N2'))`);
+            await world.tick(1);
+            const route = await routePromise;
+            const exitTo = await exitPromise;
             // findRoute returns an array of moves [{exit, room}] or ERR_NO_PATH (-2)
-            assert.ok(route.startsWith('['), `findRoute should return an array of moves, got: ${route}`);
+            assert.ok(Array.isArray(route), `findRoute should return an array of moves, got: ${JSON.stringify(route)}`);
+            // findExitTo returns an exit constant (TOP=1, RIGHT=3, BOTTOM=5, LEFT=7) or ERR_NO_PATH (-2)
+            assert.ok(
+                [TOP, RIGHT, BOTTOM, LEFT, -2].includes(exitTo),
+                `findExitTo should return an exit constant or ERR_NO_PATH, got: ${exitTo}`,
+            );
             assertBotWorked(world.report);
         } finally {
             await world.dispose();
