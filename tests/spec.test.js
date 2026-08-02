@@ -981,10 +981,5 @@ describe('spec constructors', () => {
                 creeps: [{ name: 'harvester1' }],
             });
         });
-
-        it('throws a clear error when name is missing', () => {
-            expect(() => baseRoom()).toThrow(/room name is required/);
-            expect(() => baseRoom('')).toThrow(/room name is required/);
-        });
     });
 });

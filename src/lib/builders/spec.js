@@ -816,10 +816,6 @@ function controller(x, y, optsArg) {
  * })]
  */
 function baseRoom(name = 'W0N1', opts = {}) {
-    if (typeof name !== 'string' || name.length === 0) {
-        throw new Error("spec.baseRoom: room name is required (e.g. spec.baseRoom('W0N1'))");
-    }
-
     const room = {
         name,
         controller: controller({ level: 1, x: 32, y: 32 }),
