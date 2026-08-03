@@ -491,6 +491,13 @@ describe('createWorldHelpers with bots', () => {
             expect(getBotMemory).toHaveBeenCalledWith(adapter, 'bot_123');
         });
 
+        it('throws a clear BotError if username is not found', async () => {
+            await expect(helpers.readMemory('nobody')).rejects.toMatchObject({
+                code: 'BOT_NOT_FOUND',
+                message: expect.stringContaining('Bot "nobody" not found'),
+            });
+        });
+
         it('throws if bots not available', async () => {
             const noBotHelpers = createWorldHelpers(adapter, defaultBotUserId);
             await expect(noBotHelpers.readMemory()).rejects.toThrow('bots not available');
@@ -512,6 +519,18 @@ describe('createWorldHelpers with bots', () => {
             const { getBotMemory } = require('../src/lib/builders/memory');
             expect(getBotMemory).toHaveBeenCalledWith(adapter, 'bot_123');
         });
+
+        it('throws a clear BotError if username is not found', async () => {
+            await expect(helpers.writeMemory('nobody', {})).rejects.toMatchObject({
+                code: 'BOT_NOT_FOUND',
+                message: expect.stringContaining('Bot "nobody" not found'),
+            });
+        });
+
+        it('throws if bots not available', async () => {
+            const noBotHelpers = createWorldHelpers(adapter, defaultBotUserId);
+            await expect(noBotHelpers.writeMemory()).rejects.toThrow('bots not available');
+        });
     });
 
     describe('exec', () => {
@@ -523,6 +542,18 @@ describe('createWorldHelpers with bots', () => {
         it('uses the only bot if username is omitted', async () => {
             await helpers.exec('42');
             expect(bots.myBot.console).toHaveBeenCalledWith('42');
+        });
+
+        it('throws a clear BotError if username is not found', async () => {
+            await expect(helpers.exec('Game.time', 'nobody')).rejects.toMatchObject({
+                code: 'BOT_NOT_FOUND',
+                message: expect.stringContaining('Bot "nobody" not found'),
+            });
+        });
+
+        it('throws if bots not available', async () => {
+            const noBotHelpers = createWorldHelpers(adapter, defaultBotUserId);
+            await expect(noBotHelpers.exec('Game.time')).rejects.toThrow('bots not available');
         });
     });
 
@@ -590,6 +621,10 @@ describe('evalInBot', () => {
         expect(bot.console).toHaveBeenCalledWith(wrap('Game.time', 1));
         bot.emit('console', [], [envelope(1, 7)]);
         await expect(promise).resolves.toBe(7);
+    });
+
+    it('throws a clear BotError if username is not found', () => {
+        expect(() => helpers.evalInBot('Game.time', 'nobody')).toThrow('Bot "nobody" not found');
     });
 
     it('parses JSON-encoded results (objects/arrays)', async () => {
@@ -744,7 +779,7 @@ describe('evalInBot', () => {
         expect(() => noBotHelpers.evalInBot('Game.time')).toThrow('bots not available');
     });
 
-    it('throws synchronously if the bot username is not found', () => {
-        expect(() => helpers.evalInBot('Game.time', 'ghost')).toThrow('bot "ghost" not found');
+    it('throws a clear BotError if the bot username is not found', () => {
+        expect(() => helpers.evalInBot('Game.time', 'ghost')).toThrow('Bot "ghost" not found');
     });
 });

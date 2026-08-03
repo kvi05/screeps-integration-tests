@@ -558,6 +558,7 @@
  * @param {string} code
  * @param {string} [username]
  * @returns {Promise<void>}
+ * @throws {BotError} if `username` is provided but no such bot is registered
  */
 
 /**
@@ -565,6 +566,7 @@
  * @param {string} code
  * @param {string} [username]
  * @returns {Promise<any>}
+ * @throws {BotError} if `username` is provided but no such bot is registered
  */
 
 /**
@@ -583,6 +585,7 @@
  * @callback ReadMemoryFn
  * @param {string} [username]                      — error if omitted in multi-bot mode
  * @returns {Promise<Object>}
+ * @throws {BotError} if `username` is provided but no such bot is registered
  */
 
 /**
@@ -590,6 +593,7 @@
  * @param {string} [username]
  * @param {Object} patch
  * @returns {Promise<void>}
+ * @throws {BotError} if `username` is provided but no such bot is registered
  */
 
 /**
