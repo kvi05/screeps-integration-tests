@@ -303,15 +303,44 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
     // ─── Bot memory & execution ─────────────────────────────────────────────
 
     /**
+     * Resolves a bot username for bot-targeted operations: an explicit
+     * username, or the default bot when omitted. Fails loudly when the
+     * requested bot is not registered (fail loud, fail early).
+     *
+     * @param {string} [botUsername] — explicit bot username
+     * @param {string} fnName — name of the calling helper (for error messages)
+     * @returns {string} resolved username
+     * @throws {BotError} if `botUsername` is provided but no such bot is registered
+     */
+    function resolveBotUsername(botUsername, fnName) {
+        if (!bots) {
+            throw new Error(`${fnName}: bots not available (pass bots to createWorldHelpers)`);
+        }
+        if (botUsername !== undefined && typeof botUsername !== 'string') {
+            throw new Error(`${fnName}: botUsername must be a string or undefined, got ${typeof botUsername}`);
+        }
+        const username = botUsername === undefined ? defaultBot(bots) : botUsername;
+        if (!bots[username]) {
+            throw new BotError(
+                'BOT_NOT_FOUND',
+                username,
+                {
+                    title: `Bot "${username}" not found`,
+                },
+                [`Available bots: ${Object.keys(bots).join(', ') || '(none)'}`],
+            );
+        }
+        return username;
+    }
+
+    /**
      * Reads bot memory.
      * @param {string} [botUsername]
      * @returns {Promise<Object>}
+     * @throws {BotError} if `botUsername` is provided but no such bot is registered
      */
     async function readMemory(botUsername) {
-        if (!bots) {
-            throw new Error('readMemory: bots not available (pass bots to createWorldHelpers)');
-        }
-        const username = botUsername || defaultBot(bots);
+        const username = resolveBotUsername(botUsername, 'readMemory');
         return getBotMemory(adapter, bots[username].id);
     }
 
@@ -325,12 +354,10 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
      * @param {string} [botUsername]
      * @param {Object} patch
      * @returns {Promise<void>}
+     * @throws {BotError} if `botUsername` is provided but no such bot is registered
      */
     async function writeMemory(botUsername, patch) {
-        if (!bots) {
-            throw new Error('writeMemory: bots not available (pass bots to createWorldHelpers)');
-        }
-        const username = botUsername || defaultBot(bots);
+        const username = resolveBotUsername(botUsername, 'writeMemory');
         const current = await getBotMemory(adapter, bots[username].id);
         const next = deepMergeMemory(current, patch || {});
         await setBotMemory(adapter, bots[username].id, next);
@@ -339,14 +366,12 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
     /**
      * Executes JS code in the bot's context via console.
      * @param {string} code
-     * @param {string} [botUsername] — if omitted, uses the only bot (single-bot scenario)
+     * @param {string} [botUsername] — if omitted, uses the only bot
      * @returns {Promise<void>}
+     * @throws {BotError} if `botUsername` is provided but no such bot is registered
      */
     async function exec(code, botUsername) {
-        if (!bots) {
-            throw new Error('exec: bots not available (pass bots to createWorldHelpers)');
-        }
-        const username = botUsername || defaultBot(bots);
+        const username = resolveBotUsername(botUsername, 'exec');
         await bots[username].console(code);
     }
 
@@ -385,18 +410,13 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
      * tick the world.
      *
      * @param {string} code
-     * @param {string} [botUsername] — if omitted, uses the only bot (single-bot scenario)
+     * @param {string} [botUsername] — if omitted, uses the only bot
      * @returns {Promise<any>} result of the expression
+     * @throws {BotError} if `botUsername` is provided but no such bot is registered
      */
     function evalInBot(code, botUsername) {
-        if (!bots) {
-            throw new Error('evalInBot: bots not available (pass bots to createWorldHelpers)');
-        }
-        const username = botUsername || defaultBot(bots);
+        const username = resolveBotUsername(botUsername, 'evalInBot');
         const bot = bots[username];
-        if (!bot) {
-            throw new Error(`evalInBot: bot "${username}" not found`);
-        }
 
         let entry = evalInBotState.get(username);
         if (!entry) {
@@ -521,7 +541,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
      * Returns bot _id by username, index, or the first bot.
      *
      * @param {string|number} [bot] — bot username (string) or index (number, 0-based)
-     *   If omitted — returns _id of the only bot (single-bot scenario).
+     *   If omitted — returns _id of the only bot.
      * @returns {string} bot _id
      * @throws {Error} if bot not found or (with empty argument) bots ≠ 1
      */
@@ -554,17 +574,7 @@ function createWorldHelpers(adapter, defaultBotUserId, roomToBotUserId, bots = u
             return entries[bot].id;
         }
         if (typeof bot === 'string') {
-            if (!bots[bot]) {
-                throw new BotError(
-                    'BOT_NOT_FOUND',
-                    bot,
-                    {
-                        title: `Bot "${bot}" not found`,
-                    },
-                    [`Available bots: ${Object.keys(bots).join(', ') || '(none)'}`],
-                );
-            }
-            return bots[bot].id;
+            return bots[resolveBotUsername(bot, 'botId')].id;
         }
         throw new BotError('INVALID_BOTID_ARG', typeof bot, {
             title: `Invalid botId() argument type: ${typeof bot}`,
