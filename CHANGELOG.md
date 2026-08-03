@@ -124,6 +124,15 @@ PR #35 [Fix/scenario contract and test coverage](https://github.com/kvi05/screep
     a custom event is scheduled via `opts.events` and asserted to fire
     exactly once with the expected `room` and `params`.
 
+PR #40 [fix: clear BotError for unknown bot in world.exec/evalInBot/readMemor…](https://github.com/kvi05/screeps-integration-tests/pull/40)
+
+- **Unknown bot in bot-targeted world methods fails with a clear error** —
+  `world.exec`, `world.evalInBot`, `world.readMemory` and `world.writeMemory`
+  throw a `BotError` (code `BOT_NOT_FOUND`) listing the available bots when the
+  passed `username` is not registered, instead of a cryptic `TypeError`
+  (`Cannot read properties of undefined`). The optional `username` override
+  keeps working as before.
+
 ## [2.0.0] - 2026-07-31
 
 ### Added
