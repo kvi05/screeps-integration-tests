@@ -17,8 +17,6 @@ logs/
 # Output directories
 profiles/*.callgrind
 !profiles/.gitkeep
-src/tools/viewer/dist/
-src/tools/viewer/client/node_modules/
 
 # OS / Editor
 .DS_Store

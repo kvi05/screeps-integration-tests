@@ -133,10 +133,6 @@ Full flag list and config file schema — see [CONFIG.md](./docs/CONFIG.md).
 Built on top of **[screeps-server-mockup](https://github.com/screepers/screeps-server-mockup)** —
 a community-maintained test harness that runs the official open-source Screeps server locally, one tick at a time.
 
-The **viewer** (`src/tools/viewer/`) adapts Canvas 2D rendering code from
-**[screeps-dojo](https://github.com/TimPickup/screeps-dojo)** (MIT) —
-layout engine, drawing primitives, structure shells, and creep sprites.
-
 ## Known issues
 
 - **Profiler delay:** recording starts from tick 2 \

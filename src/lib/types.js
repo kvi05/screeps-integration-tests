@@ -317,64 +317,6 @@
  * @property {UntilOpts} [until]                                   — early termination condition
  * @property {OnTickCallback} [onTick]                             — callback on each tick
  * @property {EventSpec[]} [events]                                 — declarative spawns by tick
- * @property {boolean|ViewerOpts} [viewer=false]                   — enable browser viewer.
- *   `true` = auto-port via getFreePort(). Object = explicit config.
- */
-
-/**
- * Viewer configuration.
- *
- * @typedef {Object} ViewerOpts
- * @property {number} [port]       — explicit port (default: auto via getFreePort)
- * @property {boolean} [autoPlay]  — auto-start tick loop on connect (default: false)
- */
-
-// ─── Viewer data types ──────────────────────────────────────────────────────
-
-/**
- * A single object in a viewer frame snapshot.
- * Mirrors the dojo-compatible format used by the SSE transport and canvas renderer.
- *
- * @typedef {Object} FrameObject
- * @property {string} _id
- * @property {string} type       — 'creep', 'spawn', 'source', etc.
- * @property {number} x
- * @property {number} y
- * @property {string} room
- * @property {string} [user]
- * @property {number} [hits]
- * @property {number} [hitsMax]
- * @property {Object<string,number>} [store]
- * @property {number} [storeCapacity]
- * @property {Object<string,number>} [storeCapacityResource]
- * @property {Array<{type:string,hits:number}>} [body]
- * @property {string} [name]
- * @property {number} [level]
- * @property {number} [progress]
- * @property {number} [progressTotal]
- * @property {number} [energy]
- * @property {number} [energyCapacity]
- * @property {Object} [actionLog]
- * @property {Object} [spawning]
- * @property {boolean} [spawning] // simple boolean variant
- * @property {number} [ticksToSpawn]
- * @property {number} [amount]
- * @property {string} [resourceType]
- * @property {number} [downgradeTime]
- * @property {number} [safeMode]
- * @property {number} [ageTime]
- * @property {number} [decayTime]
- * @property {boolean} [isPowerEnabled]
- */
-
-/**
- * A single tick snapshot for the viewer.
- *
- * @typedef {Object} Frame
- * @property {number} gameTime
- * @property {FrameObject[]} objects
- * @property {Object<string,string[]>} [terrain]  — roomName → terrain rows
- * @property {string[]} [console]
  */
 
 /**
