@@ -28,8 +28,6 @@ const { getFreePort } = require('../../lib/runtime/port');
  * Anti-buffering headers so events flush immediately; a 15s heartbeat
  * keeps the connection alive through idle proxies.
  *
- * Adapted from screeps-dojo (MIT).
- *
  * @param {http.ServerResponse} res
  * @returns {{ send: (type:string, data?:*) => void, close: () => void }}
  */
