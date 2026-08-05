@@ -83,7 +83,7 @@ PR #38 [Feat/add spec.baseRoom](https://github.com/kvi05/screeps-integration-tes
   `creeps`, `hostiles`, `terrain`) — only the fields that differ from the
   defaults need to be specified.
 
-PR #42 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/pull/42)
+PR #44 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/pull/44)
 
 - **Viewer — browser-based room visualisation (PoC).** A new `--viewer` mode that
   streams game state from the mockup server to a browser via SSE, rendering
