@@ -1,0 +1,150 @@
+/* Global styles for the viewer UI */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ─── Layout ──────────────────────────────────────────────────────────────── */
+
+.viewer-layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+/* ─── Controls ────────────────────────────────────────────────────────────── */
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #3a3a3a;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.controls button {
+    background: #3a3a3a;
+    border: 1px solid #4a4a4a;
+    color: #e0e0e0;
+    font-size: 18px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.controls button:hover {
+    background: #4a4a4a;
+}
+
+.tick-display {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+.tick-slider {
+    flex: 1;
+    max-width: 400px;
+    accent-color: #5577ff;
+}
+
+.speed-label {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.speed-label select {
+    background: #3a3a3a;
+    color: #e0e0e0;
+    border: 1px solid #4a4a4a;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 13px;
+}
+
+/* ─── Status bar ──────────────────────────────────────────────────────────── */
+
+.status-bar {
+    padding: 4px 16px;
+    background: #2a2a2a;
+    border-top: 1px solid #3a3a3a;
+    font-size: 12px;
+    color: #888;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.status-bar .connected {
+    color: #4caf50;
+}
+
+.status-bar .disconnected {
+    color: #f44336;
+}
+
+/* ─── Canvas stage ────────────────────────────────────────────────────────── */
+
+.canvas-stage {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    cursor: crosshair;
+}
+
+.canvas-stage canvas {
+    display: block;
+}
+
+/* ─── Loading overlay ─────────────────────────────────────────────────────── */
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(26, 26, 26, 0.9);
+    color: #888;
+    font-size: 18px;
+    z-index: 10;
+}
+
+.loading-overlay .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #3a3a3a;
+    border-top-color: #5577ff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 12px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

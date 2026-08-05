@@ -41,6 +41,7 @@ const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('..
  * @property {string|null} buildCommand — Shell command to build the bot; runs from `process.cwd()` only when `--build` is passed (e.g. `npm run build`)
  * @property {string[]} require         — Module paths to pre-load before any scenario
  * @property {Object<string,string>} env — Environment variables passed to worker processes
+ * @property {boolean} [viewer]         — Enable browser viewer with auto-port
  */
 
 /** @type {FrameworkConfig} */
@@ -57,6 +58,7 @@ const DEFAULTS = {
     buildCommand: null,
     require: [],
     env: {},
+    viewer: false,
 };
 
 const CLI_SCHEMA = {
@@ -76,6 +78,7 @@ const CLI_SCHEMA = {
         timeout: { type: 'int', min: 1, description: 'Per-scenario timeout (ms)' },
         jobs: { type: 'int', min: 1, description: 'Number of parallel scenario workers' },
         build: { type: 'bool', description: 'Run buildCommand before scenarios' },
+        viewer: { type: 'bool', description: 'Enable browser viewer (auto-port)' },
         // Only affects the `--help` output: `--version` is intercepted by
         // parseArgs() before any parsing happens, so this option is never set.
         version: { type: 'bool', description: 'Print the framework version' },

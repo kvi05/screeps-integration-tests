@@ -31,6 +31,7 @@ const { resolveDefaultUserId } = require('./resolveDefaults');
 const { applyTerrainSpec, getTerrainMatrixClass } = require('../runtime/terrain');
 const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 const { FixtureError, BotError, FrameworkError } = require('../errors');
+const { collectSnapshot } = require('../observers/snapshot');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
 
@@ -425,6 +426,18 @@ async function createWorld(opts) {
         // onTick callback
         if (opts.onTick) {
             await opts.onTick(worldInstance, tickNum);
+        }
+
+        // ★ VIEWER HOOK: send snapshot via IPC if viewer is enabled
+        if (opts.viewer && process.send) {
+            try {
+                const snapshot = await collectSnapshot(adapter, roomStatus, report, tickNum);
+                snapshot._sentAt = Date.now();
+                snapshot._size = JSON.stringify(snapshot).length;
+                process.send({ type: 'viewer:frame', ...snapshot });
+            } catch {
+                // Non-critical: don't fail the scenario if snapshot collection errors
+            }
         }
 
         // Predicate check
