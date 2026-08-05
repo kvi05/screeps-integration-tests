@@ -25,7 +25,8 @@
         "bin",
         "src",
         "examples",
-        "!**/.cache"
+        "!**/.cache",
+        "!src/tools/viewer/client/node_modules"
     ],
     "scripts": {
         "lint": "eslint .",
@@ -39,7 +40,8 @@
         "test:integration:clean": "node src/tools/clean-cache.js --cacheDir examples/.cache",
         "test:integration:capture": "node src/tools/capture-fixture.js",
         "test": "jest --config jest.config.js",
-        "prepare": "husky"
+        "prepare": "husky",
+        "build:viewer": "cd src/tools/viewer/client && npm install && npm run build"
     },
     "lint-staged": {
         "*.js": [
