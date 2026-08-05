@@ -25,7 +25,9 @@
         "bin",
         "src",
         "examples",
-        "!**/.cache"
+        "!**/.cache",
+        "!**/node_modules",
+        "!**/dist"
     ],
     "scripts": {
         "lint": "eslint .",
