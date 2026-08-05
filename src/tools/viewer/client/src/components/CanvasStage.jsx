@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { SpriteCache, StaticLayers } from '../canvas/caches';
 import { computeStageLayout } from '../canvas/layout';
+import { zoomToward } from '../canvas/math';
 import { drawFrame } from '../canvas/drawFrame';
 
 /**
@@ -204,22 +205,7 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
         dragRef.current = null;
     }, []);
 
-    /**
-     * Zoom toward a point (px, py) in screen coordinates.
-     * @param {{x:number,y:number,zoom:number}} cam
-     * @param {number} px — screen x of anchor point
-     * @param {number} py — screen y of anchor point
-     * @param {number} factor — multiplier for zoom (1.3 = in, 0.77 = out)
-     * @returns {{x:number,y:number,zoom:number}}
-     */
-    const zoomToward = useCallback((cam, px, py, factor) => {
-        const newZoom = Math.max(0.1, Math.min(10, cam.zoom * factor));
-        return {
-            x: px - (px - cam.x) * (newZoom / cam.zoom),
-            y: py - (py - cam.y) * (newZoom / cam.zoom),
-            zoom: newZoom,
-        };
-    }, []);
+    // ─── Wheel handler ──────────────────────────────────────────────────────
 
     const handleWheel = useCallback(
         (e) => {
@@ -274,6 +260,16 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [resetCamera]);
+
+    // ─── Test API (excluded from production builds by Vite dead-code elimination) ──
+    if (import.meta.env.DEV) {
+        window.__viewerTest = {
+            ...(window.__viewerTest || {}),
+            getCamera() {
+                return { ...cameraRef.current };
+            },
+        };
+    }
 
     return (
         <div ref={containerRef} className="canvas-stage">

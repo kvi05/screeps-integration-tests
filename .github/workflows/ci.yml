@@ -62,6 +62,16 @@ jobs:
               run: npm ci
               env:
                   HUSKY: 0
+            - name: Cache viewer client node_modules
+              id: cache-viewer
+              uses: actions/cache@v6
+              with:
+                  path: src/tools/viewer/client/node_modules
+                  key: ${{ runner.os }}-viewer-${{ hashFiles('src/tools/viewer/client/package-lock.json') }}
+            - name: Build viewer client
+              run: npm run build:viewer
+              env:
+                  HUSKY: 0
             - run: npm test
 
     # ── Integration tests (gated behind lint + unit) ───────────────────────
