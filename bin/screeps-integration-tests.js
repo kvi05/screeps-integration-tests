@@ -28,6 +28,7 @@ const { resolveConfig, printHelpAndExit, printVersionAndExit } = require('../src
 const { saveCallgrind } = require('../src/lib/runtime/profile');
 const { pruneCache } = require('../src/lib/runtime/cleanup');
 const { assertDir, FrameworkError } = require('../src/lib/errors');
+const { createUiServer } = require('../src/tools/viewer/server');
 
 /** @type {number} Maximum framework warnings to show in summary */
 const SUMMARY_WARNINGS_LIMIT = 6;
@@ -178,12 +179,13 @@ function findScenarios(scenariosDir, only) {
  *
  * @param {string} scenarioPath - Absolute path to the `.scenario.js` file
  * @param {Object} opts - Options forwarded to the scenario's `run()`:
- *   `{ profiling?: boolean }`
+ *   `{ profiling?: boolean, viewer?: boolean }`
  * @param {number} timeout - Per-scenario timeout in ms
  * @param {string|null} roomFixturesDir - Directory to auto-load room fixtures from
+ * @param {Function|null} onViewerFrame - Callback for viewer:frame messages (signature: (frame) => void)
  * @returns {Promise<WorkerMessage & {time?: number}>}
  */
-async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir) {
+async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onViewerFrame) {
     const child = fork(RUNNER_SCRIPT, [], { silent: true });
     pipeChildStreams(child);
     const startTime = Date.now();
@@ -198,16 +200,56 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir)
         await once(child, 'spawn', { signal: ac.signal });
         child.send({ scenarioPath, opts, roomFixturesDir });
 
-        const [msg] = await Promise.race([
-            once(child, 'message', { signal: ac.signal }),
-            once(child, 'error', { signal: ac.signal }).then(([err]) => Promise.reject(err)),
-            once(child, 'exit', { signal: ac.signal }).then(([code, signal]) => {
-                const reason = code !== null ? `exit code ${code}` : `signal ${signal}`;
-                return Promise.reject(new Error(`Worker exited unexpectedly (${reason})`));
-            }),
-        ]);
+        // Listen for ALL messages: viewer:frame → broadcast, otherwise → result
+        /** @type {WorkerMessage & { time?: number }} */
+        const result = await new Promise((resolve, reject) => {
+            function onMessage(msg) {
+                if (msg && msg.type === 'viewer:frame') {
+                    // Forward to SSE clients via the broadcast callback
+                    if (onViewerFrame) {
+                        try {
+                            onViewerFrame(msg);
+                        } catch {
+                            // Non-critical
+                        }
+                    }
+                    return; // Keep listening for the final result
+                }
+                // This is the final result (pass/skip/fail)
+                cleanup();
+                resolve(msg);
+            }
 
-        return { ...msg, time: Date.now() - startTime };
+            function onError(err) {
+                cleanup();
+                reject(err);
+            }
+
+            function onExit(code, signal) {
+                cleanup();
+                const reason = code !== null ? `exit code ${code}` : `signal ${signal}`;
+                reject(new Error(`Worker exited unexpectedly (${reason})`));
+            }
+
+            function onAbort() {
+                cleanup();
+                reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+            }
+
+            function cleanup() {
+                child.removeListener('message', onMessage);
+                child.removeListener('error', onError);
+                child.removeListener('exit', onExit);
+                ac.signal.removeEventListener('abort', onAbort);
+            }
+
+            child.on('message', onMessage);
+            child.on('error', onError);
+            child.on('exit', onExit);
+            ac.signal.addEventListener('abort', onAbort);
+        });
+
+        return { ...result, time: Date.now() - startTime };
     } catch (err) {
         if (err.name === 'AbortError') {
             return { status: 'timeout', error: `Timeout after ${timeout}ms` };
@@ -341,6 +383,28 @@ async function main() {
         console.log(`[runner] Cache cleanup: removed ${cleanupResult.removed}, kept ${cleanupResult.kept}`);
     }
 
+    // ★ Start UI server if viewer is enabled
+    /** @type {import('../src/tools/viewer/server').UiServer|null} */
+    let uiServer = null;
+    /** @type {Function|null} */
+    let onViewerFrame = null;
+    if (config.viewer) {
+        try {
+            uiServer = await createUiServer();
+            /** @type {boolean} */
+            let terrainSent = false;
+            onViewerFrame = (frame) => {
+                if (!terrainSent && uiServer && frame.terrain && Object.keys(frame.terrain).length > 0) {
+                    terrainSent = true;
+                    uiServer.broadcastTerrain(frame.terrain);
+                }
+                uiServer.broadcast(frame);
+            };
+        } catch (err) {
+            console.error('[runner] Failed to start UI server:', err.message);
+        }
+    }
+
     const scenarioFiles = (() => {
         try {
             return findScenarios(config.scenariosDir, config.only || null);
@@ -384,12 +448,24 @@ async function main() {
 
             process.stdout.write(`  Running ${name}...\n`);
 
+            // ★ Signal viewer: scenario started
+            if (uiServer) {
+                uiServer.broadcastStart(name, 0);
+            }
+
             const result = await runScenarioInWorker(
                 scenarioPath,
-                { profiling: config.profiling },
+                { profiling: config.profiling, viewer: config.viewer },
                 config.timeout,
                 config.roomFixturesDir,
+                onViewerFrame,
             );
+
+            // ★ Signal viewer: scenario ended
+            if (uiServer) {
+                const ticksRun = result.result?.ticksRun || 0;
+                uiServer.broadcastEnd(result.status, ticksRun);
+            }
 
             const time = Date.now() - start;
             results[index] = { name, ...result, time };
@@ -429,8 +505,18 @@ async function main() {
 
     process.removeListener('SIGINT', onSigInt);
 
+    // ★ Keep UI server alive so the user can scrub through the finished scenario
+    if (uiServer) {
+        console.log(
+            `[viewer] All scenarios finished. UI server at http://127.0.0.1:${uiServer.port} — press Ctrl+C to stop.`,
+        );
+    }
+
     const allPassed = printSummary(results);
-    process.exit(allPassed ? 0 : 1);
+    // Don't exit — keep the process alive for the UI server
+    if (!uiServer) {
+        process.exit(allPassed ? 0 : 1);
+    }
 }
 
 main().catch((e) => {
