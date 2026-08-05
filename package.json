@@ -1,6 +1,6 @@
 {
     "name": "screeps-integration-tests",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "description": "Portable integration test framework for Screeps bots. Run your bot against a full local game server — verify behavior, collect metrics, no game subscription needed.",
     "main": "src/index.js",
     "type": "commonjs",
@@ -26,7 +26,8 @@
         "src",
         "examples",
         "!**/.cache",
-        "!src/tools/viewer/client/node_modules"
+        "!**/node_modules",
+        "!**/dist"
     ],
     "scripts": {
         "lint": "eslint .",
