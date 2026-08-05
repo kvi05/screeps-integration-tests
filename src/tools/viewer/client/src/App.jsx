@@ -236,6 +236,49 @@ export default function App() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleTogglePlay, handleStepForward]);
 
+    // ─── Test API (excluded from production builds by Vite dead-code elimination) ──
+    if (import.meta.env.DEV) {
+        window.__viewerTest = {
+            ...(window.__viewerTest || {}),
+            getState() {
+                return {
+                    tick: tickRef.current,
+                    playing: playingRef.current,
+                    speed: speedRef.current,
+                    connected,
+                    ended,
+                    framesCount: recordingRef.current.frames.length,
+                };
+            },
+            injectFrames(objectsList, terrainMap) {
+                if (terrainMap) {
+                    setRecording((prev) => ({
+                        terrain: { ...prev.terrain, ...terrainMap },
+                        frames: [...prev.frames, { gameTime: prev.frames.length, objects: objectsList || [] }],
+                    }));
+                } else {
+                    setRecording((prev) => ({
+                        ...prev,
+                        frames: [...prev.frames, { gameTime: prev.frames.length, objects: objectsList || [] }],
+                    }));
+                }
+            },
+            reset() {
+                setRecording({ terrain: {}, frames: [] });
+                setTick(0);
+                setPlaying(false);
+                setEnded(false);
+                setConnected(false);
+            },
+            setPlaying(val) {
+                setPlaying(val);
+            },
+            seekTick(t) {
+                setTick(Math.max(0, Math.min(t, recordingRef.current.frames.length - 1)));
+            },
+        };
+    }
+
     // ─── Render ─────────────────────────────────────────────────────────────
 
     const isLoading = !recording.frames.length && connected;
