@@ -38,7 +38,7 @@ function httpGet(port, path = '/') {
  * @param {number} [timeout=1000]
  * @returns {Promise<{headers: Object, events: Array<{type:string,data:*}>}>}
  */
-function collectSseEvents(port, timeout = 1000) {
+function collectSseEvents(port, timeout = 300) {
     return new Promise((resolve, reject) => {
         const events = [];
         const req = http.get(`http://127.0.0.1:${port}/api/sse`, (res) => {
@@ -159,7 +159,7 @@ describe('UiServer', () => {
 
     it('SSE endpoint returns correct headers', async () => {
         server = await createUiServer({ port: 0 });
-        const { headers } = await collectSseEvents(server.port, 100);
+        const { headers } = await collectSseEvents(server.port, 50);
         expect(headers['content-type']).toBe('text/event-stream; charset=utf-8');
         expect(headers['cache-control']).toBe('no-cache, no-transform');
         expect(headers['connection']).toBe('keep-alive');
@@ -181,7 +181,7 @@ describe('UiServer', () => {
                 setTimeout(() => {
                     req.destroy();
                     resolve(output);
-                }, 500);
+                }, 100);
             });
             req.on('error', reject);
         });
@@ -193,8 +193,8 @@ describe('UiServer', () => {
         server = await createUiServer({ port: 0 });
 
         // Connect SSE client and wait for the handshake
-        const ssePromise = collectSseEvents(server.port, 800);
-        await new Promise((r) => setTimeout(r, 200)); // let SSE handshake complete
+        const ssePromise = collectSseEvents(server.port, 300);
+        await new Promise((r) => setTimeout(r, 30)); // let SSE handshake complete
 
         // Send a frame via broadcast
         server.broadcast({ gameTime: 1, objects: [{ _id: 'test', type: 'spawn', x: 0, y: 0, room: 'W0N1' }] });
@@ -210,8 +210,8 @@ describe('UiServer', () => {
     it('broadcastStart sends start event', async () => {
         server = await createUiServer({ port: 0 });
 
-        const ssePromise = collectSseEvents(server.port, 800);
-        await new Promise((r) => setTimeout(r, 200));
+        const ssePromise = collectSseEvents(server.port, 300);
+        await new Promise((r) => setTimeout(r, 30));
         server.broadcastStart('my-scenario', 100);
 
         const { events } = await ssePromise;
@@ -224,8 +224,8 @@ describe('UiServer', () => {
     it('broadcastTerrain sends terrain event', async () => {
         server = await createUiServer({ port: 0 });
 
-        const ssePromise = collectSseEvents(server.port, 800);
-        await new Promise((r) => setTimeout(r, 200));
+        const ssePromise = collectSseEvents(server.port, 300);
+        await new Promise((r) => setTimeout(r, 30));
         server.broadcastTerrain({ W0N1: plainsRows() });
 
         const { events } = await ssePromise;
@@ -237,8 +237,8 @@ describe('UiServer', () => {
     it('broadcastEnd sends end event', async () => {
         server = await createUiServer({ port: 0 });
 
-        const ssePromise = collectSseEvents(server.port, 800);
-        await new Promise((r) => setTimeout(r, 200));
+        const ssePromise = collectSseEvents(server.port, 300);
+        await new Promise((r) => setTimeout(r, 30));
         server.broadcastEnd('pass', 42);
 
         const { events } = await ssePromise;
@@ -251,11 +251,11 @@ describe('UiServer', () => {
     it('broadcast to multiple SSE clients', async () => {
         server = await createUiServer({ port: 0 });
 
-        const p1 = collectSseEvents(server.port, 1000);
-        const p2 = collectSseEvents(server.port, 1000);
+        const p1 = collectSseEvents(server.port, 300);
+        const p2 = collectSseEvents(server.port, 300);
 
         // Wait for both SSE connections to establish
-        await new Promise((r) => setTimeout(r, 250));
+        await new Promise((r) => setTimeout(r, 30));
         server.broadcast({ gameTime: 99, objects: [] });
 
         const [{ events: e1 }, { events: e2 }] = await Promise.all([p1, p2]);
