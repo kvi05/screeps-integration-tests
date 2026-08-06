@@ -73,6 +73,7 @@ jobs:
               env:
                   HUSKY: 0
             - run: npm test
+            - run: npm run test:viewer
 
     # ── Integration tests (gated behind lint + unit) ───────────────────────
     integration-tests:
