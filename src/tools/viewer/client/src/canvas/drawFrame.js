@@ -3,7 +3,7 @@
 // Works in TILE coordinates — the caller applies the world→screen transform.
 
 import { lerp, tPos, tFx, nextLocal, creepFacing } from './layout';
-import { circle, poly } from './primitives';
+import { circle } from './primitives';
 
 const CREEP_SIZE_TILES = 1.25;
 
@@ -156,9 +156,9 @@ export function drawFrame(ctx, recording, tick, sub, opts) {
             if (sprite) drawSprite(ctx, sprite, p.wx, p.wy, 0, 1, sprites.isNpc(obj));
             continue;
         }
+        const room = obj.room;
         let x = obj.x,
             y = obj.y,
-            room = obj.room,
             opacity = 1;
         let actionSrc = obj;
         if (next && sub !== null) {

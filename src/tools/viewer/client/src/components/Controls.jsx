@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * @file Controls — playback controls for the viewer.
  *

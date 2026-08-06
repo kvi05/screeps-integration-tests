@@ -4,12 +4,14 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
-    js.configs.recommended,
-    react.configs.flat.recommended,
     {
         settings: {
             react: { version: '18.3' },
         },
+    },
+    js.configs.recommended,
+    react.configs.flat.recommended,
+    {
         files: ['src/**/*.{js,jsx}', 'tests/**/*.{js,jsx}'],
         plugins: {
             'react-hooks': reactHooks,

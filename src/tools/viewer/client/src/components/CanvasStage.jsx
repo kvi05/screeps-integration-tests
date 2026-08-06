@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { SpriteCache, StaticLayers } from '../canvas/caches';
 import { computeStageLayout } from '../canvas/layout';
 import { zoomToward } from '../canvas/math';
@@ -149,10 +149,8 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
     // Animation loop for smooth sub-frame updates
     useEffect(() => {
         if (playing) {
-            let lastTime = performance.now();
-            const animate = (time) => {
+            const animate = () => {
                 renderCurrentFrame();
-                lastTime = time;
                 animFrameRef.current = requestAnimationFrame(animate);
             };
             animFrameRef.current = requestAnimationFrame(animate);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import CanvasStage from './components/CanvasStage';
 import Controls from './components/Controls';
@@ -20,7 +20,6 @@ export default function App() {
     // SSE connection state
     const [connected, setConnected] = useState(false);
     const [scenario, setScenario] = useState('');
-    const [maxTicks, setMaxTicks] = useState(0);
     const [ended, setEnded] = useState(false);
 
     // Recording: accumulated frames — persisted in sessionStorage across reloads
@@ -82,7 +81,6 @@ export default function App() {
             switch (eventType) {
                 case 'start':
                     setScenario(data.scenario || '');
-                    setMaxTicks(data.maxTicks || 0);
                     setConnected(true);
                     break;
                 case 'terrain': {
