@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+PR #44 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/pull/44)
+
+- **Viewer — browser-based room visualisation (PoC).** A new `--viewer` mode that
+  streams game state from the mockup server to a browser via SSE, rendering
+  rooms on a Canvas 2D stage. Lives under `src/tools/viewer/`; does not affect
+  the core framework.
+  - **Server & IPC:** `ViewerOpts` / `Frame` / `FrameObject` types, `--viewer`
+    CLI flag, `collectSnapshot` observer with terrain cache, `viewer:frame` IPC
+    hook in `doTick`, HTTP+SSE server with broadcast API (`broadcast`,
+    `broadcastStart`, `broadcastTerrain`, `broadcastEnd`).
+  - **Client:** React 18 + Vite SPA with Canvas 2D renderer (adapted from
+    screeps-dojo). Multi-room layout engine, sprite prewarming, camera
+    (drag/zoom/reset), playback controls (play/pause/seek/speed), SSE
+    connection lifecycle, sessionStorage persistence. `npm run build:viewer`
+    script.
+  - **Test infrastructure (vitest + jsdom):** comprehensive Canvas 2D mock
+    with pixel-buffer tracking, transform stack, and path bounding-box
+    support. `npm run test:viewer` script.
+  - **Unit tests:** `zoomToward` (extracted to pure `canvas/math.js`),
+    `roomNameToXY` / `computeStageLayout`, all five drawing primitives.
+  - **Component tests:** full `App` mount — canvas rendering with/without
+    terrain, keyboard navigation (ArrowRight/Left, Space, input focus
+    suppression, camera isolation regression), edge cases.
+  - **Integration tests:** `viewer-server.scenario.js` smoke scenario,
+    `viewerServer.test.js` (SSE headers, handshake, broadcast, REST stubs).
+
 ## [3.0.0] — 2026-08-06
 
 ### Added
@@ -82,32 +110,6 @@ PR #38 [Feat/add spec.baseRoom](https://github.com/kvi05/screeps-integration-tes
   vocabulary used by room fixtures (`controller` merge, `append`, `exclude`,
   `creeps`, `hostiles`, `terrain`) — only the fields that differ from the
   defaults need to be specified.
-
-PR #44 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/pull/44)
-
-- **Viewer — browser-based room visualisation (PoC).** A new `--viewer` mode that
-  streams game state from the mockup server to a browser via SSE, rendering
-  rooms on a Canvas 2D stage. Lives under `src/tools/viewer/`; does not affect
-  the core framework.
-  - **Server & IPC:** `ViewerOpts` / `Frame` / `FrameObject` types, `--viewer`
-    CLI flag, `collectSnapshot` observer with terrain cache, `viewer:frame` IPC
-    hook in `doTick`, HTTP+SSE server with broadcast API (`broadcast`,
-    `broadcastStart`, `broadcastTerrain`, `broadcastEnd`).
-  - **Client:** React 18 + Vite SPA with Canvas 2D renderer (adapted from
-    screeps-dojo). Multi-room layout engine, sprite prewarming, camera
-    (drag/zoom/reset), playback controls (play/pause/seek/speed), SSE
-    connection lifecycle, sessionStorage persistence. `npm run build:viewer`
-    script.
-  - **Test infrastructure (vitest + jsdom):** comprehensive Canvas 2D mock
-    with pixel-buffer tracking, transform stack, and path bounding-box
-    support. `npm run test:viewer` script.
-  - **Unit tests:** `zoomToward` (extracted to pure `canvas/math.js`),
-    `roomNameToXY` / `computeStageLayout`, all five drawing primitives.
-  - **Component tests:** full `App` mount — canvas rendering with/without
-    terrain, keyboard navigation (ArrowRight/Left, Space, input focus
-    suppression, camera isolation regression), edge cases.
-  - **Integration tests:** `viewer-server.scenario.js` smoke scenario,
-    `viewerServer.test.js` (SSE headers, handshake, broadcast, REST stubs).
 
 ### Changed
 
