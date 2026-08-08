@@ -12,6 +12,13 @@ describe('canvas rendering', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
 
+        // Set viewer mode so the canvas is rendered (default is 'scenarios')
+        try {
+            sessionStorage.setItem('sit-viewer-mode', 'viewer');
+        } catch {
+            /* ignore */
+        }
+
         const container = document.createElement('div');
         document.body.appendChild(container);
         act(() => {

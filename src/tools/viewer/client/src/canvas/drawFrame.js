@@ -118,10 +118,10 @@ function indexById(objects) {
  * @param {Object} recording — { terrain, frames }
  * @param {number} tick — tick index
  * @param {number|null} sub — sub-frame [0,1) or null for static
- * @param {{sprites: SpriteCache, layers: StaticLayers, layout: StageLayout, showVisuals: boolean}} opts
+ * @param {{sprites: SpriteCache, layers: StaticLayers, layout: StageLayout, showVisuals: boolean, selectedId?: string|null}} opts
  */
 export function drawFrame(ctx, recording, tick, sub, opts) {
-    const { sprites, layers, layout } = opts;
+    const { sprites, layers, layout, selectedId } = opts;
     const frames = recording.frames;
     const count = frames.length;
     const i = Math.max(0, Math.min(count - 1, tick));
@@ -146,7 +146,20 @@ export function drawFrame(ctx, recording, tick, sub, opts) {
     const baseById = indexById(base.objects);
     const nextById = next ? indexById(next.objects) : null;
 
-    // 2) Creeps (interpolated) + HP
+    // 2) Sources — pulsating glow
+    for (const obj of base.objects) {
+        if (obj.type !== 'source') continue;
+        const p = wpos(obj.room, obj.x, obj.y);
+        if (!p) continue;
+        const pulse = 0.3 + 0.2 * Math.sin((base.gameTime || 0) * 0.3);
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#FFE87B';
+        circle(ctx, p.wx, p.wy, { radius: 0.6, fill: '#FFE87B' });
+        ctx.restore();
+    }
+
+    // 3) Creeps (interpolated) + HP + direction indicator
     for (const obj of base.objects) {
         if (obj.type !== 'creep') continue;
         if (obj.spawning) {
@@ -178,6 +191,21 @@ export function drawFrame(ctx, recording, tick, sub, opts) {
         const facing = creepFacing(frames, i, obj._id, layout);
         const sprite = sprites.isNpc(obj) ? sprites.invaderSprite() : sprites.creepSprite(obj);
         if (sprite) drawSprite(ctx, sprite, p.wx, p.wy, facing, opacity, sprites.isNpc(obj));
+        // Direction indicator
+        if (facing !== 0 && !obj.spawning) {
+            ctx.save();
+            ctx.globalAlpha = opacity * 0.6;
+            ctx.fillStyle = '#ffffff';
+            ctx.translate(p.wx, p.wy);
+            ctx.rotate((facing * Math.PI) / 180);
+            ctx.beginPath();
+            ctx.moveTo(0.9, 0);
+            ctx.lineTo(0.4, -0.2);
+            ctx.lineTo(0.4, 0.2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
         drawHpBar(ctx, obj, p.wx, p.wy, opacity);
         drawEffects(ctx, actionSrc, p.wx, p.wy, sub, off, room);
     }
@@ -191,6 +219,24 @@ export function drawFrame(ctx, recording, tick, sub, opts) {
             const sprite = sprites.isNpc(n) ? sprites.invaderSprite() : sprites.creepSprite(n);
             if (sprite)
                 drawSprite(ctx, sprite, p.wx, p.wy, creepFacing(frames, i + 1, n._id, layout), sub, sprites.isNpc(n));
+        }
+    }
+
+    // 4) Selected object highlight — thick pulsing outline
+    if (selectedId) {
+        const sel = baseById[selectedId];
+        if (sel) {
+            const p = wpos(sel.room, sel.x, sel.y);
+            if (p) {
+                const pulse = 0.7 + 0.3 * Math.sin((base.gameTime || 0) * 0.4);
+                ctx.save();
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 0.25;
+                ctx.globalAlpha = pulse;
+                const size = sel.type === 'creep' ? 1.8 : 1.3;
+                ctx.strokeRect(p.wx - size / 2, p.wy - size / 2, size, size);
+                ctx.restore();
+            }
         }
     }
 }
