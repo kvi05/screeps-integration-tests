@@ -31,7 +31,22 @@ import {
     ClockIcon,
     LoaderIcon,
     EyeIcon,
+    CircleIcon,
+    LayersIcon,
+    CopyIcon,
 } from './Icons';
+
+/** Mirrors ScenarioList.STATUS_CONFIG for detail panel use */
+const STATUS_CONFIG = {
+    pending: { icon: ClockIcon, label: 'Pending' },
+    running: { icon: LoaderIcon, label: 'Running' },
+    pass: { icon: CheckIcon, label: 'Passed' },
+    passed: { icon: CheckIcon, label: 'Passed' },
+    fail: { icon: AlertCircleIcon, label: 'Failed' },
+    failed: { icon: AlertCircleIcon, label: 'Failed' },
+    skip: { icon: CircleIcon, label: 'Skipped' },
+    skipped: { icon: CircleIcon, label: 'Skipped' },
+};
 
 /**
  * @param {Object} props
@@ -46,6 +61,7 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     const [groupPrefix, setGroupPrefix] = useState('');
     const [loading, setLoading] = useState(true);
     const [profiling, setProfiling] = useState(false);
+    const [selectedName, setSelectedName] = useState(/** @type {string|null} */ (null));
 
     useEffect(() => {
         // Restore persisted statuses from sessionStorage
@@ -174,6 +190,20 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     const totalDone = summary.pass + summary.fail + summary.skip;
     const progressPct = scenarios.length > 0 ? (totalDone / scenarios.length) * 100 : 0;
 
+    // Resolve selected scenario object
+    const selectedScenario = useMemo(
+        () => (selectedName ? scenarios.find((s) => s.name === selectedName) || null : null),
+        [scenarios, selectedName],
+    );
+    const selectedStatus = selectedName ? statuses[selectedName] || '' : '';
+    const selectedTiming = selectedName ? timings[selectedName] || {} : {};
+    const selectedStatusConfig = STATUS_CONFIG[selectedStatus] || null;
+    const SelectedStatusIcon = selectedStatusConfig?.icon;
+
+    const handleCopy = useCallback((text) => {
+        navigator.clipboard.writeText(text).catch(() => {});
+    }, []);
+
     return (
         <div className="scenario-manager">
             {/* Header */}
@@ -235,51 +265,181 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                 </button>
             </div>
 
-            {/* Content */}
+            {/* Content — master-detail layout */}
             <div className="sm-content">
-                {/* Batch summary (BM-9) */}
-                {hasResults && (
-                    <div className="sm-batch-summary">
-                        <div className="summary-item">
-                            <CheckIcon size={16} style={{ color: 'var(--success)' }} />
-                            <span className="summary-count pass">{summary.pass}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>passed</span>
-                        </div>
-                        <div className="summary-divider" />
-                        <div className="summary-item">
-                            <AlertCircleIcon size={16} style={{ color: 'var(--error)' }} />
-                            <span className="summary-count fail">{summary.fail}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>failed</span>
-                        </div>
-                        <div className="summary-divider" />
-                        <div className="summary-item">
-                            <ClockIcon size={16} style={{ color: 'var(--text-muted)' }} />
-                            <span className="summary-count skip">{summary.skip}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>skipped</span>
-                        </div>
-                        <div className="summary-progress">
-                            <div className="summary-progress-bar" style={{ width: `${progressPct}%` }} />
-                        </div>
-                        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
-                            {totalDone}/{scenarios.length}
-                        </span>
-                    </div>
-                )}
+                {/* Left panel: batch summary + scenario list */}
+                <div className="sm-list-panel">
+                    <div className="sm-list-scroll">
+                        {hasResults && (
+                            <div className="sm-batch-summary">
+                                <div className="summary-item">
+                                    <CheckIcon size={14} style={{ color: 'var(--success)' }} />
+                                    <span className="summary-count pass">{summary.pass}</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>passed</span>
+                                </div>
+                                <div className="summary-divider" />
+                                <div className="summary-item">
+                                    <AlertCircleIcon size={14} style={{ color: 'var(--error)' }} />
+                                    <span className="summary-count fail">{summary.fail}</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>failed</span>
+                                </div>
+                                <div className="summary-divider" />
+                                <div className="summary-item">
+                                    <ClockIcon size={14} style={{ color: 'var(--text-muted)' }} />
+                                    <span className="summary-count skip">{summary.skip}</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>skipped</span>
+                                </div>
+                                <div className="summary-progress">
+                                    <div className="summary-progress-bar" style={{ width: `${progressPct}%` }} />
+                                </div>
+                                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>
+                                    {totalDone}/{scenarios.length}
+                                </span>
+                            </div>
+                        )}
 
-                {loading ? (
-                    <div className="scenario-loading">
-                        <div className="loading-spinner" />
-                        <div>Loading scenarios...</div>
+                        {loading ? (
+                            <div className="scenario-loading">
+                                <div className="loading-spinner" />
+                                <div>Loading scenarios...</div>
+                            </div>
+                        ) : (
+                            <ScenarioList
+                                scenarios={filtered}
+                                statuses={statuses}
+                                timings={timings}
+                                selected={selectedName}
+                                onSelect={setSelectedName}
+                                onRun={handleRunOne}
+                                onInteractive={handleInteractive}
+                            />
+                        )}
                     </div>
-                ) : (
-                    <ScenarioList
-                        scenarios={filtered}
-                        statuses={statuses}
-                        timings={timings}
-                        onRun={handleRunOne}
-                        onInteractive={handleInteractive}
-                    />
-                )}
+                </div>
+
+                {/* Right panel: scenario detail */}
+                <div className="sm-detail-panel">
+                    {selectedScenario ? (
+                        <>
+                            <div className="sm-detail-header">
+                                <div className="detail-header-left">
+                                    <div className="detail-name-row">
+                                        <span
+                                            className="detail-name"
+                                            title="Click to copy"
+                                            onClick={() => handleCopy(selectedScenario.name)}
+                                        >
+                                            {selectedScenario.name}
+                                        </span>
+                                        <span className="detail-copy-icon" aria-hidden="true">
+                                            <CopyIcon size={14} />
+                                        </span>
+                                    </div>
+                                    <div className="detail-file-row">
+                                        <span
+                                            className="detail-file"
+                                            title="Click to copy"
+                                            onClick={() => handleCopy(selectedScenario.file)}
+                                        >
+                                            {selectedScenario.file}
+                                        </span>
+                                        <span className="detail-copy-icon" aria-hidden="true">
+                                            <CopyIcon size={12} />
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="detail-actions">
+                                    <button
+                                        className="btn-secondary"
+                                        onClick={() => handleRunOne(selectedScenario.name)}
+                                    >
+                                        <PlayIcon size={14} />
+                                        Run
+                                    </button>
+                                    <button
+                                        className="btn-primary"
+                                        onClick={() => handleInteractive(selectedScenario.name)}
+                                    >
+                                        <MonitorIcon size={14} />
+                                        Interactive
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="sm-detail-meta">
+                                <div className="meta-item">
+                                    <div className="meta-label">Status</div>
+                                    <div className="meta-value">
+                                        {selectedStatusConfig ? (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <SelectedStatusIcon
+                                                    size={14}
+                                                    style={{
+                                                        color:
+                                                            selectedStatus === 'pass'
+                                                                ? 'var(--success)'
+                                                                : selectedStatus === 'fail'
+                                                                  ? 'var(--error)'
+                                                                  : selectedStatus === 'running'
+                                                                    ? 'var(--info)'
+                                                                    : 'var(--text-muted)',
+                                                    }}
+                                                />
+                                                {selectedStatusConfig.label}
+                                            </span>
+                                        ) : (
+                                            <span style={{ color: 'var(--text-dim)' }}>Not run</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="meta-item">
+                                    <div className="meta-label">Size</div>
+                                    <div className="meta-value">{formatSize(selectedScenario.size)}</div>
+                                </div>
+                                <div className="meta-item">
+                                    <div className="meta-label">Timing</div>
+                                    <div className="meta-value">
+                                        {selectedTiming.total != null
+                                            ? formatDuration(selectedTiming.total)
+                                            : selectedTiming.elapsed != null
+                                              ? `${formatDuration(selectedTiming.elapsed)}…`
+                                              : '—'}
+                                    </div>
+                                </div>
+                                <div className="meta-item">
+                                    <div className="meta-label">Tick/s</div>
+                                    <div className="meta-value">
+                                        {selectedTiming.tickRate != null
+                                            ? selectedTiming.tickRate.toFixed(1)
+                                            : '—'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Extension point for future features */}
+                            <div className="sm-detail-section">
+                                <div className="section-title">Metrics & History</div>
+                                <div className="section-placeholder">
+                                    Run the scenario to see performance charts and historical results
+                                </div>
+                            </div>
+                            <div className="sm-detail-section">
+                                <div className="section-title">Description</div>
+                                <div className="section-placeholder">
+                                    Scenario descriptions coming soon — add a JSDoc @description to your .scenario.js file
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="sm-detail-empty">
+                            <LayersIcon size={56} className="empty-icon" />
+                            <div className="empty-title">Select a scenario</div>
+                            <div className="empty-hint">
+                                Click on a scenario in the list to see its details and run history
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Footer */}
@@ -295,4 +455,29 @@ export default function ScenarioManager({ onNavigateToViewer }) {
             </div>
         </div>
     );
+}
+
+/**
+ * Format bytes to human-readable.
+ * @param {number} bytes
+ * @returns {string}
+ */
+function formatSize(bytes) {
+    if (!bytes) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+/**
+ * Format milliseconds to short duration.
+ * @param {number} ms
+ * @returns {string}
+ */
+function formatDuration(ms) {
+    if (ms == null) return '—';
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${m}m ${s}s`;
 }

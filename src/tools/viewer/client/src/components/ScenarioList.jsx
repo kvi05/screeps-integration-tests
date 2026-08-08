@@ -1,5 +1,5 @@
 /**
- * @file ScenarioList — table of scenarios with statuses and actions.
+ * @file ScenarioList — compact table of scenarios with statuses and actions.
  *
  * Features:
  * - SM-5/6: Status with color-coded icons
@@ -7,6 +7,7 @@
  * - SM-8: tick/sec
  * - SM-3: Run single (batch mode)
  * - SM-4: Interactive launch
+ * - Row selection (click → master-detail)
  *
  * @component
  */
@@ -29,21 +30,30 @@ const STATUS_CONFIG = {
  * @param {Array<{name:string, file:string, size:number, modified:string}>} props.scenarios
  * @param {Object<string,string>} props.statuses — name → 'pending'|'running'|'passed'|'failed'|'skipped'
  * @param {Object<string,{elapsed?:number, total?:number, tickRate?:number}>} [props.timings]
+ * @param {string|null} props.selected — currently selected scenario name
+ * @param {(name:string) => void} props.onSelect — row click callback
  * @param {(name:string) => void} props.onRun
  * @param {(name:string) => void} props.onInteractive
  */
-export default function ScenarioList({ scenarios = [], statuses = {}, timings = {}, onRun, onInteractive }) {
+export default function ScenarioList({
+    scenarios = [],
+    statuses = {},
+    timings = {},
+    selected = null,
+    onSelect,
+    onRun,
+    onInteractive,
+}) {
     return (
         <div className="scenario-list">
             <table>
                 <thead>
                     <tr>
-                        <th>Status</th>
-                        <th>Name</th>
-                        <th>Timing</th>
-                        <th>Tick/s</th>
-                        <th>Size</th>
-                        <th>Actions</th>
+                        <th className="col-status">Status</th>
+                        <th className="col-name">Name</th>
+                        <th className="col-timing">Time</th>
+                        <th className="col-tickrate">T/s</th>
+                        <th className="col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -52,19 +62,24 @@ export default function ScenarioList({ scenarios = [], statuses = {}, timings = 
                         const config = STATUS_CONFIG[status] || null;
                         const timing = timings[s.name] || {};
                         const StatusIcon = config?.icon;
+                        const isSelected = selected === s.name;
                         return (
-                            <tr key={s.name} className="scenario-row">
+                            <tr
+                                key={s.name}
+                                className={`scenario-row${isSelected ? ' selected' : ''}`}
+                                onClick={() => onSelect?.(s.name)}
+                            >
                                 <td>
                                     {config && (
                                         <div className="scenario-status">
                                             <span className={`status-icon ${status}`}>
                                                 {StatusIcon && (
                                                     <StatusIcon
-                                                        size={12}
+                                                        size={11}
                                                         style={{
                                                             animation:
                                                                 status === 'running'
-                                                                    ? 'spin 1s linear infinite'
+                                                                    ? 'spin 4s linear infinite'
                                                                     : undefined,
                                                         }}
                                                     />
@@ -86,19 +101,27 @@ export default function ScenarioList({ scenarios = [], statuses = {}, timings = 
                                 <td className="scenario-tickrate">
                                     {timing.tickRate != null ? `${timing.tickRate.toFixed(1)}` : '—'}
                                 </td>
-                                <td className="scenario-tickrate">{formatSize(s.size)}</td>
                                 <td className="scenario-actions">
-                                    <button onClick={() => onRun(s.name)} title="Run in batch mode">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onRun(s.name);
+                                        }}
+                                        title="Run in batch mode"
+                                    >
                                         <PlayIcon size={12} />
                                         Run
                                     </button>
                                     <button
-                                        onClick={() => onInteractive(s.name)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onInteractive(s.name);
+                                        }}
                                         className="btn-interactive"
                                         title="Launch in interactive viewer"
                                     >
                                         <MonitorIcon size={12} />
-                                        Interactive
+                                        Live
                                     </button>
                                 </td>
                             </tr>
@@ -106,7 +129,7 @@ export default function ScenarioList({ scenarios = [], statuses = {}, timings = 
                     })}
                     {scenarios.length === 0 && (
                         <tr>
-                            <td colSpan={6}>
+                            <td colSpan={5}>
                                 <div className="scenario-empty">
                                     <AlertCircleIcon size={48} className="empty-icon" />
                                     <div>No scenarios found</div>
@@ -118,17 +141,6 @@ export default function ScenarioList({ scenarios = [], statuses = {}, timings = 
             </table>
         </div>
     );
-}
-
-/**
- * Format bytes to human-readable.
- * @param {number} bytes
- * @returns {string}
- */
-function formatSize(bytes) {
-    if (!bytes) return '—';
-    if (bytes < 1024) return `${bytes} B`;
-    return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
 /**
