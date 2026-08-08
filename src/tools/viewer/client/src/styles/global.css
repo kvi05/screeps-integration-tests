@@ -26,13 +26,13 @@
     --text-muted: #888888;
     --text-dim: #666666;
 
-    /* Accent — teal (professional, warm, not blue) */
-    --accent: #2dd4bf;
-    --accent-hover: #5eead4;
-    --accent-active: #14b8a6;
-    --accent-bg: rgba(45, 212, 191, 0.10);
-    --accent-bg-hover: rgba(45, 212, 191, 0.18);
-    --accent-border: rgba(45, 212, 191, 0.30);
+    /* Accent — muted teal (pastel, readable on both dark bg and white text) */
+    --accent: #38b2ac;
+    --accent-hover: #4fd1c5;
+    --accent-active: #319795;
+    --accent-bg: rgba(56, 178, 172, 0.10);
+    --accent-bg-hover: rgba(56, 178, 172, 0.18);
+    --accent-border: rgba(56, 178, 172, 0.30);
 
     /* Semantic colors — desaturated, less toxic */
     --success: #4ade80;
