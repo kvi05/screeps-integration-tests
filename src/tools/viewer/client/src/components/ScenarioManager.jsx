@@ -56,7 +56,9 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     /** @type {[Array<{name:string, file:string, size:number, modified:string}>, Function]} */
     const [scenarios, setScenarios] = useState([]);
     const [statuses, setStatuses] = useState(/** @type {Object<string, string>} */ ({}));
-    const [timings, setTimings] = useState(/** @type {Object<string, {elapsed?:number, total?:number, tickRate?:number}>} */ ({}));
+    const [timings, setTimings] = useState(
+        /** @type {Object<string, {elapsed?:number, total?:number, tickRate?:number}>} */ ({}),
+    );
     const [filter, setFilter] = useState('');
     const [groupPrefix, setGroupPrefix] = useState('');
     const [loading, setLoading] = useState(true);
@@ -161,10 +163,7 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     );
 
     // Compute available prefixes for grouping
-    const prefixes = useMemo(
-        () => [...new Set(scenarios.map((s) => s.name.split('-')[0] + '-'))].sort(),
-        [scenarios],
-    );
+    const prefixes = useMemo(() => [...new Set(scenarios.map((s) => s.name.split('-')[0] + '-'))].sort(), [scenarios]);
 
     const filtered = useMemo(
         () =>
@@ -251,11 +250,7 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                 {/* Future: BM-6 flags */}
                 <div className="sm-flags">
                     <label className="sm-flag" title="Enable callgrind profiling">
-                        <input
-                            type="checkbox"
-                            checked={profiling}
-                            onChange={(e) => setProfiling(e.target.checked)}
-                        />
+                        <input type="checkbox" checked={profiling} onChange={(e) => setProfiling(e.target.checked)} />
                         Profiling
                     </label>
                 </div>
@@ -287,7 +282,9 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                                 <div className="summary-item">
                                     <ClockIcon size={14} style={{ color: 'var(--text-muted)' }} />
                                     <span className="summary-count skip">{summary.skip}</span>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>skipped</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>
+                                        skipped
+                                    </span>
                                 </div>
                                 <div className="summary-progress">
                                     <div className="summary-progress-bar" style={{ width: `${progressPct}%` }} />
@@ -409,9 +406,7 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                                 <div className="meta-item">
                                     <div className="meta-label">Tick/s</div>
                                     <div className="meta-value">
-                                        {selectedTiming.tickRate != null
-                                            ? selectedTiming.tickRate.toFixed(1)
-                                            : '—'}
+                                        {selectedTiming.tickRate != null ? selectedTiming.tickRate.toFixed(1) : '—'}
                                     </div>
                                 </div>
                             </div>
@@ -426,7 +421,8 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                             <div className="sm-detail-section">
                                 <div className="section-title">Description</div>
                                 <div className="section-placeholder">
-                                    Scenario descriptions coming soon — add a JSDoc @description to your .scenario.js file
+                                    Scenario descriptions coming soon — add a JSDoc @description to your .scenario.js
+                                    file
                                 </div>
                             </div>
                         </>

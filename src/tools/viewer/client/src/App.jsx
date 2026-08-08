@@ -383,23 +383,20 @@ export default function App() {
     );
 
     // Toggle live server play/pause (called by space key + LiveControls)
-    const handleToggleLivePlay = useCallback(
-        (play) => {
-            if (play) {
-                // Resume live → auto-pause replay
-                setPlaying(false);
-                setSub(null);
-                postResume().catch(() => {});
-                setLiveMode(true);
-                setPlaying(true);
-            } else {
-                postPause().catch(() => {});
-                setPlaying(false);
-                setSub(null);
-            }
-        },
-        [],
-    );
+    const handleToggleLivePlay = useCallback((play) => {
+        if (play) {
+            // Resume live → auto-pause replay
+            setPlaying(false);
+            setSub(null);
+            postResume().catch(() => {});
+            setLiveMode(true);
+            setPlaying(true);
+        } else {
+            postPause().catch(() => {});
+            setPlaying(false);
+            setSub(null);
+        }
+    }, []);
 
     const handleSeekTick = useCallback((t) => {
         setLiveMode(false);
@@ -663,18 +660,10 @@ export default function App() {
                 />
                 {/* Future: SL-1/2 save/load, HR-1 hot reload */}
                 <div className="toolbar-actions">
-                    <button
-                        className="icon-btn"
-                        title="Save snapshot (coming soon)"
-                        disabled
-                    >
+                    <button className="icon-btn" title="Save snapshot (coming soon)" disabled>
                         <DownloadIcon size={16} />
                     </button>
-                    <button
-                        className="icon-btn"
-                        title="Hot reload bot (coming soon)"
-                        disabled
-                    >
+                    <button className="icon-btn" title="Hot reload bot (coming soon)" disabled>
                         <RefreshCwIcon size={16} />
                     </button>
                 </div>
@@ -733,11 +722,7 @@ export default function App() {
                                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                                 title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
                             >
-                                {sidebarCollapsed ? (
-                                    <ChevronLeftIcon size={14} />
-                                ) : (
-                                    <ChevronRightIcon size={14} />
-                                )}
+                                {sidebarCollapsed ? <ChevronLeftIcon size={14} /> : <ChevronRightIcon size={14} />}
                             </button>
                         </div>
                     )}
@@ -749,7 +734,9 @@ export default function App() {
                                 {connected ? 'Waiting for first frame...' : 'Connecting to server...'}
                             </div>
                             <div className="loading-hint">
-                                {connected ? 'The scenario is running, data will appear shortly' : 'Make sure the viewer server is running'}
+                                {connected
+                                    ? 'The scenario is running, data will appear shortly'
+                                    : 'Make sure the viewer server is running'}
                             </div>
                         </div>
                     )}
@@ -786,7 +773,10 @@ export default function App() {
                                 el?.classList.add('dragging');
                                 document.body.style.cursor = 'ew-resize';
                                 const onMove = (ev) => {
-                                    const newW = Math.max(SIDEBAR_MIN_W, Math.min(SIDEBAR_MAX_W, startW + startX - ev.clientX));
+                                    const newW = Math.max(
+                                        SIDEBAR_MIN_W,
+                                        Math.min(SIDEBAR_MAX_W, startW + startX - ev.clientX),
+                                    );
                                     if (el) el.style.width = newW + 'px';
                                 };
                                 const onUp = (ev) => {
@@ -794,7 +784,10 @@ export default function App() {
                                     document.removeEventListener('mouseup', onUp);
                                     el?.classList.remove('dragging');
                                     document.body.style.cursor = '';
-                                    const finalW = Math.max(SIDEBAR_MIN_W, Math.min(SIDEBAR_MAX_W, startW + startX - ev.clientX));
+                                    const finalW = Math.max(
+                                        SIDEBAR_MIN_W,
+                                        Math.min(SIDEBAR_MAX_W, startW + startX - ev.clientX),
+                                    );
                                     setSidebarWidth(finalW);
                                 };
                                 document.addEventListener('mousemove', onMove);
@@ -851,12 +844,14 @@ export default function App() {
                         )}
                         {sidebarTab === 'metrics' && <MetricsPanel frames={recording.frames} />}
                         {sidebarTab === 'saveload' && <SaveLoadPanel />}
-                        {sidebarTab === 'settings' && <SettingsPanel
-                            showMiniMap={showMiniMap}
-                            onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
-                            showConsole={showConsole}
-                            onToggleConsole={() => setShowConsole(!showConsole)}
-                        />}
+                        {sidebarTab === 'settings' && (
+                            <SettingsPanel
+                                showMiniMap={showMiniMap}
+                                onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
+                                showConsole={showConsole}
+                                onToggleConsole={() => setShowConsole(!showConsole)}
+                            />
+                        )}
                     </div>
 
                     {/* Sidebar footer toggles */}
@@ -912,12 +907,27 @@ export default function App() {
                         Frames: {recording.frames.length} · Tick: {tick}/{maxTicks || '—'}
                     </span>
                     <span className="kbd-hints">
-                        <span><kbd>Space</kbd>live play/pause</span>
-                        <span><kbd>←</kbd><kbd>→</kbd>step replay</span>
-                        <span><kbd>[</kbd><kbd>]</kbd>live speed</span>
-                        <span><kbd>0</kbd><kbd>Home</kbd>reset view</span>
-                        <span><kbd>M</kbd>metrics</span>
-                        <span><kbd>`</kbd>console</span>
+                        <span>
+                            <kbd>Space</kbd>live play/pause
+                        </span>
+                        <span>
+                            <kbd>←</kbd>
+                            <kbd>→</kbd>step replay
+                        </span>
+                        <span>
+                            <kbd>[</kbd>
+                            <kbd>]</kbd>live speed
+                        </span>
+                        <span>
+                            <kbd>0</kbd>
+                            <kbd>Home</kbd>reset view
+                        </span>
+                        <span>
+                            <kbd>M</kbd>metrics
+                        </span>
+                        <span>
+                            <kbd>`</kbd>console
+                        </span>
                     </span>
                 </div>
             </div>
@@ -985,20 +995,14 @@ function SettingsPanel({ showMiniMap, onToggleMiniMap, showConsole, onToggleCons
                     <div className="settings-label">MiniMap</div>
                     <div className="settings-hint">Show room overview in corner</div>
                 </div>
-                <div
-                    className={`toggle-switch ${showMiniMap ? 'on' : ''}`}
-                    onClick={onToggleMiniMap}
-                />
+                <div className={`toggle-switch ${showMiniMap ? 'on' : ''}`} onClick={onToggleMiniMap} />
             </div>
             <div className="settings-row">
                 <div>
                     <div className="settings-label">Console</div>
                     <div className="settings-hint">Show bot console output</div>
                 </div>
-                <div
-                    className={`toggle-switch ${showConsole ? 'on' : ''}`}
-                    onClick={onToggleConsole}
-                />
+                <div className={`toggle-switch ${showConsole ? 'on' : ''}`} onClick={onToggleConsole} />
             </div>
             <div className="settings-row">
                 <div>

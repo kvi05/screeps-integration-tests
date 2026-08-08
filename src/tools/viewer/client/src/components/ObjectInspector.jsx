@@ -197,9 +197,7 @@ export default function ObjectInspector({
                                 >
                                     {selectedObj.type}
                                 </span>
-                                <span className="detail-title">
-                                    {selectedObj.name || selectedObj._id}
-                                </span>
+                                <span className="detail-title">{selectedObj.name || selectedObj._id}</span>
                                 <div className="detail-actions">
                                     <button
                                         className="icon-btn"
@@ -219,9 +217,7 @@ export default function ObjectInspector({
                                             <tr key={key}>
                                                 <td className="detail-key">{key}</td>
                                                 <td className="detail-value">
-                                                    {typeof value === 'object'
-                                                        ? JSON.stringify(value)
-                                                        : String(value)}
+                                                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                                                 </td>
                                             </tr>
                                         ))}
