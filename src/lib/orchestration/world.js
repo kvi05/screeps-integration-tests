@@ -32,6 +32,8 @@ const { applyTerrainSpec, getTerrainMatrixClass } = require('../runtime/terrain'
 const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 const { FixtureError, BotError, FrameworkError } = require('../errors');
 const { collectSnapshot } = require('../observers/snapshot');
+const { once } = require('events');
+const { getViewerState } = require('../runtime/viewerState');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
 
@@ -283,7 +285,27 @@ async function initializeBots(bots, resolvedBots, adapter, opts, report, globalL
         }
 
         const { handler } = createConsoleCapture({ report, logLevel: effectiveLogLevel, maxConsoleLines });
-        bot.on('console', handler);
+        // Wrap handler to also store structured console entries for the viewer
+        bot.on('console', (logs /*, results, userid, username */) => {
+            // Store structured entries for viewer snapshot (with tick placeholder — filled in doTick)
+            const tickNum = report.ticksRun; // Current tick (pre-increment in doTick)
+            for (const line of logs) {
+                let level = 'info';
+                let message = line;
+                if (line.startsWith('[ERROR]')) {
+                    level = 'error';
+                    message = line.slice(7).trim();
+                } else if (line.startsWith('[WARN]')) {
+                    level = 'warn';
+                    message = line.slice(6).trim();
+                }
+                // Store structured entry on report for snapshot
+                if (!report._consoleEntries) report._consoleEntries = [];
+                report._consoleEntries.push({ level, message, bot: username, tick: tickNum });
+            }
+            // Also call original handler for errors/warnings/logs arrays
+            handler(logs);
+        });
     }
 }
 
@@ -406,6 +428,53 @@ async function createWorld(opts) {
      * @returns {Promise<boolean>} true if the test should stop
      */
     async function doTick(tickNum, worldInstance) {
+        // ★ Viewer live control: uses shared viewerState singleton (set by runScenario.js)
+        // so pause/resume works even if the scenario creates a new opts object.
+        const vs = getViewerState();
+        if (vs) {
+            if (!vs._adapter) vs._adapter = adapter;
+            vs.status.tick = tickNum;
+
+            if (vs.paused) {
+                if (process.send) {
+                    try {
+                        process.send({
+                            type: 'viewer:status',
+                            state: 'paused',
+                            tick: tickNum,
+                            speed: vs.speed || 1,
+                            scenario: vs.status?.scenario || '',
+                        });
+                    } catch {
+                        /* non-critical */
+                    }
+                }
+                await once(vs.control, 'resume');
+            }
+
+            if (vs.stepRequested > 0) {
+                vs.stepRequested--;
+                if (vs.stepRequested === 0) {
+                    vs.paused = true;
+                    vs.status.state = 'paused';
+                }
+            }
+
+            if (!vs.paused && process.send) {
+                try {
+                    process.send({
+                        type: 'viewer:status',
+                        state: vs.status?.state || 'running',
+                        tick: tickNum,
+                        speed: vs.speed || 1,
+                        scenario: vs.status?.scenario || '',
+                    });
+                } catch {
+                    /* non-critical */
+                }
+            }
+        }
+
         // Ownership snapshot BEFORE tick — captures objects that may be destroyed
         for (const name of Object.keys(roomStatus)) {
             try {
@@ -489,6 +558,16 @@ async function createWorld(opts) {
                 while (report.ticksRun < maxTicks) {
                     if (await doTick(report.ticksRun, world)) {
                         break;
+                    }
+
+                    // ★ Viewer speed throttling: delay between ticks
+                    // speed = 1 → real-time (1000ms/tick), max speed → unthrottled
+                    const vsRun = getViewerState();
+                    if (vsRun && vsRun.speed && vsRun.speed < 1000) {
+                        const delayMs = Math.max(0, Math.floor(1000 / vsRun.speed));
+                        if (delayMs > 0) {
+                            await new Promise((resolve) => setTimeout(resolve, delayMs));
+                        }
                     }
                 }
             }

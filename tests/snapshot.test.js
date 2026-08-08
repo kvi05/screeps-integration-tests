@@ -282,4 +282,45 @@ describe('collectSnapshot', () => {
         expect(frame.objects).toHaveLength(1);
         expect(frame.terrain).toBeUndefined();
     });
+
+    // ── Console logs ─────────────────────────────────────────────────────────
+
+    it('includes console entries from report._consoleEntries for current tick', async () => {
+        const adapter = createFakeAdapter([], {});
+        const roomStatus = makeRoomStatus(['W0N1']);
+
+        const report = {
+            _consoleEntries: [
+                { level: 'error', message: 'something broke', bot: 'bot1', tick: 5 },
+                { level: 'warn', message: 'low energy', bot: 'bot1', tick: 5 },
+                { level: 'info', message: 'all good', bot: 'bot2', tick: 5 },
+                { level: 'error', message: 'other tick', bot: 'bot1', tick: 3 },
+            ],
+        };
+
+        const frame = await collectSnapshot(adapter, roomStatus, report, 5);
+        expect(frame.console).toBeDefined();
+        expect(frame.console.length).toBe(3);
+        expect(frame.console[0]).toEqual({ level: 'error', message: 'something broke', bot: 'bot1' });
+        expect(frame.console[2]).toEqual({ level: 'info', message: 'all good', bot: 'bot2' });
+    });
+
+    it('omits console when no entries for current tick', async () => {
+        const adapter = createFakeAdapter([], {});
+        const roomStatus = makeRoomStatus(['W0N1']);
+
+        const report = {
+            _consoleEntries: [{ level: 'error', message: 'wrong tick', bot: 'bot1', tick: 3 }],
+        };
+
+        const frame = await collectSnapshot(adapter, roomStatus, report, 5);
+        expect(frame.console).toBeUndefined();
+    });
+
+    it('omits console when _consoleEntries is empty', async () => {
+        const adapter = createFakeAdapter([], {});
+        const roomStatus = makeRoomStatus(['W0N1']);
+        const frame = await collectSnapshot(adapter, roomStatus, {}, 0);
+        expect(frame.console).toBeUndefined();
+    });
 });

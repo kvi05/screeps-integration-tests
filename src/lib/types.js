@@ -325,8 +325,14 @@
  * Viewer configuration.
  *
  * @typedef {Object} ViewerOpts
- * @property {number} [port]       — explicit port (default: auto via getFreePort)
- * @property {boolean} [autoPlay]  — auto-start tick loop on connect (default: false)
+ * @property {number} [port]                  — explicit port (default: auto via getFreePort)
+ * @property {boolean} [autoPlay]             — auto-start tick loop on connect (default: false)
+ * @property {boolean} [paused=false]         — start paused (for live control)
+ * @property {number} [speed=1]               — tick speed (1 = real-time, max = unthrottled)
+ * @property {number} [replayBuffer=200]      — max frames to keep in client ring buffer
+ * @property {import('events').EventEmitter} [control] — internal: EventEmitter for pause/resume signalling
+ * @property {number} [stepRequested=0]       — internal: remaining step ticks
+ * @property {{state:string, tick:number, speed:number, scenario:string}} [status] — internal: current server status
  */
 
 // ─── Viewer data types ──────────────────────────────────────────────────────
@@ -374,7 +380,7 @@
  * @property {number} gameTime
  * @property {FrameObject[]} objects
  * @property {Object<string,string[]>} [terrain]  — roomName → terrain rows
- * @property {string[]} [console]
+ * @property {Array<{level:string, message:string, bot:string}>} [console] — structured console entries for this tick
  */
 
 /**
@@ -453,6 +459,9 @@
  * @property {Object<string,string>} objectOwners       — _id → user (owner)
  *
  * @property {string[]} frameworkWarnings               — technical framework warnings (not bot errors)
+ *
+ * @property {Array<{level:string, message:string, bot:string, tick:number}>} [_consoleEntries]
+ *           — @internal structured console entries for viewer snapshots
  *
  * @property {string|null} stopReason                   — stop reason (predicate / signal / maxTicks)
  */

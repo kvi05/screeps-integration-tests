@@ -187,10 +187,22 @@ async function collectSnapshot(adapter, roomStatus, report, tickNum) {
         }
     }
 
+    // Console logs for this tick
+    /** @type {Array<{level:string, message:string, bot:string}>} */
+    const consoleLines = [];
+    if (report._consoleEntries) {
+        for (const entry of report._consoleEntries) {
+            if (entry.tick === tickNum) {
+                consoleLines.push({ level: entry.level, message: entry.message, bot: entry.bot || '' });
+            }
+        }
+    }
+
     return {
         gameTime: tickNum,
         objects,
         terrain: Object.keys(terrain).length > 0 ? terrain : undefined,
+        console: consoleLines.length > 0 ? consoleLines : undefined,
     };
 }
 

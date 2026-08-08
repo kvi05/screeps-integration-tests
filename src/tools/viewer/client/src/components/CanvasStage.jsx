@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import { SpriteCache, StaticLayers } from '../canvas/caches';
 import { computeStageLayout } from '../canvas/layout';
 import { zoomToward } from '../canvas/math';
@@ -11,6 +11,7 @@ import { drawFrame } from '../canvas/drawFrame';
  * - Camera: drag (right-click or Ctrl+left-click), zoom (wheel), reset
  * - Rendering: terrain → structures → creeps per frame
  * - Sprite prewarming
+ * - Exposes camera state and jumpToRoom via imperative handle
  *
  * @component
  */
@@ -21,8 +22,15 @@ import { drawFrame } from '../canvas/drawFrame';
  * @param {number} props.tick — current tick index
  * @param {number|null} props.sub — sub-frame [0,1) or null for static
  * @param {boolean} props.playing — whether playback is active
+ * @param {string|null} [props.selectedId] — currently selected object _id for highlight
+ * @param {(roomName:string, x:number, y:number) => void} [props.onTileClick] — click on tile callback
+ * @param {(cam:{x:number,y:number,zoom:number}) => void} [props.onCameraChange] — camera state callback
+ * @param {Object} ref — imperative handle ref
  */
-export default function CanvasStage({ recording, tick, sub, playing }) {
+const CanvasStage = forwardRef(function CanvasStage(
+    { recording, tick, sub, playing, selectedId, onTileClick, onCameraChange },
+    ref,
+) {
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
     const layersRef = useRef(null);
@@ -34,8 +42,33 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
     const cameraRef = useRef(camera);
     cameraRef.current = camera;
 
-    const dragRef = useRef(null); // { startX, startY, camStartX, camStartY }
+    // Notify parent of camera changes
+    useEffect(() => {
+        if (onCameraChange) onCameraChange(camera);
+    }, [camera, onCameraChange]);
+
+    const dragRef = useRef(null);
     const initDoneRef = useRef(false);
+
+    // Expose jumpToRoom via imperative handle
+    useImperativeHandle(ref, () => ({
+        jumpToRoom(roomName) {
+            const layout = layoutRef.current;
+            const container = containerRef.current;
+            if (!layout || !container) return;
+            const off = layout.offsets[roomName];
+            if (!off) return;
+            // Center on that room
+            const roomCenterX = (off.col * 50 + 25) * (layout.pixelsPerRoom / 50);
+            const roomCenterY = (off.row * 50 + 25) * (layout.pixelsPerRoom / 50);
+            const cw = container.clientWidth;
+            const ch = container.clientHeight;
+            const zoom = cameraRef.current.zoom;
+            const cx = cw / 2 - roomCenterX * zoom;
+            const cy = ch / 2 - roomCenterY * zoom;
+            setCamera({ x: cx, y: cy, zoom });
+        },
+    }));
 
     // Sprite cache — lives across renders so prewarm accumulates creep types
     const spritesRef = useRef(new SpriteCache());
@@ -130,6 +163,7 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
             layers,
             layout,
             showVisuals: true,
+            selectedId,
         });
 
         ctx.restore();
@@ -209,7 +243,7 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
         (e) => {
             e.preventDefault();
             const pos = getEventPos(e);
-            const factor = e.deltaY < 0 ? 1.2 : 0.8;
+            const factor = e.deltaY < 0 ? 1.25 : 0.75;
             setCamera((prev) => zoomToward(prev, pos.x, pos.y, factor));
         },
         [getEventPos, zoomToward],
@@ -218,6 +252,39 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
     const handleContextMenu = useCallback((e) => {
         e.preventDefault();
     }, []);
+
+    // ─── Click handler → tile coords ────────────────────────────────────
+    const handleClick = useCallback(
+        (e) => {
+            if (e.button !== 0) return; // left click only
+            if (e.ctrlKey || e.shiftKey) return; // not a modified click
+            const pos = getEventPos(e);
+            const cam = cameraRef.current;
+            const layout = layoutRef.current;
+            if (!layout) return;
+
+            // Convert screen → tile coords
+            const tileScale = (layout.pixelsPerRoom / 50) * cam.zoom;
+            const tileX = (pos.x - cam.x) / tileScale;
+            const tileY = (pos.y - cam.y) / tileScale;
+
+            // Find which room this tile belongs to
+            const off = layout.offsets;
+            for (const [roomName, o] of Object.entries(off)) {
+                const roomLeft = o.col * 50;
+                const roomTop = o.row * 50;
+                if (tileX >= roomLeft && tileX < roomLeft + 50 && tileY >= roomTop && tileY < roomTop + 50) {
+                    const localX = Math.floor(tileX - roomLeft);
+                    const localY = Math.floor(tileY - roomTop);
+                    if (onTileClick) {
+                        onTileClick(roomName, localX, localY);
+                    }
+                    break;
+                }
+            }
+        },
+        [getEventPos, onTileClick],
+    );
 
     // ─── Keyboard handlers ──────────────────────────────────────────────────
     const resetCamera = useCallback(() => {
@@ -245,12 +312,12 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
                 case '+':
                 case '=':
                     if (!container) break;
-                    setCamera((prev) => zoomToward(prev, container.clientWidth / 2, container.clientHeight / 2, 1.3));
+                    setCamera((prev) => zoomToward(prev, container.clientWidth / 2, container.clientHeight / 2, 1.45));
                     break;
                 case '-':
                     if (!container) break;
                     setCamera((prev) =>
-                        zoomToward(prev, container.clientWidth / 2, container.clientHeight / 2, 1 / 1.3),
+                        zoomToward(prev, container.clientWidth / 2, container.clientHeight / 2, 1 / 1.45),
                     );
                     break;
             }
@@ -278,8 +345,11 @@ export default function CanvasStage({ recording, tick, sub, playing }) {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
                 onWheel={handleWheel}
+                onClick={handleClick}
                 onContextMenu={handleContextMenu}
             />
         </div>
     );
-}
+});
+
+export default CanvasStage;

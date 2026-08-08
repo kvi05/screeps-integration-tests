@@ -35,6 +35,45 @@ PR #44 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/p
   - **Integration tests:** `viewer-server.scenario.js` smoke scenario,
     `viewerServer.test.js` (SSE headers, handshake, broadcast, REST stubs).
 
+PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
+
+- **Phase 2 Browser Viewer (MVP):** bidirectional IPC for live server control
+  (pause/resume/step/speed via REST → `child.send()`). Controls are split into
+  Live Server (manages the real server) and Saved Replay (client-side playback
+  of accumulated frames).
+- **Object Inspector:** click on canvas → list of objects on that tile → detailed
+  properties. Selected object highlight on canvas. Type filter and search.
+- **Console Panel:** dockable panel with bot logs (`frame.console`).
+  Level filter (all/error/warn/info), search, click-to-jump tick.
+- **Scenario Manager:** list screen with scenario discovery, run single or all,
+  interactive mode. Statuses, prefix grouping, name filter.
+- **Metrics Graphs:** metric charts (RCL, energy, creeps, tower) via
+  Chart.js + react-chartjs-2. Table with latest values.
+- **MiniMap:** room overview with click-to-navigate.
+- **Ring buffer:** automatic frame limit for accumulated snapshots
+  (default 200, configurable via `ViewerOpts.replayBuffer`).
+
+### Changed
+
+PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
+
+- **`createUiServer()`** now accepts `sendCommand`, `scenariosDir`,
+  `onRunScenario` options for bidirectional IPC.
+- **`runScenario.js`:** worker listens for `viewer:cmd` messages, creates
+  `opts.viewer.control` EventEmitter for pause/step.
+- **`world.js` `doTick()`:** checks `opts.viewer.paused`, awaits resume,
+  supports `stepRequested`. `run()`: throttling via `opts.viewer.speed`.
+- **`snapshot.js` `collectSnapshot()`:** includes `report.logs` in
+  `frame.console` (filtered by tickNum).
+- **`ViewerOpts`** extended: `paused`, `speed`, `replayBuffer`, `control`,
+  `stepRequested`, `status`.
+
+### Added dependencies
+
+PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
+
+- `chart.js`, `react-chartjs-2`, `react-router-dom` (viewer client)
+
 ## [3.0.0] — 2026-08-06
 
 ### Added

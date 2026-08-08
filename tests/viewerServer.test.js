@@ -263,19 +263,116 @@ describe('UiServer', () => {
         expect(e2.find((e) => e.type === 'frame')).toBeDefined();
     });
 
-    it('/api/scenarios returns empty list (Phase 2 stub)', async () => {
+    it('/api/scenarios returns empty list when no dir set', async () => {
         server = await createUiServer({ port: 0 });
         const body = await httpGet(server.port, '/api/scenarios');
         const parsed = JSON.parse(body);
         expect(parsed).toEqual({ scenarios: [] });
     });
 
-    it('/api/run POST returns not_implemented (Phase 2 stub)', async () => {
+    it('/api/run POST returns ok for implemented endpoint', async () => {
         server = await createUiServer({ port: 0 });
-        const result = await httpPost(server.port, '/api/run', { scenario: 'test' });
+        const result = await httpPost(server.port, '/api/run', { scenario: 'test', interactive: true });
         expect(result.status).toBe(200);
         const parsed = JSON.parse(result.body);
-        expect(parsed).toEqual({ status: 'not_implemented' });
+        expect(parsed).toEqual({ ok: true, scenario: 'test', interactive: true });
+    });
+
+    it('/api/dispose POST returns ok', async () => {
+        server = await createUiServer({ port: 0 });
+        const result = await httpPost(server.port, '/api/dispose');
+        expect(result.status).toBe(200);
+        const parsed = JSON.parse(result.body);
+        expect(parsed).toEqual({ ok: true });
+    });
+
+    it('/api/status GET returns initial state', async () => {
+        server = await createUiServer({ port: 0 });
+        const result = await httpGet(server.port, '/api/status');
+        const parsed = JSON.parse(result);
+        expect(parsed).toEqual({ state: 'idle', tick: 0, speed: 1000, scenario: '' });
+    });
+
+    it('/api/status GET reflects updates after pause command', async () => {
+        let lastCommand = null;
+        server = await createUiServer({
+            port: 0,
+            sendCommand: (cmd) => {
+                lastCommand = cmd;
+            },
+        });
+        // Send pause → serverStatus should update
+        await httpPost(server.port, '/api/pause');
+        const result = await httpGet(server.port, '/api/status');
+        const parsed = JSON.parse(result);
+        expect(parsed.state).toBe('paused');
+        expect(lastCommand).toEqual({ type: 'viewer:cmd', action: 'pause' });
+    });
+
+    it('/api/scenarios returns real scenarios when scenariosDir is set', async () => {
+        // Point to the examples directory which has real scenarios
+        const path = require('path');
+        const scenariosDir = path.resolve(__dirname, '..', 'examples', 'scenarios');
+        server = await createUiServer({ port: 0, scenariosDir });
+        const body = await httpGet(server.port, '/api/scenarios');
+        const parsed = JSON.parse(body);
+        expect(parsed.scenarios).toBeDefined();
+        expect(Array.isArray(parsed.scenarios)).toBe(true);
+        // Should find at least the smoke-empty scenario
+        const names = parsed.scenarios.map((s) => s.name);
+        expect(names).toContain('smoke-empty');
+    });
+
+    it('broadcastStart sends SSE start event', async () => {
+        server = await createUiServer({ port: 0 });
+        // Start SSE connection, then broadcast after a small delay
+        const ssePromise = collectSseEvents(server.port, 400);
+        await new Promise((r) => setTimeout(r, 100));
+        server.broadcastStart('test-scenario', 200);
+        const { events } = await ssePromise;
+        const startEvent = events.find((e) => e.type === 'start');
+        expect(startEvent).toBeDefined();
+        expect(startEvent.data).toEqual({ scenario: 'test-scenario', maxTicks: 200 });
+    });
+
+    it('broadcastScenarioResult sends SSE scenario-result event', async () => {
+        server = await createUiServer({ port: 0 });
+        const ssePromise = collectSseEvents(server.port, 400);
+        await new Promise((r) => setTimeout(r, 100));
+        server.broadcastScenarioResult({ scenario: 'test', status: 'pass', time: 100, ticks: 30 });
+        const { events } = await ssePromise;
+        const resultEvent = events.find((e) => e.type === 'scenario-result');
+        expect(resultEvent).toBeDefined();
+        expect(resultEvent.data).toEqual({ scenario: 'test', status: 'pass', time: 100, ticks: 30 });
+    });
+
+    it('updateStatus broadcasts SSE status event', async () => {
+        server = await createUiServer({ port: 0 });
+        const ssePromise = collectSseEvents(server.port, 400);
+        await new Promise((r) => setTimeout(r, 100));
+        server.updateStatus({ state: 'running', tick: 42, speed: 5 });
+        const { events } = await ssePromise;
+        const statusEvents = events.filter((e) => e.type === 'status');
+        // First event is re-send on connect (idle), last event is the update
+        const lastStatus = statusEvents[statusEvents.length - 1];
+        expect(lastStatus).toBeDefined();
+        expect(lastStatus.data).toEqual({ state: 'running', tick: 42, speed: 5, scenario: '' });
+
+        const getResult = await httpGet(server.port, '/api/status');
+        const parsed = JSON.parse(getResult);
+        expect(parsed.state).toBe('running');
+        expect(parsed.tick).toBe(42);
+        expect(parsed.speed).toBe(5);
+    });
+
+    it('new SSE client gets current status on connect', async () => {
+        server = await createUiServer({ port: 0 });
+        server.updateStatus({ state: 'running', tick: 10, speed: 3 });
+        const { events } = await collectSseEvents(server.port, 500);
+        const statusEvents = events.filter((e) => e.type === 'status');
+        expect(statusEvents.length).toBeGreaterThanOrEqual(1);
+        const lastStatus = statusEvents[statusEvents.length - 1];
+        expect(lastStatus.data.state).toBe('running');
     });
 });
 
