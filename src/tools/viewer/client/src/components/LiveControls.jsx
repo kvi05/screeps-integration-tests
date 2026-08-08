@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { postPause, postResume, postStep, postSpeed } from '../api/client';
+import { PlayIcon, PauseIcon, StepForwardIcon, RadioIcon } from './Icons';
 
 /**
  * @param {Object} props
@@ -37,7 +38,6 @@ export default function LiveControls({
     const handlePause = async () => {
         try {
             await postPause();
-            // State will be confirmed by SSE status event
         } catch {
             /* connection error — ignore */
         }
@@ -46,7 +46,6 @@ export default function LiveControls({
     const handleResume = async () => {
         try {
             await postResume();
-            // State will be confirmed by SSE status event
         } catch {
             /* ignore */
         }
@@ -55,7 +54,6 @@ export default function LiveControls({
     const handleStep = async () => {
         try {
             await postStep(1);
-            // State will be confirmed by SSE status event
         } catch {
             /* ignore */
         }
@@ -71,46 +69,62 @@ export default function LiveControls({
         }
     };
 
+    const statusClass = serverState === 'idle' ? 'idle' : isRunning ? 'running' : isPaused ? 'paused' : 'stepping';
     const statusText =
         serverState === 'idle'
             ? 'Idle'
             : isRunning
-              ? `Running (tick ${serverTick})`
+              ? `Running · tick ${serverTick}`
               : isPaused
-                ? `Paused (tick ${serverTick})`
-                : `Stepping (tick ${serverTick})`;
-
-    const statusColor = serverState === 'idle' ? '#888' : isRunning ? '#4caf50' : isPaused ? '#ff9800' : '#2196f3';
+                ? `Paused · tick ${serverTick}`
+                : `Stepping · tick ${serverTick}`;
 
     return (
         <div className="live-controls">
-            <span className="control-group-label">Live Server</span>
+            <span className="control-group-label live">
+                <span className="label-dot" />
+                Live
+            </span>
 
             <button
+                className={`icon-btn ${isRunning ? 'primary' : ''}`}
                 onClick={isRunning ? handlePause : handleResume}
                 disabled={!canControl}
-                title={isRunning ? 'Pause' : 'Resume'}
+                title={isRunning ? 'Pause server' : 'Resume server'}
+                aria-label={isRunning ? 'Pause server' : 'Resume server'}
             >
-                {isRunning ? '⏸' : '▶'}
+                {isRunning ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
             </button>
 
-            <button onClick={handleStep} disabled={!canControl} title="Step +1">
-                ⏭
+            <button
+                className="icon-btn"
+                onClick={handleStep}
+                disabled={!canControl}
+                title="Step +1 tick"
+                aria-label="Step forward one tick"
+            >
+                <StepForwardIcon size={16} />
             </button>
 
-            <label className="speed-label">
-                Speed:
-                <select value={localSpeed} onChange={(e) => handleSpeed(e.target.value)} disabled={!canControl}>
+            <div className="speed-control">
+                <label>Speed</label>
+                <select
+                    className="speed-select"
+                    value={localSpeed}
+                    onChange={(e) => handleSpeed(e.target.value)}
+                    disabled={!canControl}
+                >
                     <option value={1}>1×</option>
                     <option value={5}>5×</option>
                     <option value={10}>10×</option>
                     <option value={20}>20×</option>
                     <option value={1000}>Max</option>
                 </select>
-            </label>
+            </div>
 
-            <span className="status-indicator" style={{ color: statusColor }}>
-                ● {statusText}
+            <span className={`status-badge ${statusClass}`}>
+                <span className="status-dot" />
+                {statusText}
             </span>
         </div>
     );

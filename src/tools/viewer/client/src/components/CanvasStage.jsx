@@ -145,7 +145,7 @@ const CanvasStage = forwardRef(function CanvasStage(
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Background
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = '#1e1e1e';
         ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
         // Apply camera transform: pixel coords → tile coords

@@ -1,12 +1,46 @@
 /**
  * @file ObjectInspector — click on canvas → list objects at tile → detailed properties.
  *
- * Adapted from screeps-dojo (MIT) ObjectInspector.tsx.
+ * Features:
+ * - OI-1: Click tile → list objects
+ * - OI-2: Click object → detail panel
+ * - OI-4: Filter by type (chips)
+ * - OI-5: Search by id/name
+ * - OI-6: Selected object highlight (via selectedId prop → canvas)
+ * - OI-3 (future): Edit properties inline
  *
  * @component
  */
 
 import { useState, useMemo } from 'react';
+import { MousePointerIcon, SearchIcon, ChevronDownIcon, ChevronRightIcon, TargetIcon, CopyIcon } from './Icons';
+
+/** @type {Object<string,string>} */
+const TYPE_COLORS = {
+    creep: 'var(--type-creep)',
+    source: 'var(--type-source)',
+    controller: 'var(--type-controller)',
+    mineral: 'var(--type-mineral)',
+    resource: 'var(--type-resource)',
+    constructionSite: 'var(--type-construction)',
+    spawn: 'var(--type-structure)',
+    extension: 'var(--type-structure)',
+    tower: 'var(--type-structure)',
+    storage: 'var(--type-structure)',
+    terminal: 'var(--type-structure)',
+    link: 'var(--type-structure)',
+    lab: 'var(--type-structure)',
+    factory: 'var(--type-structure)',
+    powerSpawn: 'var(--type-structure)',
+    container: 'var(--type-structure)',
+    road: 'var(--type-structure)',
+    rampart: 'var(--type-structure)',
+    constructedWall: 'var(--type-structure)',
+};
+
+function getTypeColor(type) {
+    return TYPE_COLORS[type] || 'var(--type-default)';
+}
 
 /**
  * @param {Object} props
@@ -65,9 +99,18 @@ export default function ObjectInspector({
 
     if (!objects.length) {
         return (
-            <div className="object-inspector empty">
-                <div className="panel-header">Object Inspector</div>
-                <div className="panel-empty">Click on a tile to inspect objects</div>
+            <div className="object-inspector">
+                <div className="panel-header">
+                    <MousePointerIcon size={16} />
+                    Object Inspector
+                </div>
+                <div className="panel-empty">
+                    <TargetIcon size={48} className="empty-icon" />
+                    <div className="empty-title">No object selected</div>
+                    <div className="empty-hint">
+                        Click on any tile in the world to inspect the objects sitting on it
+                    </div>
+                </div>
             </div>
         );
     }
@@ -75,35 +118,43 @@ export default function ObjectInspector({
     return (
         <div className="object-inspector">
             <div className="panel-header" onClick={() => setExpanded(!expanded)}>
-                Object Inspector {expanded ? '▼' : '▶'}
-                <span className="object-count">{objects.length} objects</span>
+                {expanded ? <ChevronDownIcon size={16} /> : <ChevronRightIcon size={16} />}
+                <MousePointerIcon size={16} />
+                Object Inspector
+                <span className="panel-count">{objects.length}</span>
             </div>
 
             {expanded && (
                 <>
                     {/* Search */}
                     <div className="inspector-search">
+                        <SearchIcon size={14} className="search-icon" />
                         <input
                             type="text"
-                            placeholder="Search by id/name/type..."
+                            placeholder="Search by id, name, type..."
                             value={searchQuery}
                             onChange={(e) => onSearchChange(e.target.value)}
                         />
                     </div>
 
-                    {/* Type filter */}
-                    <div className="inspector-type-filter">
-                        {allTypes.map((type) => (
-                            <label key={type} className="type-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={typeFilter[type] !== false}
-                                    onChange={() => toggleType(type)}
-                                />
-                                {type}
-                            </label>
-                        ))}
-                    </div>
+                    {/* Type filter chips */}
+                    {allTypes.length > 1 && (
+                        <div className="inspector-type-filter">
+                            {allTypes.map((type) => (
+                                <label
+                                    key={type}
+                                    className={`type-chip ${typeFilter[type] !== false ? 'active' : ''}`}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleType(type);
+                                    }}
+                                >
+                                    <span className="chip-dot" style={{ background: getTypeColor(type) }} />
+                                    {type}
+                                </label>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Object list */}
                     <div className="inspector-object-list">
@@ -113,18 +164,52 @@ export default function ObjectInspector({
                                 className={`inspector-object-item ${obj._id === selectedId ? 'selected' : ''}`}
                                 onClick={() => onSelect(obj._id === selectedId ? null : obj._id)}
                             >
-                                <span className="object-type-badge">{obj.type}</span>
+                                <span
+                                    className="object-type-badge"
+                                    style={{
+                                        background: `${getTypeColor(obj.type)}22`,
+                                        color: getTypeColor(obj.type),
+                                    }}
+                                >
+                                    {obj.type}
+                                </span>
                                 <span className="object-id">{obj._id}</span>
                                 {obj.name && <span className="object-name">({obj.name})</span>}
                             </div>
                         ))}
+                        {filteredObjects.length === 0 && (
+                            <div className="panel-empty" style={{ padding: '24px' }}>
+                                <div className="empty-hint">No objects match the current filter</div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Detail view */}
                     {selectedObj && (
                         <div className="inspector-detail">
-                            <div className="detail-title">
-                                {selectedObj.type}: {selectedObj.name || selectedObj._id}
+                            <div className="detail-header">
+                                <span
+                                    className="object-type-badge detail-type-badge"
+                                    style={{
+                                        background: `${getTypeColor(selectedObj.type)}22`,
+                                        color: getTypeColor(selectedObj.type),
+                                    }}
+                                >
+                                    {selectedObj.type}
+                                </span>
+                                <span className="detail-title">
+                                    {selectedObj.name || selectedObj._id}
+                                </span>
+                                <div className="detail-actions">
+                                    <button
+                                        className="icon-btn"
+                                        title="Copy id to clipboard"
+                                        onClick={() => navigator.clipboard?.writeText(selectedObj._id)}
+                                        style={{ width: 26, height: 26 }}
+                                    >
+                                        <CopyIcon size={14} />
+                                    </button>
+                                </div>
                             </div>
                             <table className="detail-table">
                                 <tbody>
@@ -134,7 +219,9 @@ export default function ObjectInspector({
                                             <tr key={key}>
                                                 <td className="detail-key">{key}</td>
                                                 <td className="detail-value">
-                                                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                                    {typeof value === 'object'
+                                                        ? JSON.stringify(value)
+                                                        : String(value)}
                                                 </td>
                                             </tr>
                                         ))}
