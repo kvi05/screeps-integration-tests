@@ -89,9 +89,6 @@ const { setViewerState, clearViewerState } = require('./lib/runtime/viewerState'
             process.on('message', (cmd) => {
                 if (cmd && cmd.type === 'viewer:cmd') {
                     const { action, params } = cmd;
-                    console.log(
-                        `[worker] viewer:cmd received: action=${action} paused=${viewer.paused} tick=${viewer.status.tick}`,
-                    );
                     switch (action) {
                         case 'pause':
                             viewer.paused = true;

@@ -467,7 +467,6 @@ async function main() {
             while (scenarioQueue.length > 0 && activeCount < maxJobs) {
                 const { scenarioPath, interactive } = scenarioQueue.shift();
                 activeCount++;
-                console.log(`[viewer] Launching: ${scenarioPath} (active=${activeCount}/${maxJobs})`);
                 const scenarioName = path.basename(scenarioPath, '.scenario.js');
 
                 const opts = {

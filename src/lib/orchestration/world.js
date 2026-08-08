@@ -435,8 +435,6 @@ async function createWorld(opts) {
             if (!vs._adapter) vs._adapter = adapter;
             vs.status.tick = tickNum;
 
-            console.log(`[world] doTick tickNum=${tickNum} paused=${vs.paused} stepReq=${vs.stepRequested}`);
-
             if (vs.paused) {
                 if (process.send) {
                     try {
