@@ -49,10 +49,15 @@ const CanvasStage = forwardRef(function CanvasStage(
 
     const dragRef = useRef(null);
     const initDoneRef = useRef(false);
+    const targetCameraRef = useRef(null);
+    const zoomAnimRef = useRef(null);
 
-    // Expose jumpToRoom via imperative handle
+    // Expose jumpToRoom + resetCamera via imperative handle
     useImperativeHandle(ref, () => ({
         jumpToRoom(roomName) {
+            if (zoomAnimRef.current) cancelAnimationFrame(zoomAnimRef.current);
+            zoomAnimRef.current = null;
+            targetCameraRef.current = null;
             const layout = layoutRef.current;
             const container = containerRef.current;
             if (!layout || !container) return;
@@ -66,6 +71,22 @@ const CanvasStage = forwardRef(function CanvasStage(
             const zoom = cameraRef.current.zoom;
             const cx = cw / 2 - roomCenterX * zoom;
             const cy = ch / 2 - roomCenterY * zoom;
+            setCamera({ x: cx, y: cy, zoom });
+        },
+        resetCamera() {
+            if (zoomAnimRef.current) cancelAnimationFrame(zoomAnimRef.current);
+            zoomAnimRef.current = null;
+            targetCameraRef.current = null;
+            const container = containerRef.current;
+            const layout = layoutRef.current;
+            if (!container || !layout) return;
+            const cw = container.clientWidth;
+            const ch = container.clientHeight;
+            const scaleX = cw / layout.width;
+            const scaleY = ch / layout.height;
+            const zoom = Math.min(scaleX, scaleY, 3) * 0.9;
+            const cx = (cw - layout.width * zoom) / 2;
+            const cy = (ch - layout.height * zoom) / 2;
             setCamera({ x: cx, y: cy, zoom });
         },
     }));
@@ -167,18 +188,27 @@ const CanvasStage = forwardRef(function CanvasStage(
         });
 
         ctx.restore();
-    }, [tick, sub]);
+    }, [tick, sub, selectedId]);
 
-    // Re-render on tick/sub change OR when new frames arrive
+    // Re-render on tick/sub change, new frames, or selectedId change
     useEffect(() => {
         const t0 = performance.now();
         renderCurrentFrame();
         const elapsed = performance.now() - t0;
-        // Emit render timing for metrics collection (PoC)
         if (typeof window !== 'undefined' && window.__viewerPerf) {
             window.__viewerPerf.renderMs.push(elapsed);
         }
-    }, [renderCurrentFrame, recording.frames.length]);
+    }, [renderCurrentFrame, recording.frames.length, selectedId]);
+
+    // Also re-render on camera change (mouse drag/wheel zoom — needed when playback is paused)
+    useEffect(() => {
+        const t0 = performance.now();
+        renderCurrentFrame();
+        const elapsed = performance.now() - t0;
+        if (typeof window !== 'undefined' && window.__viewerPerf) {
+            window.__viewerPerf.renderMs.push(elapsed);
+        }
+    }, [camera, renderCurrentFrame]);
 
     // Animation loop for smooth sub-frame updates
     useEffect(() => {
@@ -206,6 +236,10 @@ const CanvasStage = forwardRef(function CanvasStage(
             // Middle button or right button or Ctrl+left → drag
             if (e.button === 1 || e.button === 2 || (e.button === 0 && e.ctrlKey)) {
                 e.preventDefault();
+                // Cancel smooth zoom animation
+                if (zoomAnimRef.current) cancelAnimationFrame(zoomAnimRef.current);
+                zoomAnimRef.current = null;
+                targetCameraRef.current = null;
                 const pos = getEventPos(e);
                 dragRef.current = {
                     startX: pos.x,
@@ -237,17 +271,53 @@ const CanvasStage = forwardRef(function CanvasStage(
         dragRef.current = null;
     }, []);
 
-    // ─── Wheel handler ──────────────────────────────────────────────────────
+    // ─── Wheel handler — smooth zoom via lerp ─────────────────────────
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-    const handleWheel = useCallback(
-        (e) => {
+        const onWheel = (e) => {
             e.preventDefault();
-            const pos = getEventPos(e);
-            const factor = e.deltaY < 0 ? 1.25 : 0.75;
-            setCamera((prev) => zoomToward(prev, pos.x, pos.y, factor));
-        },
-        [getEventPos, zoomToward],
-    );
+            const rect = canvas.getBoundingClientRect();
+            const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            const factor = e.deltaY < 0 ? 1.3 : 0.7;
+            const target = zoomToward(cameraRef.current, pos.x, pos.y, factor);
+
+            // Cancel any in-flight zoom animation
+            if (zoomAnimRef.current) cancelAnimationFrame(zoomAnimRef.current);
+            targetCameraRef.current = target;
+
+            const lerp = () => {
+                const cur = cameraRef.current;
+                const tgt = targetCameraRef.current;
+                if (!tgt) {
+                    zoomAnimRef.current = null;
+                    return;
+                }
+                const eps = 0.01;
+                const dx = tgt.x - cur.x;
+                const dy = tgt.y - cur.y;
+                const dz = tgt.zoom - cur.zoom;
+                if (Math.abs(dx) < eps && Math.abs(dy) < eps && Math.abs(dz) < eps) {
+                    setCamera(tgt);
+                    targetCameraRef.current = null;
+                    zoomAnimRef.current = null;
+                    return;
+                }
+                const t = 0.55;
+                setCamera({
+                    x: cur.x + dx * t,
+                    y: cur.y + dy * t,
+                    zoom: cur.zoom + dz * t,
+                });
+                zoomAnimRef.current = requestAnimationFrame(lerp);
+            };
+            zoomAnimRef.current = requestAnimationFrame(lerp);
+        };
+
+        canvas.addEventListener('wheel', onWheel, { passive: false });
+        return () => canvas.removeEventListener('wheel', onWheel);
+    }, []);
 
     const handleContextMenu = useCallback((e) => {
         e.preventDefault();
@@ -304,6 +374,7 @@ const CanvasStage = forwardRef(function CanvasStage(
     useEffect(() => {
         const handleKeyDown = (e) => {
             const container = containerRef.current;
+            // Camera hotkeys work ALWAYS — even when focused on input fields
             switch (e.key) {
                 case '0':
                 case 'Home':
@@ -344,7 +415,6 @@ const CanvasStage = forwardRef(function CanvasStage(
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                onWheel={handleWheel}
                 onClick={handleClick}
                 onContextMenu={handleContextMenu}
             />

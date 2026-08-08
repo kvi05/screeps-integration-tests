@@ -101,9 +101,9 @@
     /* Layout */
     --toolbar-h: 48px;
     --statusbar-h: 28px;
-    --sidebar-w: 320px;
+    --sidebar-w: 340px;
     --sidebar-min-w: 240px;
-    --sidebar-max-w: 480px;
+    --sidebar-max-w: 550px;
     --console-h: 180px;
     --console-min-h: 80px;
     --console-max-h: 500px;
@@ -371,6 +371,35 @@ body,
     border-color: var(--accent);
 }
 
+/* Speed step buttons (small +/-) */
+.speed-step-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+    width: 18px;
+    height: 18px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    line-height: 1;
+    padding: 0;
+    transition: all var(--t-fast);
+    flex-shrink: 0;
+}
+.speed-step-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-focus);
+}
+.speed-step-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
 /* ─── Status indicator ───────────────────────────────────────────────────── */
 .status-badge {
     display: inline-flex;
@@ -629,6 +658,16 @@ body,
     overflow: hidden;
     flex-shrink: 0;
     position: relative;
+    transition: width var(--t-normal), min-width var(--t-normal);
+}
+.viewer-sidebar.dragging {
+    transition: none !important;
+}
+.viewer-sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    border-left: none;
+    overflow: hidden;
 }
 
 /* Sidebar resize handle */
@@ -637,15 +676,37 @@ body,
     left: 0;
     top: 0;
     bottom: 0;
-    width: 4px;
+    width: 5px;
     cursor: ew-resize;
-    z-index: 5;
+    z-index: 200;
     background: transparent;
     transition: background var(--t-fast);
 }
 .sidebar-resize-handle:hover,
 .sidebar-resize-handle.dragging {
     background: var(--accent-border);
+}
+
+/* Sidebar collapse toggle (simple icon button in canvas toolbar) */
+.sidebar-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: all var(--t-fast);
+    padding: 0;
+    flex-shrink: 0;
+}
+.sidebar-collapse-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-focus);
 }
 
 /* ─── Sidebar tabs ────────────────────────────────────────────────────────── */
@@ -878,6 +939,7 @@ body,
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+    max-height: 25%;
 }
 .inspector-object-item {
     display: flex;
@@ -929,8 +991,8 @@ body,
 .inspector-detail {
     border-top: 1px solid var(--border);
     background: var(--bg-base);
-    flex-shrink: 0;
-    max-height: 50%;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
 }
 .detail-header {
@@ -1167,10 +1229,11 @@ body,
     background: var(--bg-hover);
 }
 
-/* Console lines */
+/* Console lines — constrained to canvas area, not full viewport width */
 .console-lines {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     font-family: var(--font-mono);
     font-size: var(--fs-sm);
     background: var(--bg-base);
@@ -1184,6 +1247,7 @@ body,
     border-bottom: 1px solid var(--border);
     transition: background var(--t-fast);
     align-items: baseline;
+    max-width: calc(100vw - var(--sidebar-w));
 }
 .console-line:hover {
     background: var(--bg-hover);
@@ -1737,6 +1801,9 @@ body,
     flex: 1;
     overflow-y: auto;
     padding: var(--sp-5) var(--sp-8);
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 /* ─── SM Batch summary (BM-9) ─────────────────────────────────────────────── */

@@ -34,6 +34,14 @@ export default function ReplayControls({
 }) {
     const handlePlayPause = () => onTogglePlay(!playing);
     const handleSpeedChange = (e) => onSetSpeed(Number(e.target.value));
+    const handleSpeedStep = (delta) => {
+        const speeds = [1, 2, 5, 10, 20];
+        const idx = speeds.indexOf(speed);
+        if (idx >= 0) {
+            const next = speeds[Math.max(0, Math.min(speeds.length - 1, idx + delta))];
+            if (next !== speed) onSetSpeed(next);
+        }
+    };
     const handleTickChange = (e) => onSeekTick(Number(e.target.value));
 
     return (
@@ -91,6 +99,13 @@ export default function ReplayControls({
 
             <div className="speed-control">
                 <label>Speed</label>
+                <button
+                    className="speed-step-btn"
+                    onClick={() => handleSpeedStep(-1)}
+                    title="Decrease speed"
+                >
+                    −
+                </button>
                 <select className="speed-select" value={speed} onChange={handleSpeedChange}>
                     <option value={1}>1×</option>
                     <option value={2}>2×</option>
@@ -98,6 +113,13 @@ export default function ReplayControls({
                     <option value={10}>10×</option>
                     <option value={20}>20×</option>
                 </select>
+                <button
+                    className="speed-step-btn"
+                    onClick={() => handleSpeedStep(1)}
+                    title="Increase speed"
+                >
+                    +
+                </button>
             </div>
         </div>
     );

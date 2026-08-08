@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { postPause, postResume, postStep, postSpeed } from '../api/client';
-import { PlayIcon, PauseIcon, StepForwardIcon, RadioIcon } from './Icons';
+import { PlayIcon, PauseIcon, StepForwardIcon } from './Icons';
 
 /**
  * @param {Object} props
@@ -18,6 +18,7 @@ import { PlayIcon, PauseIcon, StepForwardIcon, RadioIcon } from './Icons';
  * @param {number} props.serverTick
  * @param {number} props.serverSpeed
  * @param {(state:string) => void} props.onServerStateChange
+ * @param {(play:boolean) => void} [props.onToggleLivePlay] — parent callback for space key coordination
  */
 export default function LiveControls({
     connected,
@@ -25,6 +26,7 @@ export default function LiveControls({
     serverTick = 0,
     serverSpeed = 1000,
     onServerStateChange,
+    onToggleLivePlay,
 }) {
     const isRunning = serverState === 'running' || serverState === 'stepping';
     const isPaused = serverState === 'paused';
@@ -38,6 +40,7 @@ export default function LiveControls({
     const handlePause = async () => {
         try {
             await postPause();
+            if (onToggleLivePlay) onToggleLivePlay(false);
         } catch {
             /* connection error — ignore */
         }
@@ -46,6 +49,7 @@ export default function LiveControls({
     const handleResume = async () => {
         try {
             await postResume();
+            if (onToggleLivePlay) onToggleLivePlay(true);
         } catch {
             /* ignore */
         }
@@ -69,15 +73,24 @@ export default function LiveControls({
         }
     };
 
-    const statusClass = serverState === 'idle' ? 'idle' : isRunning ? 'running' : isPaused ? 'paused' : 'stepping';
+    const handleSpeedStep = async (delta) => {
+        const speeds = [1, 5, 10, 20, 1000];
+        const idx = speeds.indexOf(localSpeed);
+        const next = idx >= 0 ? speeds[Math.max(0, Math.min(speeds.length - 1, idx + delta))] : speeds[0];
+        if (next !== localSpeed) await handleSpeed(next);
+    };
+
+    // Show stepping as paused visually (step is a transient action, no green flash)
+    const visualState = serverState === 'stepping' ? 'paused' : serverState;
+    const statusClass = visualState === 'idle' ? 'idle' : visualState === 'running' ? 'running' : 'paused';
     const statusText =
         serverState === 'idle'
             ? 'Idle'
-            : isRunning
-              ? `Running · tick ${serverTick}`
-              : isPaused
-                ? `Paused · tick ${serverTick}`
-                : `Stepping · tick ${serverTick}`;
+            : serverState === 'stepping'
+              ? `Paused · tick ${serverTick}`
+              : isRunning
+                ? `Running · tick ${serverTick}`
+                : `Paused · tick ${serverTick}`;
 
     return (
         <div className="live-controls">
@@ -108,6 +121,14 @@ export default function LiveControls({
 
             <div className="speed-control">
                 <label>Speed</label>
+                <button
+                    className="speed-step-btn"
+                    onClick={() => handleSpeedStep(-1)}
+                    disabled={!canControl}
+                    title="Decrease speed"
+                >
+                    −
+                </button>
                 <select
                     className="speed-select"
                     value={localSpeed}
@@ -120,6 +141,14 @@ export default function LiveControls({
                     <option value={20}>20×</option>
                     <option value={1000}>Max</option>
                 </select>
+                <button
+                    className="speed-step-btn"
+                    onClick={() => handleSpeedStep(1)}
+                    disabled={!canControl}
+                    title="Increase speed"
+                >
+                    +
+                </button>
             </div>
 
             <span className={`status-badge ${statusClass}`}>

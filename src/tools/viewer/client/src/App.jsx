@@ -8,10 +8,12 @@ import ConsolePanel from './components/ConsolePanel';
 import MetricsPanel from './components/MetricsPanel';
 import MiniMap from './components/MiniMap';
 import ScenarioManager from './components/ScenarioManager';
-import { connectSSE, postDispose } from './api/client';
+import { connectSSE, postDispose, postPause, postResume, postSpeed } from './api/client';
 import { loadPrefs, savePrefs } from './state/prefs';
 import {
     ArrowLeftIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
     MousePointerIcon,
     ActivityIcon,
     DatabaseIcon,
@@ -45,6 +47,11 @@ import './styles/global.css';
  */
 
 const REPLAY_BUFFER_DEFAULT = 200;
+
+/** Sidebar width limits — single source of truth, matches CSS --sidebar-min-w / --sidebar-max-w */
+const SIDEBAR_MIN_W = 240;
+const SIDEBAR_MAX_W = 550;
+const SIDEBAR_DEFAULT_W = 340;
 
 export default function App() {
     // App mode: 'viewer' or 'scenarios'
@@ -98,6 +105,11 @@ export default function App() {
     const [showConsole, setShowConsole] = useState(() => loadPrefs().showConsole);
     const [showMiniMap, setShowMiniMap] = useState(() => loadPrefs().showMiniMap);
     const [sidebarTab, setSidebarTab] = useState('inspector'); // inspector | metrics | saveload | settings
+
+    // Sidebar
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_W);
+    const sidebarRef = useRef(null);
 
     // Canvas overlay toggles (future: WR-8 heatmap, WR-9 grid)
     const [showGrid, setShowGrid] = useState(false);
@@ -347,15 +359,46 @@ export default function App() {
 
     const handleTogglePlay = useCallback(
         (play) => {
-            if (play) {
+            setPlaying(play);
+            if (!play) {
+                setSub(null);
+                return;
+            }
+            // Mutual exclusion: playing replay ⇒ pause live server
+            if (play && !liveMode) {
+                // Replay is playing → pause live if connected
                 if (connected && !ended) {
-                    setLiveMode(true);
+                    postPause().catch(() => {});
                 }
             }
-            setPlaying(play);
-            if (!play) setSub(null);
+            if (play && liveMode && connected && !ended) {
+                // Live is already playing — nothing extra needed
+                return;
+            }
+            if (play && !liveMode === false && connected && !ended) {
+                setLiveMode(true);
+            }
         },
-        [connected, ended],
+        [connected, ended, liveMode],
+    );
+
+    // Toggle live server play/pause (called by space key + LiveControls)
+    const handleToggleLivePlay = useCallback(
+        (play) => {
+            if (play) {
+                // Resume live → auto-pause replay
+                setPlaying(false);
+                setSub(null);
+                postResume().catch(() => {});
+                setLiveMode(true);
+                setPlaying(true);
+            } else {
+                postPause().catch(() => {});
+                setPlaying(false);
+                setSub(null);
+            }
+        },
+        [],
     );
 
     const handleSeekTick = useCallback((t) => {
@@ -432,7 +475,11 @@ export default function App() {
             switch (e.key) {
                 case ' ':
                     e.preventDefault();
-                    handleTogglePlay(!playingRef.current);
+                    // Toggle LIVE server play/pause
+                    {
+                        const isLiveRunning = serverState === 'running' || serverState === 'stepping';
+                        handleToggleLivePlay(!isLiveRunning);
+                    }
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
@@ -441,6 +488,28 @@ export default function App() {
                 case 'ArrowLeft':
                     e.preventDefault();
                     handleStepBack();
+                    break;
+                case ']':
+                    // Increase Live server speed
+                    {
+                        const speeds = [1, 5, 10, 20, 1000];
+                        const idx = speeds.indexOf(serverSpeed);
+                        if (idx >= 0 && idx < speeds.length - 1) {
+                            const next = speeds[idx + 1];
+                            postSpeed(next).catch(() => {});
+                        }
+                    }
+                    break;
+                case '[':
+                    // Decrease Live server speed
+                    {
+                        const speeds = [1, 5, 10, 20, 1000];
+                        const idx = speeds.indexOf(serverSpeed);
+                        if (idx > 0) {
+                            const next = speeds[idx - 1];
+                            postSpeed(next).catch(() => {});
+                        }
+                    }
                     break;
                 case 'm':
                     setSidebarTab((prev) => (prev === 'metrics' ? 'inspector' : 'metrics'));
@@ -452,7 +521,7 @@ export default function App() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleTogglePlay, handleStepForward, handleStepBack]);
+    }, [handleToggleLivePlay, handleStepForward, handleStepBack, serverSpeed, serverState]);
 
     // ─── Test API ───────────────────────────────────────────────────────────
     if (import.meta.env.DEV) {
@@ -578,6 +647,7 @@ export default function App() {
                     serverTick={serverTick}
                     serverSpeed={serverSpeed}
                     onServerStateChange={setServerState}
+                    onToggleLivePlay={handleToggleLivePlay}
                 />
                 <div className="toolbar-separator" />
                 <ReplayControls
@@ -632,7 +702,12 @@ export default function App() {
                         </div>
                     )}
                     {!isLoading && (
-                        <div className="canvas-overlay canvas-zoom-indicator">
+                        <div
+                            className="canvas-overlay interactive canvas-zoom-indicator"
+                            onClick={() => canvasStageRef.current?.resetCamera?.()}
+                            title="Reset camera (click)"
+                            style={{ cursor: 'pointer' }}
+                        >
                             <FocusIcon size={12} />
                             {cameraForMiniMap.zoom.toFixed(1)}×
                         </div>
@@ -648,10 +723,21 @@ export default function App() {
                             </button>
                             <button
                                 className="icon-btn"
-                                onClick={() => canvasStageRef.current?.jumpToRoom?.(currentRoom)}
-                                title="reset camera ('0', 'HOME')"
+                                onClick={() => canvasStageRef.current?.resetCamera?.()}
+                                title="Reset camera (0, Home)"
                             >
                                 <FocusIcon size={14} />
+                            </button>
+                            <button
+                                className={`icon-btn sidebar-collapse-btn ${sidebarCollapsed ? 'active' : ''}`}
+                                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                                title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                            >
+                                {sidebarCollapsed ? (
+                                    <ChevronLeftIcon size={14} />
+                                ) : (
+                                    <ChevronRightIcon size={14} />
+                                )}
                             </button>
                         </div>
                     )}
@@ -682,7 +768,40 @@ export default function App() {
                 </div>
 
                 {/* ─── Side panels ─────────────────────── */}
-                <div className="viewer-sidebar">
+                <div
+                    ref={sidebarRef}
+                    className={`viewer-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}
+                    style={sidebarCollapsed ? undefined : { width: sidebarWidth }}
+                >
+                    {/* Resize handle — direct DOM during drag, no React re-renders */}
+                    {!sidebarCollapsed && (
+                        <div
+                            className="sidebar-resize-handle"
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                const startX = e.clientX;
+                                const startW = sidebarRef.current?.offsetWidth || sidebarWidth;
+                                const el = sidebarRef.current;
+                                // Disable CSS transition + lock cursor during drag
+                                el?.classList.add('dragging');
+                                document.body.style.cursor = 'ew-resize';
+                                const onMove = (ev) => {
+                                    const newW = Math.max(SIDEBAR_MIN_W, Math.min(SIDEBAR_MAX_W, startW + startX - ev.clientX));
+                                    if (el) el.style.width = newW + 'px';
+                                };
+                                const onUp = (ev) => {
+                                    document.removeEventListener('mousemove', onMove);
+                                    document.removeEventListener('mouseup', onUp);
+                                    el?.classList.remove('dragging');
+                                    document.body.style.cursor = '';
+                                    const finalW = Math.max(SIDEBAR_MIN_W, Math.min(SIDEBAR_MAX_W, startW + startX - ev.clientX));
+                                    setSidebarWidth(finalW);
+                                };
+                                document.addEventListener('mousemove', onMove);
+                                document.addEventListener('mouseup', onUp);
+                            }}
+                        />
+                    )}
                     {/* Sidebar tabs */}
                     <div className="sidebar-tabs">
                         <button
@@ -793,11 +912,12 @@ export default function App() {
                         Frames: {recording.frames.length} · Tick: {tick}/{maxTicks || '—'}
                     </span>
                     <span className="kbd-hints">
-                        <span><kbd>Space</kbd>play</span>
-                        <span><kbd>←</kbd><kbd>→</kbd>step</span>
+                        <span><kbd>Space</kbd>live play/pause</span>
+                        <span><kbd>←</kbd><kbd>→</kbd>step replay</span>
+                        <span><kbd>[</kbd><kbd>]</kbd>live speed</span>
+                        <span><kbd>0</kbd><kbd>Home</kbd>reset view</span>
                         <span><kbd>M</kbd>metrics</span>
                         <span><kbd>`</kbd>console</span>
-                        <span><kbd>0</kbd><kbd>HOME</kbd>reset camera</span>
                     </span>
                 </div>
             </div>
