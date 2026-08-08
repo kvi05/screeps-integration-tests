@@ -134,7 +134,11 @@ function serveStatic(res, filePath) {
  *
  * @typedef {Object} UiServer
  * @property {number} port — the port the server is listening on
+ * @property {(scenario:string, maxTicks:number) => void} broadcastStart — send start event to all SSE clients
  * @property {(frame: Object) => void} broadcast — send a frame to all SSE clients
+ * @property {(terrain: Object) => void} broadcastTerrain — send terrain data to all SSE clients
+ * @property {(result: {scenario:string, status:string, time:number, ticks:number}) => void} broadcastScenarioResult — send scenario result to all SSE clients
+ * @property {(status: {state?:string, tick?:number, speed?:number, scenario?:string}) => void} updateStatus — update cached status and broadcast to SSE
  * @property {() => Promise<void>} close — stop the server
  */
 
@@ -144,6 +148,10 @@ function serveStatic(res, filePath) {
  * @param {Object} [opts]
  * @param {number} [opts.port] — explicit port (default: auto via getFreePort)
  * @param {string} [opts.distDir] — path to ui/dist/ (default: computed relative to this file)
+ * @param {Function} [opts.sendCommand] — callback to forward commands to worker: (cmd) => void
+ * @param {string} [opts.scenariosDir] — directory containing *.scenario.js files
+ * @param {Function} [opts.onRunScenario] — callback to run a scenario: (scenarioPath, interactive) => void
+ * @param {{scenario:string, maxTicks:number}} [opts.lastStart] — last start info to re-send to late-connecting SSE clients
  * @returns {Promise<UiServer>}
  */
 async function createUiServer(opts = {}) {
@@ -155,7 +163,30 @@ async function createUiServer(opts = {}) {
     /** @type {Set<ReturnType<typeof openSse>>} */
     const sseClients = new Set();
 
-    const server = http.createServer((req, res) => {
+    /** @type {{ state: string, tick: number, speed: number, scenario: string }} */
+    const serverStatus = { state: 'idle', tick: 0, speed: 1000, scenario: '' };
+
+    /**
+     * Reads and parses a JSON request body.
+     * @param {http.IncomingMessage} req
+     * @returns {Promise<Object>}
+     */
+    function readBody(req) {
+        return new Promise((resolve, reject) => {
+            let body = '';
+            req.on('data', (chunk) => (body += chunk));
+            req.on('end', () => {
+                try {
+                    resolve(body ? JSON.parse(body) : {});
+                } catch {
+                    reject(new Error('Invalid JSON'));
+                }
+            });
+            req.on('error', reject);
+        });
+    }
+
+    const server = http.createServer(async (req, res) => {
         const url = new URL(req.url || '/', `http://localhost:${port}`);
         const pathname = url.pathname;
 
@@ -164,20 +195,185 @@ async function createUiServer(opts = {}) {
             const sse = openSse(res);
             sseClients.add(sse);
             res.on('close', () => sseClients.delete(sse));
+            // Re-send last known status to new client
+            sse.send('status', {
+                state: serverStatus.state,
+                tick: serverStatus.tick,
+                speed: serverStatus.speed,
+                scenario: serverStatus.scenario,
+            });
+            // Re-send last start if available (for late-connecting clients in interactive mode)
+            if (opts.lastStart) {
+                sse.send('start', opts.lastStart);
+            }
             return;
         }
 
-        // REST: list scenarios (Phase 2 stub)
-        if (pathname === '/api/scenarios') {
+        // ─── REST: Live Server Control ─────────────────────────────────────
+
+        // POST /api/pause — pause the server
+        if (pathname === '/api/pause' && req.method === 'POST') {
+            if (opts.sendCommand) {
+                opts.sendCommand({ type: 'viewer:cmd', action: 'pause' });
+            }
+            serverStatus.state = 'paused';
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ scenarios: [] }));
+            res.end(JSON.stringify({ ok: true, state: 'paused' }));
             return;
         }
 
-        // REST: run scenario (Phase 2 stub)
+        // POST /api/resume — resume the server
+        if (pathname === '/api/resume' && req.method === 'POST') {
+            if (opts.sendCommand) {
+                opts.sendCommand({ type: 'viewer:cmd', action: 'resume' });
+            }
+            serverStatus.state = 'running';
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, state: 'running' }));
+            return;
+        }
+
+        // POST /api/step — execute N ticks then pause
+        if (pathname === '/api/step' && req.method === 'POST') {
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                return;
+            }
+            const n = body.n || 1;
+            if (opts.sendCommand) {
+                opts.sendCommand({ type: 'viewer:cmd', action: 'step', params: { n } });
+            }
+            serverStatus.state = 'stepping';
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, steps: n }));
+            return;
+        }
+
+        // POST /api/speed — set server speed
+        if (pathname === '/api/speed' && req.method === 'POST') {
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                return;
+            }
+            const speed = body.speed || 1;
+            if (opts.sendCommand) {
+                opts.sendCommand({ type: 'viewer:cmd', action: 'setSpeed', params: { speed } });
+            }
+            serverStatus.speed = speed;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, speed }));
+            return;
+        }
+
+        // GET /api/status — current server status
+        if (pathname === '/api/status' && req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(serverStatus));
+            return;
+        }
+
+        // ─── REST: Scenario Management ────────────────────────────────────
+
+        // GET /api/scenarios — list *.scenario.js files
+        if (pathname === '/api/scenarios' && req.method === 'GET') {
+            const scenarios = [];
+            if (opts.scenariosDir) {
+                try {
+                    const entries = fs.readdirSync(opts.scenariosDir);
+                    for (const entry of entries) {
+                        if (entry.endsWith('.scenario.js')) {
+                            const name = entry.replace('.scenario.js', '');
+                            const stat = fs.statSync(path.join(opts.scenariosDir, entry));
+                            scenarios.push({
+                                name,
+                                file: entry,
+                                size: stat.size,
+                                modified: stat.mtime.toISOString(),
+                            });
+                        }
+                    }
+                    // smoke-* first, then alphabetical
+                    scenarios.sort((a, b) => {
+                        if (a.name.startsWith('smoke-') && !b.name.startsWith('smoke-')) return -1;
+                        if (!a.name.startsWith('smoke-') && b.name.startsWith('smoke-')) return 1;
+                        return a.name.localeCompare(b.name);
+                    });
+                } catch {
+                    // Directory doesn't exist — return empty list
+                }
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ scenarios }));
+            return;
+        }
+
+        // POST /api/run — launch a scenario
         if (pathname === '/api/run' && req.method === 'POST') {
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                return;
+            }
+            const scenarioName = body.scenario;
+            const interactive = body.interactive !== undefined ? body.interactive : true;
+            if (!scenarioName) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Missing "scenario" field' }));
+                return;
+            }
+            if (opts.onRunScenario) {
+                const scenarioPath = opts.scenariosDir
+                    ? path.join(opts.scenariosDir, `${scenarioName}.scenario.js`)
+                    : scenarioName;
+                opts.onRunScenario(scenarioPath, interactive);
+                serverStatus.state = 'running';
+                serverStatus.scenario = scenarioName;
+            }
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ status: 'not_implemented' }));
+            res.end(JSON.stringify({ ok: true, scenario: scenarioName, interactive }));
+            return;
+        }
+
+        // ─── REST: Save/Load Snapshot ─────────────────────────────────────
+
+        // POST /api/save-snapshot — save current state
+        if (pathname === '/api/save-snapshot' && req.method === 'POST') {
+            // Forward to worker for serialization
+            if (opts.sendCommand) {
+                opts.sendCommand({ type: 'viewer:cmd', action: 'saveSnapshot' });
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, status: 'not_implemented' }));
+            return;
+        }
+
+        // POST /api/load-snapshot — load saved state
+        if (pathname === '/api/load-snapshot' && req.method === 'POST') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, status: 'not_implemented' }));
+            return;
+        }
+
+        // POST /api/dispose — stop current interactive scenario
+        if (pathname === '/api/dispose' && req.method === 'POST') {
+            if (opts.sendCommand) {
+                opts.sendCommand({ type: 'viewer:cmd', action: 'dispose' });
+            }
+            serverStatus.state = 'idle';
+            serverStatus.tick = 0;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
             return;
         }
 
@@ -211,11 +407,29 @@ async function createUiServer(opts = {}) {
 
     return new Promise((resolve, reject) => {
         server.listen(port, '127.0.0.1', () => {
-            console.log(`[viewer] UI server listening at http://127.0.0.1:${port}`);
-
             /** @type {UiServer} */
             const uiServer = {
                 port,
+
+                /**
+                 * Update the cached server status (called by parent on viewer:status IPC).
+                 * @param {{state?:string, tick?:number, speed?:number, scenario?:string}} status
+                 */
+                updateStatus(status) {
+                    if (status.state !== undefined) serverStatus.state = status.state;
+                    if (status.tick !== undefined) serverStatus.tick = status.tick;
+                    if (status.speed !== undefined) serverStatus.speed = status.speed;
+                    if (status.scenario !== undefined) serverStatus.scenario = status.scenario;
+                    // Broadcast status to all SSE clients
+                    for (const client of sseClients) {
+                        client.send('status', {
+                            state: serverStatus.state,
+                            tick: serverStatus.tick,
+                            speed: serverStatus.speed,
+                            scenario: serverStatus.scenario,
+                        });
+                    }
+                },
 
                 /**
                  * Broadcast a frame to all connected SSE clients.
@@ -244,6 +458,16 @@ async function createUiServer(opts = {}) {
                 broadcastEnd(reason, ticksRun) {
                     for (const client of sseClients) {
                         client.send('end', { reason, ticksRun });
+                    }
+                },
+
+                /**
+                 * Broadcast scenario result to all SSE clients.
+                 * @param {{scenario:string, status:string, time:number, ticks:number}} result
+                 */
+                broadcastScenarioResult(result) {
+                    for (const client of sseClients) {
+                        client.send('scenario-result', result);
                     }
                 },
 

@@ -40,6 +40,12 @@ const SUMMARY_WARNINGS_LIMIT = 6;
 
 const RUNNER_SCRIPT = path.join(__dirname, '..', 'src', 'runScenario.js');
 
+/** @type {import('child_process').ChildProcess|null} Active child for viewer live-control commands */
+let activeChild = null;
+
+/** @type {import('../src/tools/viewer/server').UiServer|null} UI server ref for viewer:status updates */
+let uiServer = null;
+
 /**
  * Pipes a child process's stdio streams to the parent, filtering out
  * known `@screeps/common` storage disconnection messages that appear
@@ -183,12 +189,18 @@ function findScenarios(scenariosDir, only) {
  * @param {number} timeout - Per-scenario timeout in ms
  * @param {string|null} roomFixturesDir - Directory to auto-load room fixtures from
  * @param {Function|null} onViewerFrame - Callback for viewer:frame messages (signature: (frame) => void)
+ * @param {boolean} [interactive] - If true, this scenario owns the viewer (activeChild, frames broadcast)
  * @returns {Promise<WorkerMessage & {time?: number}>}
  */
-async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onViewerFrame) {
+async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onViewerFrame, interactive) {
     const child = fork(RUNNER_SCRIPT, [], { silent: true });
     pipeChildStreams(child);
     const startTime = Date.now();
+
+    // Only interactive scenarios receive viewer control commands
+    if (interactive) {
+        activeChild = child;
+    }
 
     const ac = new AbortController();
     const timer = setTimeout(() => {
@@ -199,7 +211,6 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
     try {
         await once(child, 'spawn', { signal: ac.signal });
         child.send({ scenarioPath, opts, roomFixturesDir });
-
         // Listen for ALL messages: viewer:frame → broadcast, otherwise → result
         /** @type {WorkerMessage & { time?: number }} */
         const result = await new Promise((resolve, reject) => {
@@ -214,6 +225,50 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
                         }
                     }
                     return; // Keep listening for the final result
+                }
+                if (msg && msg.type === 'viewer:status') {
+                    // Update server status in UI server
+                    if (uiServer) {
+                        try {
+                            uiServer.updateStatus(msg);
+                        } catch {
+                            // Non-critical
+                        }
+                    }
+                    return; // Keep listening
+                }
+                if (msg && msg.type === 'viewer:snapshot') {
+                    // Save snapshot to file
+                    if (msg.data) {
+                        try {
+                            const dir = path.join(process.cwd(), 'snapshots');
+                            fs.mkdirSync(dir, { recursive: true });
+                            const filename = `snapshot-${Date.now()}.json`;
+                            fs.writeFileSync(path.join(dir, filename), JSON.stringify(msg.data, null, 2));
+                            console.log(`[viewer] Snapshot saved: ${path.join(dir, filename)}`);
+                        } catch (err) {
+                            console.error(`[viewer] Failed to save snapshot: ${err.message}`);
+                        }
+                    }
+                    return; // Keep listening
+                }
+                if (msg && msg.type === 'viewer:scenario-result') {
+                    // Forward scenario result to SSE clients
+                    if (uiServer) {
+                        try {
+                            uiServer.broadcastScenarioResult(msg);
+                        } catch {
+                            // Non-critical
+                        }
+                    }
+                    return; // Keep listening
+                }
+                if (msg && msg.type === 'viewer:disposed') {
+                    // Worker disposed — clear active child
+                    if (activeChild === child) {
+                        activeChild = null;
+                    }
+                    return; // Keep listening
                 }
                 // This is the final result (pass/skip/fail)
                 cleanup();
@@ -261,6 +316,9 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
     } finally {
         clearTimeout(timer);
         child.removeAllListeners();
+        if (activeChild === child) {
+            activeChild = null;
+        }
     }
 }
 
@@ -384,25 +442,110 @@ async function main() {
     }
 
     // ★ Start UI server if viewer is enabled
-    /** @type {import('../src/tools/viewer/server').UiServer|null} */
-    let uiServer = null;
     /** @type {Function|null} */
     let onViewerFrame = null;
     if (config.viewer) {
-        try {
-            uiServer = await createUiServer();
-            /** @type {boolean} */
-            let terrainSent = false;
-            onViewerFrame = (frame) => {
-                if (!terrainSent && uiServer && frame.terrain && Object.keys(frame.terrain).length > 0) {
-                    terrainSent = true;
-                    uiServer.broadcastTerrain(frame.terrain);
+        /** @type {boolean} */
+        let terrainSent = false;
+        /** @type {{scenario:string, maxTicks:number}|null} */
+        const lastStart = { scenario: '', maxTicks: 0 };
+        /** @type {Array<{scenarioPath:string, interactive:boolean}>} */
+        const scenarioQueue = [];
+        let activeCount = 0;
+        const maxJobs = config.jobs || 4;
+
+        onViewerFrame = (frame) => {
+            if (!terrainSent && uiServer && frame.terrain && Object.keys(frame.terrain).length > 0) {
+                terrainSent = true;
+                uiServer.broadcastTerrain(frame.terrain);
+            }
+            uiServer.broadcast(frame);
+        };
+
+        /** Process scenario queue with concurrency limit */
+        function processQueue() {
+            while (scenarioQueue.length > 0 && activeCount < maxJobs) {
+                const { scenarioPath, interactive } = scenarioQueue.shift();
+                activeCount++;
+                console.log(`[viewer] Launching: ${scenarioPath} (active=${activeCount}/${maxJobs})`);
+                const scenarioName = path.basename(scenarioPath, '.scenario.js');
+
+                const opts = {
+                    profiling: config.profiling || false,
+                };
+
+                // Interactive scenarios: show in viewer, start paused.
+                // Headless scenarios: run silently, only final status reported.
+                if (interactive) {
+                    opts.viewer = { port: uiServer?.port, paused: false };
+                    terrainSent = false;
+                    lastStart.scenario = scenarioName;
+                    lastStart.maxTicks = 0;
+                    if (uiServer) {
+                        uiServer.broadcastStart(scenarioName, 0);
+                    }
                 }
-                uiServer.broadcast(frame);
-            };
+
+                runScenarioInWorker(
+                    scenarioPath,
+                    opts,
+                    config.timeout,
+                    config.roomFixturesDir,
+                    onViewerFrame,
+                    interactive,
+                )
+                    .then((result) => {
+                        activeCount--;
+                        if (result.status === 'fail' || result.status === 'timeout') {
+                            console.error(`[viewer] ${scenarioName} failed: ${result.error || result.status}`);
+                        }
+                        processQueue(); // start next queued scenario
+                    })
+                    .catch((err) => {
+                        activeCount--;
+                        console.error(`[viewer] ${scenarioName} error: ${err.message}`);
+                        processQueue();
+                    });
+            }
+        }
+
+        /** Launch a scenario (via REST): queue it and start processing */
+        const launchScenario = (scenarioPath, _interactive) => {
+            scenarioQueue.push({ scenarioPath, interactive: !!_interactive });
+            processQueue();
+        };
+
+        try {
+            uiServer = await createUiServer({
+                scenariosDir: config.scenariosDir,
+                lastStart,
+                sendCommand: (cmd) => {
+                    if (activeChild && activeChild.connected) {
+                        activeChild.send(cmd);
+                    }
+                },
+                onRunScenario: launchScenario,
+            });
         } catch (err) {
             console.error('[runner] Failed to start UI server:', err.message);
+            process.exit(1);
         }
+
+        // Viewer mode: keep process alive for interactive commands, no batch scenarios
+        const viewerUrl = `http://127.0.0.1:${uiServer.port}`;
+
+        // If --only was specified, auto-launch that scenario
+        if (config.only) {
+            const scenarioPath = path.join(config.scenariosDir, `${config.only}.scenario.js`);
+            console.log(`[runner] Auto-launching: ${config.only}`);
+            launchScenario(scenarioPath, true);
+            console.log(`[runner] Viewer mode — ${config.only} at ${viewerUrl}?viewer`);
+        } else {
+            console.log(`[runner] Viewer mode — Scenario Manager at ${viewerUrl}`);
+        }
+
+        console.log('[runner] Press Ctrl+C to stop.');
+        await new Promise(() => {});
     }
 
     const scenarioFiles = (() => {
