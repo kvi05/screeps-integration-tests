@@ -498,7 +498,7 @@ async function createWorld(opts) {
         }
 
         // ★ VIEWER HOOK: send snapshot via IPC if viewer is enabled
-        if (process.send) {
+        if (opts.viewer && process.send) {
             try {
                 const snapshot = await collectSnapshot(adapter, roomStatus, report, tickNum);
                 snapshot._sentAt = Date.now();
