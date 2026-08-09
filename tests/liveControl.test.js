@@ -251,10 +251,10 @@ describe('beforeTick — paused state', () => {
         sendCmd('dispose');
 
         // First beforeTick resolves (resume fires), but disposed is now true
+        // The current tick that was paused continues normally — returns undefined
         const result1 = await promise;
-        // After dispose+resume, the paused check passes, step logic runs,
-        // then sendStatus — but disposed=true so next beforeTick returns true
-        // Actually the current tick continues. Let's check next tick.
+        expect(result1).toBeUndefined();
+        // Next tick: disposed=true → returns true (stop loop)
         const result2 = await interceptor.beforeTick(makeCtx(2));
         expect(result2).toBe(true);
     });
@@ -319,7 +319,7 @@ describe('afterTick', () => {
 
 describe('IPC commands', () => {
     it('pause command sets paused state', () => {
-        const interceptor = createViewerInterceptor({ scenarioPath: '/t.js' });
+        createViewerInterceptor({ scenarioPath: '/t.js' });
         sendMock.mockClear();
 
         sendCmd('pause');
@@ -334,7 +334,7 @@ describe('IPC commands', () => {
     });
 
     it('resume command sends viewer:status with state=running', () => {
-        const interceptor = createViewerInterceptor({ scenarioPath: '/t.js' });
+        createViewerInterceptor({ scenarioPath: '/t.js' });
         sendMock.mockClear();
 
         sendCmd('resume');
@@ -402,7 +402,7 @@ describe('IPC commands', () => {
     });
 
     it('ignores non-viewer:cmd messages', () => {
-        const interceptor = createViewerInterceptor({ scenarioPath: '/t.js' });
+        createViewerInterceptor({ scenarioPath: '/t.js' });
         sendMock.mockClear();
 
         // Send a non-viewer message
