@@ -53,6 +53,16 @@ PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 - **Ring buffer:** automatic frame limit for accumulated snapshots
   (default 200, configurable via `ViewerOpts.replayBuffer`).
 
+PR #46 [feat/ui-redesign](https://github.com/kvi05/screeps-integration-tests/pull/46)
+
+- **SVG icon library (`Icons.jsx`):** 30+ hand-crafted icons as reusable React
+  components with consistent `size`/`className`/`style` props. Replaces inline
+  SVGs across all viewer components.
+- **Scenario Manager master-detail layout:** left panel — compact scenario
+  table (Status, Name, Time, Tickrate, Actions) with batch summary bar; right
+  panel — detail view with meta grid, copy-to-clipboard buttons, extension
+  sections for metrics history and description.
+
 ### Changed
 
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
@@ -67,6 +77,19 @@ PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
   `frame.console` (filtered by tickNum).
 - **`ViewerOpts`** extended: `paused`, `speed`, `replayBuffer`, `control`,
   `stepRequested`, `status`.
+
+PR #46 [feat/ui-redesign](https://github.com/kvi05/screeps-integration-tests/pull/46)
+
+- **Complete visual redesign:** new design system in `global.css` — CSS custom
+  properties for all tokens (teal accent palette `#2dd4bf`, Inter + JetBrains
+  Mono fonts, warm-neutral surface palette, spacing/radius/shadow/z-index
+  scale). Dark theme throughout.
+- **All viewer components refined:** CanvasStage (loading overlay, zoom
+  indicator, canvas toolbar), ConsolePanel (collapsed/expanded states, severity
+  filters, search), ObjectInspector (type filter chips, detail table),
+  MetricsPanel, MiniMap, LiveControls, ReplayControls, StatusBar.
+- **Color palette:** shifted to more pastel tones — less saturated, warmer
+  neutrals, reduced visual harshness.
 
 ### Added dependencies
 

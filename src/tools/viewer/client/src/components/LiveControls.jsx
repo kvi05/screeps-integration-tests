@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { postPause, postResume, postStep, postSpeed } from '../api/client';
+import { PlayIcon, PauseIcon, StepForwardIcon } from './Icons';
 
 /**
  * @param {Object} props
@@ -17,6 +18,7 @@ import { postPause, postResume, postStep, postSpeed } from '../api/client';
  * @param {number} props.serverTick
  * @param {number} props.serverSpeed
  * @param {(state:string) => void} props.onServerStateChange
+ * @param {(play:boolean) => void} [props.onToggleLivePlay] — parent callback for space key coordination
  */
 export default function LiveControls({
     connected,
@@ -24,6 +26,7 @@ export default function LiveControls({
     serverTick = 0,
     serverSpeed = 1000,
     onServerStateChange,
+    onToggleLivePlay,
 }) {
     const isRunning = serverState === 'running' || serverState === 'stepping';
     const isPaused = serverState === 'paused';
@@ -37,7 +40,7 @@ export default function LiveControls({
     const handlePause = async () => {
         try {
             await postPause();
-            // State will be confirmed by SSE status event
+            if (onToggleLivePlay) onToggleLivePlay(false);
         } catch {
             /* connection error — ignore */
         }
@@ -46,7 +49,7 @@ export default function LiveControls({
     const handleResume = async () => {
         try {
             await postResume();
-            // State will be confirmed by SSE status event
+            if (onToggleLivePlay) onToggleLivePlay(true);
         } catch {
             /* ignore */
         }
@@ -55,7 +58,6 @@ export default function LiveControls({
     const handleStep = async () => {
         try {
             await postStep(1);
-            // State will be confirmed by SSE status event
         } catch {
             /* ignore */
         }
@@ -71,46 +73,87 @@ export default function LiveControls({
         }
     };
 
+    const handleSpeedStep = async (delta) => {
+        const speeds = [1, 5, 10, 20, 1000];
+        const idx = speeds.indexOf(localSpeed);
+        const next = idx >= 0 ? speeds[Math.max(0, Math.min(speeds.length - 1, idx + delta))] : speeds[0];
+        if (next !== localSpeed) await handleSpeed(next);
+    };
+
+    // Show stepping as paused visually (step is a transient action, no green flash)
+    const visualState = serverState === 'stepping' ? 'paused' : serverState;
+    const statusClass = visualState === 'idle' ? 'idle' : visualState === 'running' ? 'running' : 'paused';
     const statusText =
         serverState === 'idle'
             ? 'Idle'
-            : isRunning
-              ? `Running (tick ${serverTick})`
-              : isPaused
-                ? `Paused (tick ${serverTick})`
-                : `Stepping (tick ${serverTick})`;
-
-    const statusColor = serverState === 'idle' ? '#888' : isRunning ? '#4caf50' : isPaused ? '#ff9800' : '#2196f3';
+            : serverState === 'stepping'
+              ? `Paused · tick ${serverTick}`
+              : isRunning
+                ? `Running · tick ${serverTick}`
+                : `Paused · tick ${serverTick}`;
 
     return (
         <div className="live-controls">
-            <span className="control-group-label">Live Server</span>
+            <span className="control-group-label live">
+                <span className="label-dot" />
+                Live
+            </span>
 
             <button
+                className={`icon-btn ${isRunning ? 'primary' : ''}`}
                 onClick={isRunning ? handlePause : handleResume}
                 disabled={!canControl}
-                title={isRunning ? 'Pause' : 'Resume'}
+                title={isRunning ? 'Pause server' : 'Resume server'}
+                aria-label={isRunning ? 'Pause server' : 'Resume server'}
             >
-                {isRunning ? '⏸' : '▶'}
+                {isRunning ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
             </button>
 
-            <button onClick={handleStep} disabled={!canControl} title="Step +1">
-                ⏭
+            <button
+                className="icon-btn"
+                onClick={handleStep}
+                disabled={!canControl}
+                title="Step +1 tick"
+                aria-label="Step forward one tick"
+            >
+                <StepForwardIcon size={16} />
             </button>
 
-            <label className="speed-label">
-                Speed:
-                <select value={localSpeed} onChange={(e) => handleSpeed(e.target.value)} disabled={!canControl}>
+            <div className="speed-control">
+                <label>Speed</label>
+                <select
+                    className="speed-select"
+                    value={localSpeed}
+                    onChange={(e) => handleSpeed(e.target.value)}
+                    disabled={!canControl}
+                >
                     <option value={1}>1×</option>
                     <option value={5}>5×</option>
                     <option value={10}>10×</option>
                     <option value={20}>20×</option>
                     <option value={1000}>Max</option>
                 </select>
-            </label>
+                <button
+                    className="speed-step-btn"
+                    onClick={() => handleSpeedStep(-1)}
+                    disabled={!canControl}
+                    title="Decrease speed"
+                >
+                    −
+                </button>
+                <button
+                    className="speed-step-btn"
+                    onClick={() => handleSpeedStep(1)}
+                    disabled={!canControl}
+                    title="Increase speed"
+                >
+                    +
+                </button>
+            </div>
 
-            <span className="status-indicator" style={{ color: statusColor }}>
-                ● {statusText}
+            <span className={`status-badge ${statusClass}`}>
+                <span className="status-dot" />
+                {statusText}
             </span>
         </div>
     );

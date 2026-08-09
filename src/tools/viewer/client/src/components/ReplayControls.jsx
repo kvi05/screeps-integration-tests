@@ -7,6 +7,8 @@
  * @component
  */
 
+import { PlayIcon, PauseIcon, StepForwardIcon, StepBackIcon, FilmIcon } from './Icons';
+
 /**
  * @param {Object} props
  * @param {boolean} props.playing
@@ -32,26 +34,56 @@ export default function ReplayControls({
 }) {
     const handlePlayPause = () => onTogglePlay(!playing);
     const handleSpeedChange = (e) => onSetSpeed(Number(e.target.value));
+    const handleSpeedStep = (delta) => {
+        const speeds = [1, 2, 5, 10, 20];
+        const idx = speeds.indexOf(speed);
+        if (idx >= 0) {
+            const next = speeds[Math.max(0, Math.min(speeds.length - 1, idx + delta))];
+            if (next !== speed) onSetSpeed(next);
+        }
+    };
     const handleTickChange = (e) => onSeekTick(Number(e.target.value));
 
     return (
         <div className="replay-controls">
-            <span className="control-group-label">Saved Replay</span>
+            <span className="control-group-label replay">
+                <span className="label-dot" />
+                Replay
+            </span>
 
-            <button onClick={handlePlayPause} title={playing ? 'Pause' : 'Play'}>
-                {playing ? '⏸' : '▶'}
+            <button
+                className={`icon-btn ${playing ? 'primary' : ''}`}
+                onClick={handlePlayPause}
+                title={playing ? 'Pause replay' : 'Play replay'}
+                aria-label={playing ? 'Pause replay' : 'Play replay'}
+            >
+                {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
             </button>
 
-            <button onClick={onStepBack} title="Step -1" disabled={tick <= 0}>
-                ⏮
+            <button
+                className="icon-btn"
+                onClick={onStepBack}
+                title="Step back -1 tick"
+                disabled={tick <= 0}
+                aria-label="Step back one tick"
+            >
+                <StepBackIcon size={16} />
             </button>
 
-            <button onClick={onStepForward} title="Step +1" disabled={tick >= maxTicks}>
-                ⏭
+            <button
+                className="icon-btn"
+                onClick={onStepForward}
+                title="Step forward +1 tick"
+                disabled={tick >= maxTicks}
+                aria-label="Step forward one tick"
+            >
+                <StepForwardIcon size={16} />
             </button>
 
             <span className="tick-display">
-                Tick: {tick} / {maxTicks || '—'}
+                <span className="tick-current">{tick}</span>
+                <span className="tick-sep">/</span>
+                <span>{maxTicks || '—'}</span>
             </span>
 
             <input
@@ -62,18 +94,25 @@ export default function ReplayControls({
                 onChange={handleTickChange}
                 className="tick-slider"
                 title="Scrub timeline"
+                aria-label="Scrub timeline"
             />
 
-            <label className="speed-label">
-                Speed:
-                <select value={speed} onChange={handleSpeedChange}>
+            <div className="speed-control">
+                <label>Speed</label>
+                <select className="speed-select" value={speed} onChange={handleSpeedChange}>
                     <option value={1}>1×</option>
                     <option value={2}>2×</option>
                     <option value={5}>5×</option>
                     <option value={10}>10×</option>
                     <option value={20}>20×</option>
                 </select>
-            </label>
+                <button className="speed-step-btn" onClick={() => handleSpeedStep(-1)} title="Decrease speed">
+                    −
+                </button>
+                <button className="speed-step-btn" onClick={() => handleSpeedStep(1)} title="Increase speed">
+                    +
+                </button>
+            </div>
         </div>
     );
 }

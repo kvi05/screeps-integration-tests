@@ -8,8 +8,25 @@ import ConsolePanel from './components/ConsolePanel';
 import MetricsPanel from './components/MetricsPanel';
 import MiniMap from './components/MiniMap';
 import ScenarioManager from './components/ScenarioManager';
-import { connectSSE, postDispose } from './api/client';
+import { connectSSE, postDispose, postPause, postResume, postSpeed } from './api/client';
 import { loadPrefs, savePrefs } from './state/prefs';
+import {
+    ArrowLeftIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    MousePointerIcon,
+    ActivityIcon,
+    DatabaseIcon,
+    SettingsIcon,
+    MapIcon,
+    GridIcon,
+    FocusIcon,
+    WifiIcon,
+    WifiOffIcon,
+    FilmIcon,
+    DownloadIcon,
+    RefreshCwIcon,
+} from './components/Icons';
 import './styles/global.css';
 
 /**
@@ -24,16 +41,21 @@ import './styles/global.css';
  * - Console panel (logs from frames)
  * - Metrics graphs
  * - MiniMap
+ * - Sidebar tabs: Inspector / Metrics / Save-Load / Settings
  *
  * @component
  */
 
 const REPLAY_BUFFER_DEFAULT = 200;
 
+/** Sidebar width limits — single source of truth, matches CSS --sidebar-min-w / --sidebar-max-w */
+const SIDEBAR_MIN_W = 240;
+const SIDEBAR_MAX_W = 550;
+const SIDEBAR_DEFAULT_W = 340;
+
 export default function App() {
     // App mode: 'viewer' or 'scenarios'
     const [mode] = useState(() => {
-        // URL param ?viewer overrides sessionStorage
         try {
             const params = new URLSearchParams(window.location.search);
             if (params.get('viewer') !== null) return 'viewer';
@@ -81,8 +103,16 @@ export default function App() {
 
     // Side panels
     const [showConsole, setShowConsole] = useState(() => loadPrefs().showConsole);
-    const [showMetrics, setShowMetrics] = useState(false);
     const [showMiniMap, setShowMiniMap] = useState(() => loadPrefs().showMiniMap);
+    const [sidebarTab, setSidebarTab] = useState('inspector'); // inspector | metrics | saveload | settings
+
+    // Sidebar
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_W);
+    const sidebarRef = useRef(null);
+
+    // Canvas overlay toggles (future: WR-8 heatmap, WR-9 grid)
+    const [showGrid, setShowGrid] = useState(false);
 
     // Object inspector
     /** @type {[{room:string, x:number, y:number, objects:Array}|null, Function]} */
@@ -143,7 +173,6 @@ export default function App() {
         const sse = connectSSE((eventType, data) => {
             switch (eventType) {
                 case 'start':
-                    // New scenario — reset everything
                     setScenario(data.scenario || '');
                     setConnected(true);
                     setServerState('running');
@@ -215,7 +244,6 @@ export default function App() {
                     break;
                 }
                 case 'scenario-result': {
-                    // Persist to sessionStorage so ScenarioManager sees results after mode switch
                     try {
                         const name = (data.scenario || '').replace(/^.*[/\\]/, '').replace('.scenario.js', '');
                         const prev = JSON.parse(sessionStorage.getItem('sit-scenario-statuses') || '{}');
@@ -224,7 +252,6 @@ export default function App() {
                     } catch {
                         /* ignore */
                     }
-                    // Forward to ScenarioManager via window event (avoids prop drilling)
                     if (typeof window !== 'undefined') {
                         window.dispatchEvent(
                             new CustomEvent('scenario-result', {
@@ -286,10 +313,8 @@ export default function App() {
     }, [ended]);
 
     // ─── Playback: track mode (live vs replay) ──────────────────────────
-    // liveMode = connected AND user hasn't manually scrubbed
     const [liveMode, setLiveMode] = useState(true);
 
-    // When connected with new frames, auto-enter live mode
     useEffect(() => {
         if (connected && !ended) {
             setLiveMode(true);
@@ -313,7 +338,7 @@ export default function App() {
         if (!playing || ended || liveMode) return;
         if (recording.frames.length === 0) return;
         const latest = recording.frames.length - 1;
-        const interval = Math.max(33, 1000 / speed); // max ~30fps for replay
+        const interval = Math.max(33, 1000 / speed);
 
         const timer = setInterval(() => {
             const cur = tickRef.current;
@@ -334,20 +359,47 @@ export default function App() {
 
     const handleTogglePlay = useCallback(
         (play) => {
-            if (play) {
-                // If connected and at end, switch to live mode
+            setPlaying(play);
+            if (!play) {
+                setSub(null);
+                return;
+            }
+            // Mutual exclusion: playing replay ⇒ pause live server
+            if (play && !liveMode) {
+                // Replay is playing → pause live if connected
                 if (connected && !ended) {
-                    setLiveMode(true);
+                    postPause().catch(() => {});
                 }
             }
-            setPlaying(play);
-            if (!play) setSub(null);
+            if (play && liveMode && connected && !ended) {
+                // Live is already playing — nothing extra needed
+                return;
+            }
+            if (play && !liveMode === false && connected && !ended) {
+                setLiveMode(true);
+            }
         },
-        [connected, ended],
+        [connected, ended, liveMode],
     );
 
+    // Toggle live server play/pause (called by space key + LiveControls)
+    const handleToggleLivePlay = useCallback((play) => {
+        if (play) {
+            // Resume live → auto-pause replay
+            setPlaying(false);
+            setSub(null);
+            postResume().catch(() => {});
+            setLiveMode(true);
+            setPlaying(true);
+        } else {
+            postPause().catch(() => {});
+            setPlaying(false);
+            setSub(null);
+        }
+    }, []);
+
     const handleSeekTick = useCallback((t) => {
-        setLiveMode(false); // Manual scrub → replay mode
+        setLiveMode(false);
         const max = recordingRef.current.frames.length - 1;
         setTick(Math.max(0, Math.min(t, max)));
         setSub(null);
@@ -379,6 +431,7 @@ export default function App() {
             const tileObjects = (frame.objects || []).filter((o) => o.room === roomName && o.x === x && o.y === y);
             setClickedTile({ room: roomName, x, y, objects: tileObjects });
             setSelectedId(tileObjects.length > 0 ? tileObjects[0]._id : null);
+            setSidebarTab('inspector');
         },
         [recording.frames, tick],
     );
@@ -419,7 +472,13 @@ export default function App() {
             switch (e.key) {
                 case ' ':
                     e.preventDefault();
-                    handleTogglePlay(!playingRef.current);
+                    // Toggle LIVE server play/pause when connected, replay otherwise
+                    if (connected && !ended) {
+                        const isLiveRunning = serverState === 'running' || serverState === 'stepping';
+                        handleToggleLivePlay(!isLiveRunning);
+                    } else {
+                        handleTogglePlay(!playingRef.current);
+                    }
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
@@ -429,8 +488,30 @@ export default function App() {
                     e.preventDefault();
                     handleStepBack();
                     break;
+                case ']':
+                    // Increase Live server speed
+                    {
+                        const speeds = [1, 5, 10, 20, 1000];
+                        const idx = speeds.indexOf(serverSpeed);
+                        if (idx >= 0 && idx < speeds.length - 1) {
+                            const next = speeds[idx + 1];
+                            postSpeed(next).catch(() => {});
+                        }
+                    }
+                    break;
+                case '[':
+                    // Decrease Live server speed
+                    {
+                        const speeds = [1, 5, 10, 20, 1000];
+                        const idx = speeds.indexOf(serverSpeed);
+                        if (idx > 0) {
+                            const next = speeds[idx - 1];
+                            postSpeed(next).catch(() => {});
+                        }
+                    }
+                    break;
                 case 'm':
-                    setShowMetrics((prev) => !prev);
+                    setSidebarTab((prev) => (prev === 'metrics' ? 'inspector' : 'metrics'));
                     break;
                 case '`':
                     setShowConsole((prev) => !prev);
@@ -439,7 +520,16 @@ export default function App() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleTogglePlay, handleStepForward, handleStepBack]);
+    }, [
+        handleToggleLivePlay,
+        handleTogglePlay,
+        handleStepForward,
+        handleStepBack,
+        serverSpeed,
+        serverState,
+        connected,
+        ended,
+    ]);
 
     // ─── Test API ───────────────────────────────────────────────────────────
     if (import.meta.env.DEV) {
@@ -447,15 +537,37 @@ export default function App() {
             ...(window.__viewerTest || {}),
             getState() {
                 return {
-                    tick: tickRef.current,
-                    playing: playingRef.current,
-                    speed: speedRef.current,
-                    connected,
-                    ended,
-                    framesCount: recordingRef.current.frames.length,
-                    serverState,
-                    showConsole,
-                    showMetrics,
+                    /** App mode: 'viewer' | 'scenarios' */
+                    mode,
+                    /** Live server state (SSE-driven, remote) */
+                    server: {
+                        connected,
+                        state: serverState, // 'idle' | 'running' | 'paused' | 'stepping'
+                        ended,
+                        tick: serverTick,
+                        speed: serverSpeed,
+                        scenario,
+                    },
+                    /** Client-side recorded frames ring buffer */
+                    recording: {
+                        framesCount: recordingRef.current.frames.length,
+                    },
+                    /** Local replay / playback controls */
+                    playback: {
+                        tick: tickRef.current,
+                        playing: playingRef.current,
+                        speed: speedRef.current,
+                        liveMode,
+                    },
+                    /** UI toggles */
+                    ui: {
+                        showConsole,
+                        showMiniMap,
+                        showGrid,
+                        sidebarTab,
+                        sidebarCollapsed,
+                        selectedId,
+                    },
                 };
             },
             injectFrames(objectsList, terrainMap) {
@@ -532,22 +644,31 @@ export default function App() {
     // ─── Camera state (for MiniMap) ─────────────────────────────────────
     const canvasStageRef = useRef(null);
 
-    const handleBackToScenarios = () => {
-        postDispose().catch(() => {});
+    const handleBackToScenarios = async () => {
+        try {
+            await postDispose();
+        } catch {
+            /* ignore */
+        }
         try {
             sessionStorage.setItem('sit-viewer-mode', 'scenarios');
         } catch {
             /* ignore */
         }
-        window.location.reload();
+        // Small delay to ensure the dispose command reaches the worker before reload
+        setTimeout(() => window.location.reload(), 200);
     };
+
+    // Current room label (for overlay)
+    const currentRoom = clickedTile?.room || roomNames[0] || '';
 
     return (
         <div className="viewer-layout">
-            {/* ─── Toolbar ─────────────────────────────── */}
+            {/* ─── Toolbar ─────────────────────────────────────── */}
             <div className="viewer-toolbar">
-                <button onClick={handleBackToScenarios} className="btn-back-to-scenarios" title="Back to Scenarios">
-                    ← Scenarios
+                <button onClick={handleBackToScenarios} className="btn-back" title="Back to Scenarios">
+                    <ArrowLeftIcon size={16} />
+                    Scenarios
                 </button>
                 <div className="toolbar-separator" />
                 <LiveControls
@@ -556,6 +677,7 @@ export default function App() {
                     serverTick={serverTick}
                     serverSpeed={serverSpeed}
                     onServerStateChange={setServerState}
+                    onToggleLivePlay={handleToggleLivePlay}
                 />
                 <div className="toolbar-separator" />
                 <ReplayControls
@@ -569,6 +691,15 @@ export default function App() {
                     onStepForward={handleStepForward}
                     onStepBack={handleStepBack}
                 />
+                {/* Future: SL-1/2 save/load, HR-1 hot reload */}
+                <div className="toolbar-actions">
+                    <button className="icon-btn" title="Save snapshot (coming soon)" disabled>
+                        <DownloadIcon size={16} />
+                    </button>
+                    <button className="icon-btn" title="Hot reload bot (coming soon)" disabled>
+                        <RefreshCwIcon size={16} />
+                    </button>
+                </div>
             </div>
 
             {/* ─── Main area: canvas + side panels ────── */}
@@ -584,13 +715,65 @@ export default function App() {
                         onTileClick={handleCanvasClick}
                         onCameraChange={setCameraForMiniMap}
                     />
-                    {isLoading && (
-                        <div className="loading-overlay">
-                            <div className="spinner" />
-                            {connected ? 'Waiting for first frame...' : 'Connecting to server...'}
+
+                    {/* Canvas overlays */}
+                    {currentRoom && !isLoading && (
+                        <div className="canvas-overlay canvas-room-label">
+                            <MapIcon size={12} />
+                            {currentRoom}
                         </div>
                     )}
-                    {showMiniMap && (
+                    {!isLoading && (
+                        <div
+                            className="canvas-overlay interactive canvas-zoom-indicator"
+                            onClick={() => canvasStageRef.current?.resetCamera?.()}
+                            title="Reset camera (click)"
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <FocusIcon size={12} />
+                            {cameraForMiniMap.zoom.toFixed(1)}×
+                        </div>
+                    )}
+                    {!isLoading && (
+                        <div className="canvas-overlay interactive canvas-toolbar">
+                            <button
+                                className={`icon-btn ${showGrid ? 'active' : ''}`}
+                                onClick={() => setShowGrid(!showGrid)}
+                                title="Toggle grid overlay"
+                            >
+                                <GridIcon size={14} />
+                            </button>
+                            <button
+                                className="icon-btn"
+                                onClick={() => canvasStageRef.current?.resetCamera?.()}
+                                title="Reset camera (0, Home)"
+                            >
+                                <FocusIcon size={14} />
+                            </button>
+                            <button
+                                className={`icon-btn sidebar-collapse-btn ${sidebarCollapsed ? 'active' : ''}`}
+                                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                                title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                            >
+                                {sidebarCollapsed ? <ChevronLeftIcon size={14} /> : <ChevronRightIcon size={14} />}
+                            </button>
+                        </div>
+                    )}
+
+                    {isLoading && (
+                        <div className="loading-overlay">
+                            <div className="loading-spinner" />
+                            <div className="loading-text">
+                                {connected ? 'Waiting for first frame...' : 'Connecting to server...'}
+                            </div>
+                            <div className="loading-hint">
+                                {connected
+                                    ? 'The scenario is running, data will appear shortly'
+                                    : 'Make sure the viewer server is running'}
+                            </div>
+                        </div>
+                    )}
+                    {showMiniMap && !isLoading && (
                         <MiniMap
                             roomNames={roomNames}
                             camera={cameraForMiniMap}
@@ -605,26 +788,120 @@ export default function App() {
                 </div>
 
                 {/* ─── Side panels ─────────────────────── */}
-                <div className="viewer-sidebar">
-                    {showMetrics ? (
-                        <MetricsPanel frames={recording.frames} />
-                    ) : (
-                        <ObjectInspector
-                            objects={clickedTile?.objects || []}
-                            selectedId={selectedId}
-                            onSelect={setSelectedId}
-                            typeFilter={typeFilter}
-                            onTypeFilterChange={setTypeFilter}
-                            searchQuery={searchQuery}
-                            onSearchChange={setSearchQuery}
+                <div
+                    ref={sidebarRef}
+                    className={`viewer-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}
+                    style={sidebarCollapsed ? undefined : { width: sidebarWidth }}
+                >
+                    {/* Resize handle — direct DOM during drag, no React re-renders */}
+                    {!sidebarCollapsed && (
+                        <div
+                            className="sidebar-resize-handle"
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                const startX = e.clientX;
+                                const startW = sidebarRef.current?.offsetWidth || sidebarWidth;
+                                const el = sidebarRef.current;
+                                // Disable CSS transition + lock cursor during drag
+                                el?.classList.add('dragging');
+                                document.body.style.cursor = 'ew-resize';
+                                const onMove = (ev) => {
+                                    const newW = Math.max(
+                                        SIDEBAR_MIN_W,
+                                        Math.min(SIDEBAR_MAX_W, startW + startX - ev.clientX),
+                                    );
+                                    if (el) el.style.width = newW + 'px';
+                                };
+                                const onUp = (ev) => {
+                                    document.removeEventListener('mousemove', onMove);
+                                    document.removeEventListener('mouseup', onUp);
+                                    el?.classList.remove('dragging');
+                                    document.body.style.cursor = '';
+                                    const finalW = Math.max(
+                                        SIDEBAR_MIN_W,
+                                        Math.min(SIDEBAR_MAX_W, startW + startX - ev.clientX),
+                                    );
+                                    setSidebarWidth(finalW);
+                                };
+                                document.addEventListener('mousemove', onMove);
+                                document.addEventListener('mouseup', onUp);
+                            }}
                         />
                     )}
-                    <div className="sidebar-toggle-buttons">
-                        <button className={showMetrics ? 'active' : ''} onClick={() => setShowMetrics(!showMetrics)}>
-                            {showMetrics ? 'Objects' : 'Metrics'}
+                    {/* Sidebar tabs */}
+                    <div className="sidebar-tabs">
+                        <button
+                            className={`sidebar-tab ${sidebarTab === 'inspector' ? 'active' : ''}`}
+                            onClick={() => setSidebarTab('inspector')}
+                            title="Object Inspector"
+                        >
+                            <MousePointerIcon size={14} />
+                            <span>Inspect</span>
                         </button>
-                        <button className={showMiniMap ? 'active' : ''} onClick={() => setShowMiniMap(!showMiniMap)}>
+                        <button
+                            className={`sidebar-tab ${sidebarTab === 'metrics' ? 'active' : ''}`}
+                            onClick={() => setSidebarTab('metrics')}
+                            title="Metrics"
+                        >
+                            <ActivityIcon size={14} />
+                            <span>Metrics</span>
+                        </button>
+                        <button
+                            className={`sidebar-tab ${sidebarTab === 'saveload' ? 'active' : ''}`}
+                            onClick={() => setSidebarTab('saveload')}
+                            title="Save / Load"
+                        >
+                            <DatabaseIcon size={14} />
+                        </button>
+                        <button
+                            className={`sidebar-tab ${sidebarTab === 'settings' ? 'active' : ''}`}
+                            onClick={() => setSidebarTab('settings')}
+                            title="Settings"
+                        >
+                            <SettingsIcon size={14} />
+                        </button>
+                    </div>
+
+                    {/* Sidebar content */}
+                    <div className="sidebar-content">
+                        {sidebarTab === 'inspector' && (
+                            <ObjectInspector
+                                objects={clickedTile?.objects || []}
+                                selectedId={selectedId}
+                                onSelect={setSelectedId}
+                                typeFilter={typeFilter}
+                                onTypeFilterChange={setTypeFilter}
+                                searchQuery={searchQuery}
+                                onSearchChange={setSearchQuery}
+                            />
+                        )}
+                        {sidebarTab === 'metrics' && <MetricsPanel frames={recording.frames} />}
+                        {sidebarTab === 'saveload' && <SaveLoadPanel />}
+                        {sidebarTab === 'settings' && (
+                            <SettingsPanel
+                                showMiniMap={showMiniMap}
+                                onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
+                                showConsole={showConsole}
+                                onToggleConsole={() => setShowConsole(!showConsole)}
+                            />
+                        )}
+                    </div>
+
+                    {/* Sidebar footer toggles */}
+                    <div className="sidebar-footer">
+                        <button
+                            className={`sidebar-footer-btn ${showMiniMap ? 'active' : ''}`}
+                            onClick={() => setShowMiniMap(!showMiniMap)}
+                        >
+                            <MapIcon size={14} />
                             MiniMap
+                        </button>
+                        <button
+                            className={`sidebar-footer-btn ${showConsole ? 'active' : ''}`}
+                            onClick={() => setShowConsole(!showConsole)}
+                        >
+                            <FilmIcon size={14} />
+                            Console
                         </button>
                     </div>
                 </div>
@@ -640,18 +917,136 @@ export default function App() {
 
             {/* ─── Status bar ──────────────────────────── */}
             <div className="status-bar">
-                <span>
-                    {connected ? (
-                        <span className="connected">● Connected</span>
-                    ) : (
-                        <span className="disconnected">● Disconnected</span>
-                    )}
-                    {scenario && ` — ${scenario}`}
-                </span>
-                <span>
-                    Frames: {recording.frames.length} | Tick: {tick}/{maxTicks || '—'}
-                    {ended ? ' [ENDED]' : ''}
-                </span>
+                <div className="status-section">
+                    <span className={`status-item ${connected ? 'connected' : 'disconnected'}`}>
+                        <span className="status-dot" />
+                        {connected ? (
+                            <>
+                                <WifiIcon size={12} />
+                                Connected
+                            </>
+                        ) : (
+                            <>
+                                <WifiOffIcon size={12} />
+                                Disconnected
+                            </>
+                        )}
+                    </span>
+                    {scenario && <span className="status-item status-scenario">{scenario}</span>}
+                    {ended && <span className="status-item status-ended">● ENDED</span>}
+                </div>
+                <div className="status-section">
+                    <span className="kbd-hints">
+                        <span>
+                            <kbd>Space</kbd>live play/pause
+                        </span>
+                        <span>
+                            <kbd>←</kbd>
+                            <kbd>→</kbd>step replay
+                        </span>
+                        <span>
+                            <kbd>[</kbd>
+                            <kbd>]</kbd>live speed
+                        </span>
+                        <span>
+                            <kbd>0</kbd>
+                            <kbd>Home</kbd>reset view
+                        </span>
+                        <span>
+                            <kbd>M</kbd>metrics
+                        </span>
+                        <span>
+                            <kbd>`</kbd>console
+                        </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Save/Load Panel (placeholder for future SL-1 to SL-5) ──────────────────
+function SaveLoadPanel() {
+    return (
+        <div className="save-load-panel">
+            <div className="save-load-section">
+                <h3>
+                    <DownloadIcon size={16} />
+                    Snapshot
+                </h3>
+                <p>Save the current world state to a JSON file for later inspection or replay.</p>
+                <div className="save-load-actions">
+                    <button className="btn-primary" disabled title="Coming soon">
+                        <DownloadIcon size={14} />
+                        Save Snapshot
+                    </button>
+                    <button className="btn-secondary" disabled title="Coming soon">
+                        Load Snapshot
+                    </button>
+                </div>
+            </div>
+            <div className="save-load-section">
+                <h3>
+                    <DatabaseIcon size={16} />
+                    Auto-save
+                </h3>
+                <p>Automatically save each tick to memory for rewind capability.</p>
+                <div className="save-load-actions">
+                    <button className="btn-secondary" disabled title="Coming soon">
+                        Configure limit...
+                    </button>
+                </div>
+            </div>
+            <div className="save-load-section">
+                <h3>
+                    <FilmIcon size={16} />
+                    Export
+                </h3>
+                <p>Export snapshot as room fixture or memory fixture.</p>
+                <div className="save-load-actions">
+                    <button className="btn-secondary" disabled title="Coming soon">
+                        Room fixture
+                    </button>
+                    <button className="btn-secondary" disabled title="Coming soon">
+                        Memory fixture
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Settings Panel (placeholder for future settings) ───────────────────────
+function SettingsPanel({ showMiniMap, onToggleMiniMap, showConsole, onToggleConsole }) {
+    return (
+        <div className="settings-panel">
+            <div className="settings-row">
+                <div>
+                    <div className="settings-label">MiniMap</div>
+                    <div className="settings-hint">Show room overview in corner</div>
+                </div>
+                <div className={`toggle-switch ${showMiniMap ? 'on' : ''}`} onClick={onToggleMiniMap} />
+            </div>
+            <div className="settings-row">
+                <div>
+                    <div className="settings-label">Console</div>
+                    <div className="settings-hint">Show bot console output</div>
+                </div>
+                <div className={`toggle-switch ${showConsole ? 'on' : ''}`} onClick={onToggleConsole} />
+            </div>
+            <div className="settings-row">
+                <div>
+                    <div className="settings-label">Grid overlay</div>
+                    <div className="settings-hint">Show tile grid on canvas</div>
+                </div>
+                <div className="toggle-switch" />
+            </div>
+            <div className="settings-row">
+                <div>
+                    <div className="settings-label">Heatmap</div>
+                    <div className="settings-hint">Energy density visualization</div>
+                </div>
+                <div className="toggle-switch" />
             </div>
         </div>
     );
