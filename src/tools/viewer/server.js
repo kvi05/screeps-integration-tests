@@ -360,8 +360,14 @@ async function createUiServer(opts = {}) {
 
         // POST /api/load-snapshot — load saved state
         if (pathname === '/api/load-snapshot' && req.method === 'POST') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: true, status: 'not_implemented' }));
+            res.writeHead(501, { 'Content-Type': 'application/json' });
+            res.end(
+                JSON.stringify({
+                    ok: false,
+                    status: 'not_implemented',
+                    message: 'Snapshot loading is not yet implemented',
+                }),
+            );
             return;
         }
 
