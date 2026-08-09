@@ -47,6 +47,21 @@ let activeChild = null;
 let uiServer = null;
 
 /**
+ * Determines if an IPC message is a final scenario result (as opposed to
+ * an intermediate tool message like viewer:frame or viewer:status).
+ *
+ * @param {Object} msg
+ * @returns {boolean}
+ */
+function isFinalMessage(msg) {
+    if (!msg) return false;
+    // Exclude typed messages (viewer:*, etc.) — they have a `type` field.
+    // Only messages with just a `status` are final worker results.
+    if (msg.type) return false;
+    return msg.status === 'pass' || msg.status === 'skip' || msg.status === 'fail';
+}
+
+/**
  * Pipes a child process's stdio streams to the parent, filtering out
  * known `@screeps/common` storage disconnection messages that appear
  * during normal mockup-server shutdown.
@@ -183,24 +198,20 @@ function findScenarios(scenariosDir, only) {
  * If the worker does not respond within `timeout` ms the process is killed
  * via `tree-kill` (SIGKILL) and a `timeout` status is returned.
  *
+ * Intermediate (non-final) IPC messages are forwarded to `onIpcMessage` for
+ * tool-specific handling (viewer frames, status updates, etc.).
+ *
  * @param {string} scenarioPath - Absolute path to the `.scenario.js` file
- * @param {Object} opts - Options forwarded to the scenario's `run()`:
- *   `{ profiling?: boolean, viewer?: boolean }`
+ * @param {Object} opts - Options forwarded to the scenario's `run()`
  * @param {number} timeout - Per-scenario timeout in ms
  * @param {string|null} roomFixturesDir - Directory to auto-load room fixtures from
- * @param {Function|null} onViewerFrame - Callback for viewer:frame messages (signature: (frame) => void)
- * @param {boolean} [interactive] - If true, this scenario owns the viewer (activeChild, frames broadcast)
+ * @param {Function|null} [onIpcMessage] - Callback for intermediate IPC messages: (msg, child) => void
  * @returns {Promise<WorkerMessage & {time?: number}>}
  */
-async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onViewerFrame, interactive) {
+async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onIpcMessage) {
     const child = fork(RUNNER_SCRIPT, [], { silent: true });
     pipeChildStreams(child);
     const startTime = Date.now();
-
-    // Only interactive scenarios receive viewer control commands
-    if (interactive) {
-        activeChild = child;
-    }
 
     const ac = new AbortController();
     const timer = setTimeout(() => {
@@ -211,68 +222,23 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
     try {
         await once(child, 'spawn', { signal: ac.signal });
         child.send({ scenarioPath, opts, roomFixturesDir });
-        // Listen for ALL messages: viewer:frame → broadcast, otherwise → result
+
         /** @type {WorkerMessage & { time?: number }} */
         const result = await new Promise((resolve, reject) => {
             function onMessage(msg) {
-                if (msg && msg.type === 'viewer:frame') {
-                    // Forward to SSE clients via the broadcast callback
-                    if (onViewerFrame) {
-                        try {
-                            onViewerFrame(msg);
-                        } catch {
-                            // Non-critical
-                        }
-                    }
-                    return; // Keep listening for the final result
+                if (isFinalMessage(msg)) {
+                    cleanup();
+                    resolve(msg);
+                    return;
                 }
-                if (msg && msg.type === 'viewer:status') {
-                    // Update server status in UI server
-                    if (uiServer) {
-                        try {
-                            uiServer.updateStatus(msg);
-                        } catch {
-                            // Non-critical
-                        }
+                // Forward non-final messages to caller for tool-specific handling
+                if (onIpcMessage) {
+                    try {
+                        onIpcMessage(msg, child);
+                    } catch {
+                        /* non-critical */
                     }
-                    return; // Keep listening
                 }
-                if (msg && msg.type === 'viewer:snapshot') {
-                    // Save snapshot to file
-                    if (msg.data) {
-                        try {
-                            const dir = path.join(process.cwd(), 'snapshots');
-                            fs.mkdirSync(dir, { recursive: true });
-                            const filename = `snapshot-${Date.now()}.json`;
-                            fs.writeFileSync(path.join(dir, filename), JSON.stringify(msg.data, null, 2));
-                            console.log(`[viewer] Snapshot saved: ${path.join(dir, filename)}`);
-                        } catch (err) {
-                            console.error(`[viewer] Failed to save snapshot: ${err.message}`);
-                        }
-                    }
-                    return; // Keep listening
-                }
-                if (msg && msg.type === 'viewer:scenario-result') {
-                    // Forward scenario result to SSE clients
-                    if (uiServer) {
-                        try {
-                            uiServer.broadcastScenarioResult(msg);
-                        } catch {
-                            // Non-critical
-                        }
-                    }
-                    return; // Keep listening
-                }
-                if (msg && msg.type === 'viewer:disposed') {
-                    // Worker disposed — clear active child
-                    if (activeChild === child) {
-                        activeChild = null;
-                    }
-                    return; // Keep listening
-                }
-                // This is the final result (pass/skip/fail)
-                cleanup();
-                resolve(msg);
             }
 
             function onError(err) {
@@ -316,9 +282,6 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
     } finally {
         clearTimeout(timer);
         child.removeAllListeners();
-        if (activeChild === child) {
-            activeChild = null;
-        }
     }
 }
 
@@ -374,6 +337,183 @@ function printSummary(results) {
 
     console.log(`\n  Total: ${passed} passed, ${failed} failed, ${skipped} skipped`);
     return failed === 0;
+}
+
+/**
+ * Viewer mode: starts the UI server, manages scenario queue with
+ * concurrency control, routes IPC messages to SSE clients.
+ *
+ * This function owns ALL viewer-specific logic: UI server lifecycle,
+ * IPC routing (viewer:frame → SSE, viewer:status → status update, etc.),
+ * active child tracking for live commands, and scenario queue management.
+ *
+ * Blocks indefinitely — the process stays alive for interactive use.
+ *
+ * @param {import('../src/lib/config').FrameworkConfig} config
+ * @returns {Promise<void>}
+ */
+async function runViewerMode(config) {
+    /** @type {boolean} */
+    let terrainSent = false;
+    /** @type {{scenario:string, maxTicks:number}} */
+    const lastStart = { scenario: '', maxTicks: 0 };
+    /** @type {Array<{scenarioPath:string, interactive:boolean}>} */
+    const scenarioQueue = [];
+    let activeCount = 0;
+    // Interactive scenarios run one-at-a-time to avoid viewer race conditions.
+    // Headless scenarios (no viewer frames) can run in parallel up to maxJobs.
+    const maxJobs = config.jobs || 4;
+    const maxInteractive = 1;
+    let interactiveRunning = 0;
+
+    /**
+     * Sends a dispose command to the currently running interactive scenario.
+     * The scenario will stop gracefully via its tick interceptor (beforeTick
+     * returns true → tick loop exits → worker sends final result → exits).
+     */
+    function disposeActiveScenario() {
+        if (activeChild && activeChild.connected) {
+            activeChild.send({ type: 'viewer:cmd', action: 'dispose' });
+            // activeChild is cleared when viewer:disposed IPC arrives
+            // or when the scenario finishes naturally (see processQueue .then/.catch)
+        }
+    }
+
+    /**
+     * Routes intermediate IPC messages from workers to SSE clients.
+     * @param {Object} msg
+     * @param {import('child_process').ChildProcess} child
+     */
+    function routeIpcMessage(msg, child) {
+        switch (msg.type) {
+            case 'viewer:frame':
+                if (!terrainSent && uiServer && msg.terrain && Object.keys(msg.terrain).length > 0) {
+                    terrainSent = true;
+                    uiServer.broadcastTerrain(msg.terrain);
+                }
+                if (uiServer) uiServer.broadcast(msg);
+                break;
+            case 'viewer:status':
+                if (uiServer) uiServer.updateStatus(msg);
+                break;
+            case 'viewer:snapshot':
+                if (msg.data) {
+                    try {
+                        const dir = path.join(process.cwd(), 'snapshots');
+                        fs.mkdirSync(dir, { recursive: true });
+                        const filename = `snapshot-${Date.now()}.json`;
+                        fs.writeFileSync(path.join(dir, filename), JSON.stringify(msg.data, null, 2));
+                        console.log(`[viewer] Snapshot saved: ${path.join(dir, filename)}`);
+                    } catch (err) {
+                        console.error(`[viewer] Failed to save snapshot: ${err.message}`);
+                    }
+                }
+                break;
+            case 'viewer:scenario-result':
+                if (uiServer) uiServer.broadcastScenarioResult(msg);
+                break;
+            case 'viewer:disposed':
+                if (activeChild === child) activeChild = null;
+                break;
+        }
+    }
+
+    /** Process scenario queue with concurrency limit */
+    function processQueue() {
+        while (scenarioQueue.length > 0 && activeCount < maxJobs) {
+            // Peek before dequeue: if the next scenario is interactive and one
+            // is already running, stall until it finishes. Headless scenarios
+            // always pass through.
+            const next = scenarioQueue[0];
+            if (next.interactive && interactiveRunning >= maxInteractive) {
+                break;
+            }
+
+            const { scenarioPath, interactive } = scenarioQueue.shift();
+            activeCount++;
+            if (interactive) interactiveRunning++;
+            const scenarioName = path.basename(scenarioPath, '.scenario.js');
+
+            const opts = { profiling: config.profiling || false };
+
+            if (interactive) {
+                opts.viewer = { port: uiServer?.port, paused: false };
+                terrainSent = false;
+                lastStart.scenario = scenarioName;
+                lastStart.maxTicks = 0;
+                if (uiServer) uiServer.broadcastStart(scenarioName, 0);
+                activeChild = null; // Will be set inside runScenarioInWorker via routeIpcMessage
+            }
+
+            // For interactive scenarios, we need to track activeChild.
+            // We wrap runScenarioInWorker to capture the child ref.
+            runScenarioInWorker(scenarioPath, opts, config.timeout, config.roomFixturesDir, (msg, child) => {
+                if (interactive && msg.type === 'viewer:status') {
+                    // Track the active child for live commands
+                    if (!activeChild) activeChild = child;
+                }
+                routeIpcMessage(msg, child);
+            })
+                .then((result) => {
+                    activeCount--;
+                    if (interactive) interactiveRunning--;
+                    // Clear active child if this was our interactive scenario
+                    if (interactive) activeChild = null;
+                    if (result.status === 'fail' || result.status === 'timeout') {
+                        console.error(`[viewer] ${scenarioName} failed: ${result.error || result.status}`);
+                    }
+                    processQueue();
+                })
+                .catch((err) => {
+                    activeCount--;
+                    if (interactive) interactiveRunning--;
+                    if (interactive) activeChild = null;
+                    console.error(`[viewer] ${scenarioName} error: ${err.message}`);
+                    processQueue();
+                });
+        }
+    }
+
+    /** Launch a scenario (via REST): queue it and start processing */
+    const launchScenario = (scenarioPath, interactive) => {
+        if (interactive) {
+            // Kill any currently-running interactive scenario before starting a new one.
+            // The old scenario will stop gracefully through its tick interceptor.
+            disposeActiveScenario();
+        }
+        scenarioQueue.push({ scenarioPath, interactive: !!interactive });
+        processQueue();
+    };
+
+    try {
+        uiServer = await createUiServer({
+            scenariosDir: config.scenariosDir,
+            lastStart,
+            sendCommand: (cmd) => {
+                if (activeChild && activeChild.connected) {
+                    activeChild.send(cmd);
+                }
+            },
+            onRunScenario: launchScenario,
+        });
+    } catch (err) {
+        console.error('[runner] Failed to start UI server:', err.message);
+        process.exit(1);
+    }
+
+    const viewerUrl = `http://127.0.0.1:${uiServer.port}`;
+
+    if (config.only) {
+        const scenarioPath = path.join(config.scenariosDir, `${config.only}.scenario.js`);
+        console.log(`[runner] Auto-launching: ${config.only}`);
+        launchScenario(scenarioPath, true);
+        console.log(`[runner] Viewer mode — ${config.only} at ${viewerUrl}?viewer`);
+    } else {
+        console.log(`[runner] Viewer mode — Scenario Manager at ${viewerUrl}`);
+    }
+
+    console.log('[runner] Press Ctrl+C to stop.');
+    await new Promise(() => {});
 }
 
 /**
@@ -441,112 +581,16 @@ async function main() {
         console.log(`[runner] Cache cleanup: removed ${cleanupResult.removed}, kept ${cleanupResult.kept}`);
     }
 
-    // ★ Start UI server if viewer is enabled
-    /** @type {Function|null} */
-    let onViewerFrame = null;
+    // ── Viewer mode ────────────────────────────────────────────────────
+    // When --viewer is active, delegate to the viewer runner which owns
+    // its own IPC routing, queue management, and SSE broadcasting.
     if (config.viewer) {
-        /** @type {boolean} */
-        let terrainSent = false;
-        /** @type {{scenario:string, maxTicks:number}|null} */
-        const lastStart = { scenario: '', maxTicks: 0 };
-        /** @type {Array<{scenarioPath:string, interactive:boolean}>} */
-        const scenarioQueue = [];
-        let activeCount = 0;
-        const maxJobs = config.jobs || 4;
-
-        onViewerFrame = (frame) => {
-            if (!terrainSent && uiServer && frame.terrain && Object.keys(frame.terrain).length > 0) {
-                terrainSent = true;
-                uiServer.broadcastTerrain(frame.terrain);
-            }
-            uiServer.broadcast(frame);
-        };
-
-        /** Process scenario queue with concurrency limit */
-        function processQueue() {
-            while (scenarioQueue.length > 0 && activeCount < maxJobs) {
-                const { scenarioPath, interactive } = scenarioQueue.shift();
-                activeCount++;
-                const scenarioName = path.basename(scenarioPath, '.scenario.js');
-
-                const opts = {
-                    profiling: config.profiling || false,
-                };
-
-                // Interactive scenarios: show in viewer, start paused.
-                // Headless scenarios: run silently, only final status reported.
-                if (interactive) {
-                    opts.viewer = { port: uiServer?.port, paused: false };
-                    terrainSent = false;
-                    lastStart.scenario = scenarioName;
-                    lastStart.maxTicks = 0;
-                    if (uiServer) {
-                        uiServer.broadcastStart(scenarioName, 0);
-                    }
-                }
-
-                runScenarioInWorker(
-                    scenarioPath,
-                    opts,
-                    config.timeout,
-                    config.roomFixturesDir,
-                    onViewerFrame,
-                    interactive,
-                )
-                    .then((result) => {
-                        activeCount--;
-                        if (result.status === 'fail' || result.status === 'timeout') {
-                            console.error(`[viewer] ${scenarioName} failed: ${result.error || result.status}`);
-                        }
-                        processQueue(); // start next queued scenario
-                    })
-                    .catch((err) => {
-                        activeCount--;
-                        console.error(`[viewer] ${scenarioName} error: ${err.message}`);
-                        processQueue();
-                    });
-            }
-        }
-
-        /** Launch a scenario (via REST): queue it and start processing */
-        const launchScenario = (scenarioPath, _interactive) => {
-            scenarioQueue.push({ scenarioPath, interactive: !!_interactive });
-            processQueue();
-        };
-
-        try {
-            uiServer = await createUiServer({
-                scenariosDir: config.scenariosDir,
-                lastStart,
-                sendCommand: (cmd) => {
-                    if (activeChild && activeChild.connected) {
-                        activeChild.send(cmd);
-                    }
-                },
-                onRunScenario: launchScenario,
-            });
-        } catch (err) {
-            console.error('[runner] Failed to start UI server:', err.message);
-            process.exit(1);
-        }
-
-        // Viewer mode: keep process alive for interactive commands, no batch scenarios
-        const viewerUrl = `http://127.0.0.1:${uiServer.port}`;
-
-        // If --only was specified, auto-launch that scenario
-        if (config.only) {
-            const scenarioPath = path.join(config.scenariosDir, `${config.only}.scenario.js`);
-            console.log(`[runner] Auto-launching: ${config.only}`);
-            launchScenario(scenarioPath, true);
-            console.log(`[runner] Viewer mode — ${config.only} at ${viewerUrl}?viewer`);
-        } else {
-            console.log(`[runner] Viewer mode — Scenario Manager at ${viewerUrl}`);
-        }
-
-        console.log('[runner] Press Ctrl+C to stop.');
-        await new Promise(() => {});
+        await runViewerMode(config);
+        // runViewerMode blocks indefinitely (await new Promise(() => {}))
+        return;
     }
 
+    // ── Batch mode ──────────────────────────────────────────────────────
     const scenarioFiles = (() => {
         try {
             return findScenarios(config.scenariosDir, config.only || null);
@@ -590,24 +634,13 @@ async function main() {
 
             process.stdout.write(`  Running ${name}...\n`);
 
-            // ★ Signal viewer: scenario started
-            if (uiServer) {
-                uiServer.broadcastStart(name, 0);
-            }
-
             const result = await runScenarioInWorker(
                 scenarioPath,
                 { profiling: config.profiling, viewer: config.viewer },
                 config.timeout,
                 config.roomFixturesDir,
-                onViewerFrame,
+                null, // no IPC routing in batch mode
             );
-
-            // ★ Signal viewer: scenario ended
-            if (uiServer) {
-                const ticksRun = result.result?.ticksRun || 0;
-                uiServer.broadcastEnd(result.status, ticksRun);
-            }
 
             const time = Date.now() - start;
             results[index] = { name, ...result, time };
@@ -647,18 +680,8 @@ async function main() {
 
     process.removeListener('SIGINT', onSigInt);
 
-    // ★ Keep UI server alive so the user can scrub through the finished scenario
-    if (uiServer) {
-        console.log(
-            `[viewer] All scenarios finished. UI server at http://127.0.0.1:${uiServer.port} — press Ctrl+C to stop.`,
-        );
-    }
-
     const allPassed = printSummary(results);
-    // Don't exit — keep the process alive for the UI server
-    if (!uiServer) {
-        process.exit(allPassed ? 0 : 1);
-    }
+    process.exit(allPassed ? 0 : 1);
 }
 
 main().catch((e) => {

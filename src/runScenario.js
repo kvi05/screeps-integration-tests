@@ -1,7 +1,7 @@
 'use strict';
 
-const { once, EventEmitter } = require('events');
-const { setViewerState, clearViewerState } = require('./lib/runtime/viewerState');
+const { once } = require('events');
+const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestration/tickHooks');
 
 /**
  * @typedef {import('./lib/types').ScenarioOutput} ScenarioOutput
@@ -22,10 +22,9 @@ const { setViewerState, clearViewerState } = require('./lib/runtime/viewerState'
  * - skip — scenario skipped (result.skipped === true)
  * - fail — scenario failed with an error
  *
- * When viewer is enabled, the worker also listens for viewer:cmd messages
- * from the parent process, enabling bidirectional IPC:
- * - viewer:frame (worker → parent): per-tick snapshots for SSE broadcast
- * - viewer:cmd  (parent → worker): live server control (pause/resume/step/speed)
+ * Tools (viewer, profiler) connect via `opts.tickInterceptor` — an optional
+ * {@link TickInterceptor} injected before `scenario.run()`. The interceptor
+ * is self-contained and owns its own IPC/state. The worker itself is tool-agnostic.
  *
  * process.exit(0) is called after sending the message,
  * because server.stop() does not fully release storage (file descriptor leak).
@@ -52,104 +51,26 @@ const { setViewerState, clearViewerState } = require('./lib/runtime/viewerState'
         const scenario = require(msg.scenarioPath);
         const opts = msg.opts || {};
 
-        // ★ Create control channel for live viewer management.
-        // Store on process so createWorld/doTick can access it even if the scenario
-        // passes a different opts object to createWorld.
+        // ── Tool injection: viewer tick interceptor ──────────────────────
+        // Attach before scenario.run() so createWorld receives it via opts.
+        // The interceptor is self-contained — core never knows it's a viewer.
         if (opts.viewer) {
-            const viewer = {
-                control: new EventEmitter(),
-                paused: false,
-                stepRequested: 0,
-                speed: (typeof opts.viewer === 'object' ? opts.viewer.speed : undefined) || 1000,
-                status: { state: 'running', tick: 0, speed: 1000, scenario: msg.scenarioPath },
-                _adapter: null,
-            };
-            if (typeof opts.viewer === 'object') {
-                viewer.paused = opts.viewer.paused !== undefined ? opts.viewer.paused : false;
-            }
-            viewer.status.speed = viewer.speed;
-            setViewerState(viewer);
-
-            /** Send a viewer:status message to parent */
-            const sendStatus = () => {
-                if (!process.send) return;
-                try {
-                    process.send({
-                        type: 'viewer:status',
-                        state: viewer.status.state,
-                        tick: viewer.status.tick,
-                        speed: viewer.speed,
-                        scenario: msg.scenarioPath,
-                    });
-                } catch {
-                    /* non-critical */
-                }
-            };
-
-            process.on('message', (cmd) => {
-                if (cmd && cmd.type === 'viewer:cmd') {
-                    const { action, params } = cmd;
-                    switch (action) {
-                        case 'pause':
-                            viewer.paused = true;
-                            viewer.status.state = 'paused';
-                            sendStatus();
-                            break;
-                        case 'resume':
-                            viewer.paused = false;
-                            viewer.status.state = 'running';
-                            viewer.control.emit('resume');
-                            sendStatus();
-                            break;
-                        case 'step':
-                            viewer.stepRequested += params?.n || 1;
-                            viewer.status.state = 'stepping';
-                            if (viewer.paused) {
-                                viewer.paused = false;
-                                viewer.control.emit('resume');
-                            }
-                            sendStatus();
-                            break;
-                        case 'setSpeed':
-                            viewer.speed = params?.speed || 1;
-                            viewer.status.speed = viewer.speed;
-                            sendStatus();
-                            break;
-                        case 'saveSnapshot':
-                            // Save adapter.db as JSON snapshot
-                            if (viewer._adapter && process.send) {
-                                try {
-                                    const dbDump = JSON.parse(JSON.stringify(viewer._adapter.db));
-                                    const snapshot = {
-                                        meta: {
-                                            scenario: msg.scenarioPath,
-                                            timestamp: new Date().toISOString(),
-                                            ticks: viewer.status.tick,
-                                        },
-                                        db: dbDump,
-                                    };
-                                    process.send({ type: 'viewer:snapshot', data: snapshot });
-                                } catch {
-                                    /* serialization error — ignore */
-                                }
-                            }
-                            break;
-                        case 'dispose':
-                            // Stop the worker immediately
-                            clearViewerState();
-                            if (process.send) {
-                                process.send({ type: 'viewer:disposed', scenario: msg.scenarioPath });
-                            }
-                            setTimeout(() => process.exit(0), 50);
-                            return; // Don't process further commands
-                    }
-                }
+            const { createViewerInterceptor } = require('./tools/viewer/liveControl');
+            const viewerOpts = typeof opts.viewer === 'object' ? opts.viewer : {};
+            opts.tickInterceptor = createViewerInterceptor({
+                scenarioPath: msg.scenarioPath,
+                paused: viewerOpts.paused || false,
+                speed: viewerOpts.speed || 1000,
             });
+            // Also set via tickHooks — ensures createWorld() finds the
+            // interceptor even if the scenario's run() builds a fresh opts
+            // object instead of forwarding the one we pass here.
+            setTickInterceptor(opts.tickInterceptor);
         }
 
         const result = await scenario.run(opts);
 
-        // Send scenario result for viewer ScenarioManager
+        // Send scenario result for viewer ScenarioManager.
         // Always send when running in a forked process (headless or interactive).
         if (process.send) {
             try {
@@ -183,6 +104,7 @@ const { setViewerState, clearViewerState } = require('./lib/runtime/viewerState'
         };
         process.send(message);
     } finally {
+        clearTickInterceptor();
         // Terminate worker process.
         // server.stop() does not fully release storage — process.exit() is necessary.
         // Small delay (100ms) to ensure the message is delivered to the parent.

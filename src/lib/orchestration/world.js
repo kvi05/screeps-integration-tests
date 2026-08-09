@@ -31,9 +31,7 @@ const { resolveDefaultUserId } = require('./resolveDefaults');
 const { applyTerrainSpec, getTerrainMatrixClass } = require('../runtime/terrain');
 const { INVADER_USER_ID } = require('../../constants/screepsConstants');
 const { FixtureError, BotError, FrameworkError } = require('../errors');
-const { collectSnapshot } = require('../observers/snapshot');
-const { once } = require('events');
-const { getViewerState } = require('../runtime/viewerState');
+const { getTickInterceptor } = require('./tickHooks');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
 
@@ -428,51 +426,22 @@ async function createWorld(opts) {
      * @returns {Promise<boolean>} true if the test should stop
      */
     async function doTick(tickNum, worldInstance) {
-        // ★ Viewer live control: uses shared viewerState singleton (set by runScenario.js)
-        // so pause/resume works even if the scenario creates a new opts object.
-        const vs = getViewerState();
-        if (vs) {
-            if (!vs._adapter) vs._adapter = adapter;
-            vs.status.tick = tickNum;
-
-            if (vs.paused) {
-                if (process.send) {
-                    try {
-                        process.send({
-                            type: 'viewer:status',
-                            state: 'paused',
-                            tick: tickNum,
-                            speed: vs.speed || 1,
-                            scenario: vs.status?.scenario || '',
-                        });
-                    } catch {
-                        /* non-critical */
-                    }
-                }
-                await once(vs.control, 'resume');
-            }
-
-            if (vs.stepRequested > 0) {
-                vs.stepRequested--;
-                if (vs.stepRequested === 0) {
-                    vs.paused = true;
-                    vs.status.state = 'paused';
-                }
-            }
-
-            if (!vs.paused && process.send) {
-                try {
-                    process.send({
-                        type: 'viewer:status',
-                        state: vs.status?.state || 'running',
-                        tick: tickNum,
-                        speed: vs.speed || 1,
-                        scenario: vs.status?.scenario || '',
-                    });
-                } catch {
-                    /* non-critical */
-                }
-            }
+        // ── Tick interceptor: before tick ────────────────────────────────
+        // Extension point for tools (viewer, profiler, debugger).
+        // Core never knows what the interceptor does.
+        // Prefer opts.tickInterceptor; fall back to module-level singleton
+        // (set by runScenario.js) so scenarios don't need to forward opts.
+        const interceptor = opts.tickInterceptor || getTickInterceptor();
+        if (interceptor && interceptor.beforeTick) {
+            const shouldStop = await interceptor.beforeTick({
+                tickNum,
+                adapter,
+                report,
+                roomStatus,
+                bots,
+                server,
+            });
+            if (shouldStop) return true;
         }
 
         // Ownership snapshot BEFORE tick — captures objects that may be destroyed
@@ -497,16 +466,16 @@ async function createWorld(opts) {
             await opts.onTick(worldInstance, tickNum);
         }
 
-        // ★ VIEWER HOOK: send snapshot via IPC if viewer is enabled
-        if (opts.viewer && process.send) {
-            try {
-                const snapshot = await collectSnapshot(adapter, roomStatus, report, tickNum);
-                snapshot._sentAt = Date.now();
-                snapshot._size = JSON.stringify(snapshot).length;
-                process.send({ type: 'viewer:frame', ...snapshot });
-            } catch {
-                // Non-critical: don't fail the scenario if snapshot collection errors
-            }
+        // ── Tick interceptor: after tick ─────────────────────────────────
+        if (interceptor && interceptor.afterTick) {
+            await interceptor.afterTick({
+                tickNum,
+                adapter,
+                report,
+                roomStatus,
+                bots,
+                server,
+            });
         }
 
         // Predicate check
@@ -560,11 +529,10 @@ async function createWorld(opts) {
                         break;
                     }
 
-                    // ★ Viewer speed throttling: delay between ticks
-                    // speed = 1 → real-time (1000ms/tick), max speed → unthrottled
-                    const vsRun = getViewerState();
-                    if (vsRun && vsRun.speed && vsRun.speed < 1000) {
-                        const delayMs = Math.max(0, Math.floor(1000 / vsRun.speed));
+                    // ── Tick interceptor: speed throttling ────────────────────
+                    const interceptorSpeed = opts.tickInterceptor || getTickInterceptor();
+                    if (interceptorSpeed && interceptorSpeed.getTickDelay) {
+                        const delayMs = interceptorSpeed.getTickDelay();
                         if (delayMs > 0) {
                             await new Promise((resolve) => setTimeout(resolve, delayMs));
                         }
