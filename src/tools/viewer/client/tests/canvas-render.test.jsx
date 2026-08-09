@@ -169,4 +169,119 @@ describe('canvas rendering', () => {
             HTMLCanvasElement.prototype.getContext = origGetContext;
         }
     });
+
+    it('does not reallocate the canvas backing store when the size is unchanged', () => {
+        // Regression: assigning canvas.width/height always reallocates the
+        // backing store and resets the context state. The resize guard must
+        // only assign when the pixel size actually changes.
+        const makeRecording = (n) => ({
+            terrain: { W0N0: Array.from({ length: 50 }, () => '.'.repeat(50)) },
+            frames: Array.from({ length: n }, (_, i) => ({
+                gameTime: i,
+                objects: [{ _id: 'src' + i, type: 'source', x: 25, y: 25, room: 'W0N0' }],
+                console: [],
+            })),
+        });
+
+        // Render into an isolated container (beforeEach already mounted App).
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const { rerender } = render(<CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={false} />, {
+            container,
+        });
+        act(() => {}); // flush effects
+
+        const canvas = container.querySelector('canvas');
+        const stage = canvas.parentElement;
+
+        // Instrument width/height setters to count backing-store reallocs.
+        let widthValue = canvas.width;
+        let heightValue = canvas.height;
+        let widthSets = 0;
+        let heightSets = 0;
+        Object.defineProperty(canvas, 'width', {
+            configurable: true,
+            get() {
+                return widthValue;
+            },
+            set(v) {
+                widthSets++;
+                widthValue = v;
+            },
+        });
+        Object.defineProperty(canvas, 'height', {
+            configurable: true,
+            get() {
+                return heightValue;
+            },
+            set(v) {
+                heightSets++;
+                heightValue = v;
+            },
+        });
+
+        // Change the container size (setup mock default is 1024×768).
+        Object.defineProperty(stage, 'clientWidth', { value: 400, configurable: true });
+        Object.defineProperty(stage, 'clientHeight', { value: 300, configurable: true });
+
+        // Size changed → reallocate exactly once.
+        rerender(<CanvasStage recording={makeRecording(2)} tick={1} sub={null} playing={false} />);
+        expect(widthSets).toBe(1);
+        expect(heightSets).toBe(1);
+        expect(canvas.width).toBe(400);
+        expect(canvas.height).toBe(300);
+
+        // Same size, new frame → must NOT reallocate again.
+        rerender(<CanvasStage recording={makeRecording(3)} tick={2} sub={null} playing={false} />);
+        expect(widthSets).toBe(1);
+        expect(heightSets).toBe(1);
+    });
+
+    it('runs the animation loop only while sub-frame interpolation is active', () => {
+        // Regression: with sub===null (the normal case — no interpolation),
+        // the 60fps loop used to redraw the identical static frame forever.
+        const makeRecording = (n) => ({
+            terrain: { W0N0: Array.from({ length: 50 }, () => '.'.repeat(50)) },
+            frames: Array.from({ length: n }, (_, i) => ({
+                gameTime: i,
+                objects: [{ _id: 'src' + i, type: 'source', x: 25, y: 25, room: 'W0N0' }],
+                console: [],
+            })),
+        });
+
+        // Replace the setTimeout-based rAF mock so no real timers fire.
+        const origRaf = window.requestAnimationFrame;
+        const origCancelRaf = window.cancelAnimationFrame;
+        const raf = vi.fn(() => 1);
+        const cancelRaf = vi.fn();
+        window.requestAnimationFrame = raf;
+        window.cancelAnimationFrame = cancelRaf;
+
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const { rerender } = render(
+                <CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={true} />,
+                { container },
+            );
+            act(() => {});
+
+            // No interpolation → no loop, even while playing.
+            expect(raf).not.toHaveBeenCalled();
+
+            // Interpolation active → the loop starts.
+            rerender(<CanvasStage recording={makeRecording(1)} tick={0} sub={0.5} playing={true} />);
+            act(() => {});
+            expect(raf).toHaveBeenCalledTimes(1);
+
+            // Interpolation stops → the loop is cancelled, nothing re-scheduled.
+            rerender(<CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={true} />);
+            act(() => {});
+            expect(cancelRaf).toHaveBeenCalled();
+            expect(raf).toHaveBeenCalledTimes(1);
+        } finally {
+            window.requestAnimationFrame = origRaf;
+            window.cancelAnimationFrame = origCancelRaf;
+        }
+    });
 });
