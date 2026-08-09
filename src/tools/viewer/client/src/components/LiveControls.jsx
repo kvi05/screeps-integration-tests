@@ -151,8 +151,7 @@ export default function LiveControls({
                 </button>
             </div>
 
-            <span className=
-{`status-badge ${statusClass}`}>
+            <span className={`status-badge ${statusClass}`}>
                 <span className="status-dot" />
                 {statusText}
             </span>
