@@ -472,10 +472,12 @@ export default function App() {
             switch (e.key) {
                 case ' ':
                     e.preventDefault();
-                    // Toggle LIVE server play/pause
-                    {
+                    // Toggle LIVE server play/pause when connected, replay otherwise
+                    if (connected && !ended) {
                         const isLiveRunning = serverState === 'running' || serverState === 'stepping';
                         handleToggleLivePlay(!isLiveRunning);
+                    } else {
+                        handleTogglePlay(!playingRef.current);
                     }
                     break;
                 case 'ArrowRight':
@@ -518,7 +520,16 @@ export default function App() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleToggleLivePlay, handleStepForward, handleStepBack, serverSpeed, serverState]);
+    }, [
+        handleToggleLivePlay,
+        handleTogglePlay,
+        handleStepForward,
+        handleStepBack,
+        serverSpeed,
+        serverState,
+        connected,
+        ended,
+    ]);
 
     // ─── Test API ───────────────────────────────────────────────────────────
     if (import.meta.env.DEV) {
@@ -526,15 +537,37 @@ export default function App() {
             ...(window.__viewerTest || {}),
             getState() {
                 return {
-                    tick: tickRef.current,
-                    playing: playingRef.current,
-                    speed: speedRef.current,
-                    connected,
-                    ended,
-                    framesCount: recordingRef.current.frames.length,
-                    serverState,
-                    showConsole,
-                    sidebarTab,
+                    /** App mode: 'viewer' | 'scenarios' */
+                    mode,
+                    /** Live server state (SSE-driven, remote) */
+                    server: {
+                        connected,
+                        state: serverState, // 'idle' | 'running' | 'paused' | 'stepping'
+                        ended,
+                        tick: serverTick,
+                        speed: serverSpeed,
+                        scenario,
+                    },
+                    /** Client-side recorded frames ring buffer */
+                    recording: {
+                        framesCount: recordingRef.current.frames.length,
+                    },
+                    /** Local replay / playback controls */
+                    playback: {
+                        tick: tickRef.current,
+                        playing: playingRef.current,
+                        speed: speedRef.current,
+                        liveMode,
+                    },
+                    /** UI toggles */
+                    ui: {
+                        showConsole,
+                        showMiniMap,
+                        showGrid,
+                        sidebarTab,
+                        sidebarCollapsed,
+                        selectedId,
+                    },
                 };
             },
             injectFrames(objectsList, terrainMap) {

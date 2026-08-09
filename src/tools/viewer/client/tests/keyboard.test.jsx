@@ -3,11 +3,15 @@ import { render, act } from '@testing-library/react';
 import React from 'react';
 import App from '../src/App';
 
-// Mock SSE client — App tries to connect on mount, we prevent that.
+// Mock SSE client + server-control API
 vi.mock('../src/api/client', () => ({
     connectSSE: vi.fn(() => ({
         close: vi.fn(),
     })),
+    postResume: vi.fn(() => Promise.resolve()),
+    postPause: vi.fn(() => Promise.resolve()),
+    postSpeed: vi.fn(() => Promise.resolve()),
+    postDispose: vi.fn(() => Promise.resolve()),
 }));
 
 describe('keyboard shortcuts', () => {
@@ -55,9 +59,9 @@ describe('keyboard shortcuts', () => {
 
     it('ArrowRight advances tick by 1', () => {
         injectFrames(5);
-        expect(api.getState().tick).toBe(0);
+        expect(api.getState().playback.tick).toBe(0);
         pressKey('ArrowRight');
-        expect(api.getState().tick).toBe(1);
+        expect(api.getState().playback.tick).toBe(1);
     });
 
     it('ArrowLeft decrements tick by 1', () => {
@@ -65,16 +69,16 @@ describe('keyboard shortcuts', () => {
         pressKey('ArrowRight');
         pressKey('ArrowRight');
         pressKey('ArrowRight');
-        expect(api.getState().tick).toBe(3);
+        expect(api.getState().playback.tick).toBe(3);
         pressKey('ArrowLeft');
-        expect(api.getState().tick).toBe(2);
+        expect(api.getState().playback.tick).toBe(2);
     });
 
     it('ArrowLeft at tick 0 stays at 0', () => {
         injectFrames(5);
-        expect(api.getState().tick).toBe(0);
+        expect(api.getState().playback.tick).toBe(0);
         pressKey('ArrowLeft');
-        expect(api.getState().tick).toBe(0);
+        expect(api.getState().playback.tick).toBe(0);
     });
 
     // ── Camera isolation (critical regression check) ────────────────
@@ -106,7 +110,7 @@ describe('keyboard shortcuts', () => {
             pressKey('ArrowRight');
         }
 
-        expect(api.getState().tick).toBe(10);
+        expect(api.getState().playback.tick).toBe(10);
         expect(api.getCamera().x).toBe(beforeCam.x);
     });
 
@@ -115,18 +119,18 @@ describe('keyboard shortcuts', () => {
     it('Space toggles playing state', () => {
         injectFrames(5);
         // injectFrames set playing=false at start
-        expect(api.getState().playing).toBe(false);
+        expect(api.getState().playback.playing).toBe(false);
         pressKey(' ');
-        expect(api.getState().playing).toBe(true);
+        expect(api.getState().playback.playing).toBe(true);
         pressKey(' ');
-        expect(api.getState().playing).toBe(false);
+        expect(api.getState().playback.playing).toBe(false);
     });
 
     // ── Input focus: hotkeys suppressed ─────────────────────────────
 
     it('ArrowRight in an input does NOT advance tick', () => {
         injectFrames(5);
-        const before = api.getState().tick;
+        const before = api.getState().playback.tick;
 
         const input = document.createElement('input');
         document.body.appendChild(input);
@@ -135,7 +139,7 @@ describe('keyboard shortcuts', () => {
         act(() => {
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         });
-        expect(api.getState().tick).toBe(before);
+        expect(api.getState().playback.tick).toBe(before);
     });
 
     // ── Edge cases ───────────────────────────────────────────────────
@@ -146,14 +150,14 @@ describe('keyboard shortcuts', () => {
         pressKey('ArrowRight'); // 1 → 2
         pressKey('ArrowRight'); // 2 (last), clamped
         pressKey('ArrowRight'); // still 2
-        expect(api.getState().tick).toBe(2);
+        expect(api.getState().playback.tick).toBe(2);
     });
 
     it('keyboard works after reset', () => {
         injectFrames(10);
         pressKey('ArrowRight');
         pressKey('ArrowRight');
-        expect(api.getState().tick).toBe(2);
+        expect(api.getState().playback.tick).toBe(2);
 
         act(() => {
             api.reset();
@@ -162,6 +166,6 @@ describe('keyboard shortcuts', () => {
 
         injectFrames(5);
         pressKey('ArrowRight');
-        expect(api.getState().tick).toBe(1);
+        expect(api.getState().playback.tick).toBe(1);
     });
 });
