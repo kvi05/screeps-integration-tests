@@ -121,14 +121,6 @@ export default function LiveControls({
 
             <div className="speed-control">
                 <label>Speed</label>
-                <button
-                    className="speed-step-btn"
-                    onClick={() => handleSpeedStep(-1)}
-                    disabled={!canControl}
-                    title="Decrease speed"
-                >
-                    −
-                </button>
                 <select
                     className="speed-select"
                     value={localSpeed}
@@ -143,6 +135,14 @@ export default function LiveControls({
                 </select>
                 <button
                     className="speed-step-btn"
+                    onClick={() => handleSpeedStep(-1)}
+                    disabled={!canControl}
+                    title="Decrease speed"
+                >
+                    −
+                </button>
+                <button
+                    className="speed-step-btn"
                     onClick={() => handleSpeedStep(1)}
                     disabled={!canControl}
                     title="Increase speed"
@@ -151,7 +151,8 @@ export default function LiveControls({
                 </button>
             </div>
 
-            <span className={`status-badge ${statusClass}`}>
+            <span className=
+{`status-badge ${statusClass}`}>
                 <span className="status-dot" />
                 {statusText}
             </span>

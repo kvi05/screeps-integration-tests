@@ -252,8 +252,8 @@ body,
 
 /* ─── Toolbar separator ───────────────────────────────────────────────────── */
 .toolbar-separator {
-    width: 1px;
-    height: 28px;
+    width: 2px;
+    height: 30px;
     background: var(--border);
     margin: 0 var(--sp-5);
     flex-shrink: 0;

@@ -99,9 +99,6 @@ export default function ReplayControls({
 
             <div className="speed-control">
                 <label>Speed</label>
-                <button className="speed-step-btn" onClick={() => handleSpeedStep(-1)} title="Decrease speed">
-                    −
-                </button>
                 <select className="speed-select" value={speed} onChange={handleSpeedChange}>
                     <option value={1}>1×</option>
                     <option value={2}>2×</option>
@@ -109,6 +106,9 @@ export default function ReplayControls({
                     <option value={10}>10×</option>
                     <option value={20}>20×</option>
                 </select>
+                <button className="speed-step-btn" onClick={() => handleSpeedStep(-1)} title="Decrease speed">
+                    −
+                </button>
                 <button className="speed-step-btn" onClick={() => handleSpeedStep(1)} title="Increase speed">
                     +
                 </button>

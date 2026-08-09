@@ -903,9 +903,6 @@ export default function App() {
                     {ended && <span className="status-item status-ended">● ENDED</span>}
                 </div>
                 <div className="status-section">
-                    <span className="status-item">
-                        Frames: {recording.frames.length} · Tick: {tick}/{maxTicks || '—'}
-                    </span>
                     <span className="kbd-hints">
                         <span>
                             <kbd>Space</kbd>live play/pause
