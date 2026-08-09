@@ -151,15 +151,21 @@ const CanvasStage = forwardRef(function CanvasStage(
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
 
-        // Resize canvas to match container
+        // Resize canvas to match container — only when the pixel size actually
+        // changed. Assigning width/height always reallocates the backing store
+        // and resets the context state, which is wasteful at 60 fps.
         const container = containerRef.current;
         if (container) {
             const w = container.clientWidth;
             const h = container.clientHeight;
-            canvas.width = w * dpr;
-            canvas.height = h * dpr;
-            canvas.style.width = w + 'px';
-            canvas.style.height = h + 'px';
+            const pw = Math.round(w * dpr);
+            const ph = Math.round(h * dpr);
+            if (canvas.width !== pw || canvas.height !== ph) {
+                canvas.width = pw;
+                canvas.height = ph;
+                canvas.style.width = w + 'px';
+                canvas.style.height = h + 'px';
+            }
         }
 
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -215,9 +221,11 @@ const CanvasStage = forwardRef(function CanvasStage(
         }
     }, [camera, renderCurrentFrame]);
 
-    // Animation loop for smooth sub-frame updates
+    // Animation loop for smooth sub-frame updates — only needed while
+    // interpolating (sub !== null). Otherwise the scene is rendered on demand
+    // by the effects above (frame arrival, tick/camera/selection change).
     useEffect(() => {
-        if (playing) {
+        if (playing && sub !== null) {
             const animate = () => {
                 renderCurrentFrame();
                 animFrameRef.current = requestAnimationFrame(animate);
@@ -227,7 +235,7 @@ const CanvasStage = forwardRef(function CanvasStage(
                 if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             };
         }
-    }, [playing, renderCurrentFrame]);
+    }, [playing, sub, renderCurrentFrame]);
 
     // ─── Mouse handlers ─────────────────────────────────────────────────────
 
