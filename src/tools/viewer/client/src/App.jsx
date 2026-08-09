@@ -138,18 +138,32 @@ export default function App() {
     const endedRef = useRef(ended);
     endedRef.current = ended;
 
-    // ─── Persist recording to sessionStorage on every update ────────────────
-    const persistRef = useRef(null);
+    // ─── Persist recording to sessionStorage (scenario end / page hide) ─────
+    // The previous debounced persist JSON.stringified up to 200 frames every
+    // 500ms on the main thread during a live run. Saving only on scenario end
+    // or right before the page hides/unloads is enough to survive a reload.
+    const persistRecording = useCallback(() => {
+        try {
+            sessionStorage.setItem('sit-viewer-recording', JSON.stringify(recordingRef.current));
+        } catch {
+            // Storage full — keep in-memory only
+        }
+    }, []);
+
     useEffect(() => {
-        clearTimeout(persistRef.current);
-        persistRef.current = setTimeout(() => {
-            try {
-                sessionStorage.setItem('sit-viewer-recording', JSON.stringify(recording));
-            } catch {
-                // Storage full — keep in-memory only
-            }
-        }, 500);
-    }, [recording]);
+        if (!ended) return;
+        persistRecording();
+    }, [ended, persistRecording]);
+
+    useEffect(() => {
+        const onHide = () => persistRecording();
+        window.addEventListener('pagehide', onHide);
+        window.addEventListener('visibilitychange', onHide);
+        return () => {
+            window.removeEventListener('pagehide', onHide);
+            window.removeEventListener('visibilitychange', onHide);
+        };
+    }, [persistRecording]);
 
     // ─── Persist user preferences to localStorage ─────────────────────────
     useEffect(() => {
