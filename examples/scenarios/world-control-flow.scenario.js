@@ -42,7 +42,7 @@ async function run(opts = {}) {
                     return mem && mem.ticksRun >= 5;
                 },
             },
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
@@ -75,7 +75,7 @@ async function run(opts = {}) {
                     await w.writeMemory(BOT, { stopFlag: true });
                 }
             },
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
@@ -101,7 +101,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: BOT, rooms: ROOM }],
             ticks: 5,
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
@@ -148,7 +148,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: BOT, rooms: ROOM }],
             ticks: 10,
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
@@ -198,7 +198,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: BOT, rooms: ROOM }],
             ticks: 10,
-            profiling: opts.profiling,
+            ...opts,
             events: [
                 {
                     atTick: 3,
@@ -262,7 +262,7 @@ async function run(opts = {}) {
                     assert.ok(mem, 'onTick can read world');
                 }
             },
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
