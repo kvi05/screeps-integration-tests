@@ -46,6 +46,9 @@ export class SpriteCache {
      */
     constructor(botUserId) {
         this.botUserId = botUserId;
+        // Keys already rasterized — persists across prewarm() calls so each
+        // distinct creep appearance is rasterized exactly once.
+        this.prewarmed = new Set();
     }
 
     /**
@@ -72,24 +75,30 @@ export class SpriteCache {
     }
 
     /**
-     * Pre-rasterize every distinct creep appearance + the invader.
+     * Pre-rasterize creep appearances + the invader.
+     *
+     * Incremental: only the newest frame is scanned — every creep that ever
+     * existed was in the newest frame at the moment it arrived — and only keys
+     * not seen before are rasterized. `prewarmed` persists across calls, so a
+     * distinct creep is rasterized once instead of re-rasterized on every frame.
      * @param {Object} recording — { frames: Frame[] }
      * @returns {Promise<void>}
      */
     async prewarm(recording) {
+        const frames = recording.frames || [];
+        const last = frames[frames.length - 1];
+        if (!last) return;
+
         const jobs = [];
-        const seen = new Set();
-        for (const frame of recording.frames || []) {
-            for (const o of frame.objects || []) {
-                if (o.type !== 'creep' || o.spawning) continue;
-                if (NPC_USERS.has(String(o.user))) continue;
-                const k = this.key(o);
-                if (seen.has(k)) continue;
-                seen.add(k);
-                jobs.push(this.rasterizeCreep(k, o));
-            }
+        for (const o of last.objects || []) {
+            if (o.type !== 'creep' || o.spawning) continue;
+            if (NPC_USERS.has(String(o.user))) continue;
+            const k = this.key(o);
+            if (this.prewarmed.has(k)) continue;
+            this.prewarmed.add(k);
+            jobs.push(this.rasterizeCreep(k, o));
         }
-        jobs.push(this.rasterizeInvader());
+        if (!this.invader) jobs.push(this.rasterizeInvader());
         await Promise.all(jobs);
     }
 
