@@ -602,6 +602,7 @@ export default function App() {
                 setPlaying(val);
             },
             seekTick(t) {
+                setLiveMode(false);
                 setTick(Math.max(0, Math.min(t, recordingRef.current.frames.length - 1)));
             },
             getCamera() {

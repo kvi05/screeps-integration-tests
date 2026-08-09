@@ -18,6 +18,11 @@ describe('keyboard shortcuts', () => {
     /** @type {Object} */
     let api;
 
+    /** Always read fresh window.__viewerTest — avoids stale closure after re-renders. */
+    function getState() {
+        return window.__viewerTest.getState();
+    }
+
     beforeEach(() => {
         document.body.innerHTML = '';
 
@@ -59,9 +64,9 @@ describe('keyboard shortcuts', () => {
 
     it('ArrowRight advances tick by 1', () => {
         injectFrames(5);
-        expect(api.getState().playback.tick).toBe(0);
+        expect(getState().playback.tick).toBe(0);
         pressKey('ArrowRight');
-        expect(api.getState().playback.tick).toBe(1);
+        expect(getState().playback.tick).toBe(1);
     });
 
     it('ArrowLeft decrements tick by 1', () => {
@@ -69,16 +74,16 @@ describe('keyboard shortcuts', () => {
         pressKey('ArrowRight');
         pressKey('ArrowRight');
         pressKey('ArrowRight');
-        expect(api.getState().playback.tick).toBe(3);
+        expect(getState().playback.tick).toBe(3);
         pressKey('ArrowLeft');
-        expect(api.getState().playback.tick).toBe(2);
+        expect(getState().playback.tick).toBe(2);
     });
 
     it('ArrowLeft at tick 0 stays at 0', () => {
         injectFrames(5);
-        expect(api.getState().playback.tick).toBe(0);
+        expect(getState().playback.tick).toBe(0);
         pressKey('ArrowLeft');
-        expect(api.getState().playback.tick).toBe(0);
+        expect(getState().playback.tick).toBe(0);
     });
 
     // ── Camera isolation (critical regression check) ────────────────
@@ -110,7 +115,7 @@ describe('keyboard shortcuts', () => {
             pressKey('ArrowRight');
         }
 
-        expect(api.getState().playback.tick).toBe(10);
+        expect(getState().playback.tick).toBe(10);
         expect(api.getCamera().x).toBe(beforeCam.x);
     });
 
@@ -119,18 +124,18 @@ describe('keyboard shortcuts', () => {
     it('Space toggles playing state', () => {
         injectFrames(5);
         // injectFrames set playing=false at start
-        expect(api.getState().playback.playing).toBe(false);
+        expect(getState().playback.playing).toBe(false);
         pressKey(' ');
-        expect(api.getState().playback.playing).toBe(true);
+        expect(getState().playback.playing).toBe(true);
         pressKey(' ');
-        expect(api.getState().playback.playing).toBe(false);
+        expect(getState().playback.playing).toBe(false);
     });
 
     // ── Input focus: hotkeys suppressed ─────────────────────────────
 
     it('ArrowRight in an input does NOT advance tick', () => {
         injectFrames(5);
-        const before = api.getState().playback.tick;
+        const before = getState().playback.tick;
 
         const input = document.createElement('input');
         document.body.appendChild(input);
@@ -139,7 +144,7 @@ describe('keyboard shortcuts', () => {
         act(() => {
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         });
-        expect(api.getState().playback.tick).toBe(before);
+        expect(getState().playback.tick).toBe(before);
     });
 
     // ── Edge cases ───────────────────────────────────────────────────
@@ -150,14 +155,14 @@ describe('keyboard shortcuts', () => {
         pressKey('ArrowRight'); // 1 → 2
         pressKey('ArrowRight'); // 2 (last), clamped
         pressKey('ArrowRight'); // still 2
-        expect(api.getState().playback.tick).toBe(2);
+        expect(getState().playback.tick).toBe(2);
     });
 
     it('keyboard works after reset', () => {
         injectFrames(10);
         pressKey('ArrowRight');
         pressKey('ArrowRight');
-        expect(api.getState().playback.tick).toBe(2);
+        expect(getState().playback.tick).toBe(2);
 
         act(() => {
             api.reset();
@@ -166,6 +171,100 @@ describe('keyboard shortcuts', () => {
 
         injectFrames(5);
         pressKey('ArrowRight');
-        expect(api.getState().playback.tick).toBe(1);
+        expect(getState().playback.tick).toBe(1);
+    });
+
+    // ── M key: toggle sidebar tab ──────────────────────────────────
+
+    it('M toggles sidebarTab between inspector and metrics', () => {
+        injectFrames(3);
+        expect(getState().ui.sidebarTab).toBe('inspector');
+        pressKey('m');
+        expect(getState().ui.sidebarTab).toBe('metrics');
+        pressKey('m');
+        expect(getState().ui.sidebarTab).toBe('inspector');
+    });
+
+    // ── Backtick: toggle console ────────────────────────────────────
+
+    it('backtick toggles showConsole', () => {
+        injectFrames(3);
+        // Default depends on localStorage; test the toggle
+        const before = getState().ui.showConsole;
+        pressKey('`');
+        expect(getState().ui.showConsole).toBe(!before);
+        pressKey('`');
+        expect(getState().ui.showConsole).toBe(before);
+    });
+
+    // ── Bracket keys: speed control (live server) ───────────────────
+
+    it('[ and ] change server speed when connected', () => {
+        // Not connected → bracket keys have no effect (serverSpeed stays 1)
+        const before = getState().server.speed;
+        pressKey(']');
+        expect(getState().server.speed).toBe(before);
+        pressKey('[');
+        expect(getState().server.speed).toBe(before);
+    });
+
+    // ── Input suppression: all input types ──────────────────────────
+
+    it('Space in INPUT does NOT toggle playing', () => {
+        injectFrames(5);
+        act(() => {
+            api.setPlaying(false);
+        });
+
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        });
+        expect(getState().playback.playing).toBe(false);
+    });
+
+    it('ArrowRight in TEXTAREA does NOT advance tick', () => {
+        injectFrames(5);
+        const before = getState().playback.tick;
+
+        const textarea = document.createElement('textarea');
+        document.body.appendChild(textarea);
+        textarea.focus();
+
+        act(() => {
+            textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        });
+        expect(getState().playback.tick).toBe(before);
+    });
+
+    it('ArrowRight in SELECT does NOT advance tick', () => {
+        injectFrames(5);
+        const before = getState().playback.tick;
+
+        const select = document.createElement('select');
+        document.body.appendChild(select);
+        select.focus();
+
+        act(() => {
+            select.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        });
+        expect(getState().playback.tick).toBe(before);
+    });
+
+    it('M in INPUT does NOT toggle sidebarTab', () => {
+        injectFrames(3);
+        const before = getState().ui.sidebarTab;
+
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true }));
+        });
+        expect(getState().ui.sidebarTab).toBe(before);
     });
 });
