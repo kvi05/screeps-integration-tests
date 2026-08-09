@@ -468,7 +468,7 @@ async function runViewerMode(config) {
                     activeCount--;
                     if (interactive) interactiveRunning--;
                     if (interactive) activeChild = null;
-                    console.error(`[viewer] ${scenarioName} error: ${err.message}`);
+                    console.error(`[viewer] ${scenarioName} error: ${String(err?.message || err)}`);
                     processQueue();
                 });
         }
