@@ -190,6 +190,11 @@ const CanvasStage = forwardRef(function CanvasStage(
         ctx.restore();
     }, [tick, sub, selectedId]);
 
+    // The newest frame — a fresh object reference on every SSE arrival, so it
+    // changes even when the ring buffer is full (frames.length stays constant).
+    // Using it as a dep keeps live redraws driven by actual data arrival.
+    const latestFrame = recording.frames[recording.frames.length - 1];
+
     // Re-render on tick/sub change, new frames, or selectedId change
     useEffect(() => {
         const t0 = performance.now();
@@ -198,7 +203,7 @@ const CanvasStage = forwardRef(function CanvasStage(
         if (typeof window !== 'undefined' && window.__viewerPerf) {
             window.__viewerPerf.renderMs.push(elapsed);
         }
-    }, [renderCurrentFrame, recording.frames.length, selectedId]);
+    }, [renderCurrentFrame, latestFrame, selectedId]);
 
     // Also re-render on camera change (mouse drag/wheel zoom — needed when playback is paused)
     useEffect(() => {

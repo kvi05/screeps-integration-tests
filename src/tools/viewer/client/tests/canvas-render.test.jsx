@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, act } from '@testing-library/react';
 import React from 'react';
 import App from '../src/App';
+import CanvasStage from '../src/components/CanvasStage';
 
 // Mock SSE client
 vi.mock('../src/api/client', () => ({
@@ -121,5 +122,51 @@ describe('canvas rendering', () => {
         const canvas = document.querySelector('canvas');
         expect(canvas).toBeInTheDocument();
         // Without terrain, drawFrame still runs — just with empty static layers
+    });
+
+    it('re-renders when a new frame arrives while the buffer length stays constant', () => {
+        // Regression: a redraw must be driven by the newest frame, not by
+        // frames.length — once the ring buffer is full, length no longer
+        // changes on arrival.
+        const makeRecording = (n) => ({
+            terrain: { W0N0: Array.from({ length: 50 }, () => '.'.repeat(50)) },
+            frames: Array.from({ length: n }, (_, i) => ({
+                gameTime: i,
+                objects: [{ _id: 'src' + i, type: 'source', x: 25, y: 25, room: 'W0N0' }],
+                console: [],
+            })),
+        });
+
+        // Count full renders: renderCurrentFrame calls clearRect once per draw.
+        // getContext returns a fresh mock each call, so instrument the method.
+        const origGetContext = HTMLCanvasElement.prototype.getContext;
+        const clearCount = { n: 0 };
+        HTMLCanvasElement.prototype.getContext = function (type) {
+            const ctx = origGetContext.call(this, type);
+            const origClear = ctx.clearRect.bind(ctx);
+            ctx.clearRect = (...args) => {
+                clearCount.n++;
+                return origClear(...args);
+            };
+            return ctx;
+        };
+
+        try {
+            const { rerender } = render(
+                <CanvasStage recording={makeRecording(200)} tick={199} sub={null} playing={false} />,
+            );
+            act(() => {}); // flush effects
+
+            const baseline = clearCount.n;
+            expect(baseline).toBeGreaterThan(0); // rendered at least once
+
+            // New recording: same length (200) but a brand-new last frame —
+            // exactly what happens once the ring buffer is full.
+            rerender(<CanvasStage recording={makeRecording(200)} tick={199} sub={null} playing={false} />);
+
+            expect(clearCount.n).toBeGreaterThan(baseline);
+        } finally {
+            HTMLCanvasElement.prototype.getContext = origGetContext;
+        }
     });
 });
