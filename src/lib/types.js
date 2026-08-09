@@ -319,6 +319,37 @@
  * @property {EventSpec[]} [events]                                 — declarative spawns by tick
  * @property {boolean|ViewerOpts} [viewer=false]                   — enable browser viewer.
  *   `true` = auto-port via getFreePort(). Object = explicit config.
+ * @property {TickInterceptor} [tickInterceptor]                   — optional tick lifecycle hook.
+ *   Injected by tooling (viewer, profiler, debugger). Core never knows what the hook does.
+ */
+
+/**
+ * Tick lifecycle interceptor — extension point for tools (viewer, profiler, debugger).
+ *
+ * Injected via `WorldOpts.tickInterceptor`. `createWorld` calls the hooks at the
+ * appropriate points in the tick loop, without knowing what the interceptor does.
+ * The interceptor is self-contained and owns its own state.
+ *
+ * @typedef {Object} TickInterceptor
+ * @property {(ctx: TickHookContext) => Promise<boolean|void>} beforeTick
+ *           — called at the start of each tick, before any observations.
+ *             Return `true` to request early stop of the tick loop.
+ * @property {(ctx: TickHookContext) => Promise<void>} afterTick
+ *           — called after observations + events + onTick, before predicate check.
+ * @property {() => number} getTickDelay
+ *           — returns delay in ms to wait AFTER the tick (0 = no delay, >0 = throttle).
+ */
+
+/**
+ * Context passed to {@link TickInterceptor} hooks.
+ *
+ * @typedef {Object} TickHookContext
+ * @property {number} tickNum
+ * @property {StorageAdapter} adapter
+ * @property {WorldReport} report
+ * @property {Object<string, RoomStatus>} roomStatus
+ * @property {Object<string, Bot>} bots
+ * @property {ScreepsServer} server
  */
 
 /**
