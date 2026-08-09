@@ -412,6 +412,19 @@ async function createWorld(opts) {
     // ─── Main loop ────────────────────────────────────────────────
 
     /**
+     * Resolves the active tick interceptor from the two possible sources:
+     * explicit `opts.tickInterceptor` (preferred) or the module-level
+     * singleton set by `runScenario.js` via `setTickInterceptor()`.
+     *
+     * Single source of truth — called from both `doTick` and `run()`.
+     *
+     * @returns {import('../types').TickInterceptor|null}
+     */
+    function _resolveInterceptor() {
+        return opts.tickInterceptor || getTickInterceptor();
+    }
+
+    /**
      * One tick: collect event log / owners / metrics for each room,
      * execute declarative events, onTick callback, predicate check.
      *
@@ -429,9 +442,7 @@ async function createWorld(opts) {
         // ── Tick interceptor: before tick ────────────────────────────────
         // Extension point for tools (viewer, profiler, debugger).
         // Core never knows what the interceptor does.
-        // Prefer opts.tickInterceptor; fall back to module-level singleton
-        // (set by runScenario.js) so scenarios don't need to forward opts.
-        const interceptor = opts.tickInterceptor || getTickInterceptor();
+        const interceptor = _resolveInterceptor();
         if (interceptor && interceptor.beforeTick) {
             const shouldStop = await interceptor.beforeTick({
                 tickNum,
@@ -530,9 +541,9 @@ async function createWorld(opts) {
                     }
 
                     // ── Tick interceptor: speed throttling ────────────────────
-                    const interceptorSpeed = opts.tickInterceptor || getTickInterceptor();
-                    if (interceptorSpeed && interceptorSpeed.getTickDelay) {
-                        const delayMs = interceptorSpeed.getTickDelay();
+                    const interceptor = _resolveInterceptor();
+                    if (interceptor && interceptor.getTickDelay) {
+                        const delayMs = interceptor.getTickDelay();
                         if (delayMs > 0) {
                             await new Promise((resolve) => setTimeout(resolve, delayMs));
                         }
