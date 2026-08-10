@@ -12,6 +12,18 @@
  * This replaces the old `viewerState.js` singleton, but is tool-agnostic:
  *   any tool (viewer, profiler, debugger) can set the interceptor.
  *
+ * Design note — why a module-level singleton instead of passing the
+ * interceptor as a parameter:
+ *   The interceptor is set by `runScenario.js` (worker entry) before
+ *   `scenario.run(opts)` is called. If the scenario's `run()` builds a
+ *   fresh `opts` object instead of forwarding the one we pass, the
+ *   interceptor would be lost. The singleton guarantees `world.js` can
+ *   always find it, regardless of how the scenario constructs opts.
+ *   The state is scoped to the worker process (`child_process.fork`),
+ *   so there is zero cross-scenario contamination. `clearTickInterceptor`
+ *   is called in the worker's `finally` block to reset state between
+ *   tests (though in practice each scenario runs in its own process).
+ *
  * @module lib/orchestration/tickHooks
  */
 
