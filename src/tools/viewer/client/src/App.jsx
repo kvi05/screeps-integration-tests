@@ -46,7 +46,11 @@ import './styles/global.css';
  * @component
  */
 
-const REPLAY_BUFFER_DEFAULT = 200;
+// 3000 frames max — empirically validated: ~10K frames (~50 MB heap Objects)
+// crashes the tab. 3000 frames keeps heap Objects under ~15-30 MB with a safety
+// margin for multi-room scenarios. Configurable via opts.viewer.replayBuffer
+// (future: plumbed from server to client via SSE 'start' event).
+const REPLAY_BUFFER_DEFAULT = 3000;
 
 /** Sidebar width limits — single source of truth, matches CSS --sidebar-min-w / --sidebar-max-w */
 const SIDEBAR_MIN_W = 240;

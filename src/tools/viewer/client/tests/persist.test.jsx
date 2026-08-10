@@ -121,9 +121,10 @@ describe('recording persistence', () => {
         expect(getState().recording.framesCount).toBe(0);
     });
 
-    it('caps the live recording ring buffer at 200 frames', () => {
+    it('caps the live recording ring buffer at REPLAY_BUFFER_DEFAULT frames', () => {
+        // REPLAY_BUFFER_DEFAULT = 3000 — inject 3005 to verify the cap
         act(() => {
-            for (let i = 0; i < 205; i++) {
+            for (let i = 0; i < 3005; i++) {
                 mocks.sseHandler('frame', {
                     gameTime: i,
                     objects: [{ _id: 'o' + i, type: 'source', x: 25, y: 25, room: 'W0N0' }],
@@ -132,7 +133,7 @@ describe('recording persistence', () => {
             }
         });
 
-        expect(getState().recording.framesCount).toBe(200);
+        expect(getState().recording.framesCount).toBe(3000);
     });
 });
 

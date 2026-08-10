@@ -11,7 +11,6 @@
  * - IPC commands: pause, resume, step (from paused, from running),
  *   setSpeed, dispose (from running, from paused)
  * - status updates via viewer:status
- * - snapshot saving via viewer:snapshot
  */
 
 const { createViewerInterceptor } = require('../src/tools/viewer/liveControl');
@@ -367,24 +366,6 @@ describe('IPC commands', () => {
 
         sendCmd('setSpeed', {});
         expect(interceptor.getTickDelay()).toBe(1000);
-    });
-
-    it('saveSnapshot sends viewer:snapshot', () => {
-        createViewerInterceptor({ scenarioPath: '/t.js' });
-        sendMock.mockClear();
-
-        sendCmd('saveSnapshot');
-
-        expect(sendMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                type: 'viewer:snapshot',
-                data: expect.objectContaining({
-                    meta: expect.objectContaining({
-                        scenario: '/t.js',
-                    }),
-                }),
-            }),
-        );
     });
 
     it('dispose sends viewer:disposed', () => {

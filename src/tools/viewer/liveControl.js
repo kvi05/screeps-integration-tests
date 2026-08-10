@@ -107,28 +107,6 @@ function createViewerInterceptor(opts = {}) {
                 speed = params?.speed || 1;
                 sendStatus();
                 break;
-            case 'saveSnapshot':
-                // Snapshot saving is handled by the parent on viewer:snapshot IPC.
-                // The worker sends a viewer:snapshot with the full DB dump.
-                if (process.send) {
-                    try {
-                        process.send({
-                            type: 'viewer:snapshot',
-                            data: {
-                                meta: {
-                                    scenario: status.scenario,
-                                    timestamp: new Date().toISOString(),
-                                    ticks: status.tick,
-                                },
-                                // DB dump is captured by the parent from the last frame
-                                _note: 'Snapshot data captured from last frame by parent',
-                            },
-                        });
-                    } catch {
-                        /* serialization error — ignore */
-                    }
-                }
-                break;
             case 'dispose':
                 disposed = true;
                 if (process.send) {

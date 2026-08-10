@@ -360,7 +360,7 @@
  * @property {boolean} [autoPlay]             — auto-start tick loop on connect (default: false)
  * @property {boolean} [paused=false]         — start paused (for live control)
  * @property {number} [speed=1]               — tick speed (1 = real-time, max = unthrottled)
- * @property {number} [replayBuffer=200]      — max frames to keep in client ring buffer
+ * @property {number} [replayBuffer=3000]     — max frames to keep in client ring buffer
  * @property {import('events').EventEmitter} [control] — internal: EventEmitter for pause/resume signalling
  * @property {number} [stepRequested=0]       — internal: remaining step ticks
  * @property {{state:string, tick:number, speed:number, scenario:string}} [status] — internal: current server status
