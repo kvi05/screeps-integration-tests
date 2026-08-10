@@ -350,11 +350,17 @@ async function createUiServer(opts = {}) {
         // POST /api/save-snapshot — save current state
         if (pathname === '/api/save-snapshot' && req.method === 'POST') {
             // Forward to worker for serialization
-            if (opts.sendCommand) {
-                opts.sendCommand({ type: 'viewer:cmd', action: 'saveSnapshot' });
-            }
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: true, status: 'not_implemented' }));
+            // if (opts.sendCommand) {
+            //     opts.sendCommand({ type: 'viewer:cmd', action: 'saveSnapshot' });
+            // }
+            res.writeHead(501, { 'Content-Type': 'application/json' });
+            res.end(
+                JSON.stringify({
+                    ok: false,
+                    status: 'not_implemented',
+                    message: 'Snapshot saving is not yet implemented',
+                }),
+            );
             return;
         }
 
