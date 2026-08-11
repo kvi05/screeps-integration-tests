@@ -174,6 +174,226 @@ describe('config DEFAULTS', () => {
         expect(typeof DEFAULTS.timeout).toBe('number');
         expect(typeof DEFAULTS.jobs).toBe('number');
     });
+
+    it('viewerOptions has all keys with correct defaults', () => {
+        const { DEFAULTS } = require('../src/lib/config/config');
+        expect(DEFAULTS.viewerOptions).toEqual({
+            paused: false,
+            speed: 1000,
+            keyframeInterval: 100,
+            replayBuffer: 3000,
+        });
+    });
+
+    it('viewer default is false', () => {
+        const { DEFAULTS } = require('../src/lib/config/config');
+        expect(DEFAULTS.viewer).toBe(false);
+    });
+
+    it('viewerOptions is a plain object (not shared reference across configs)', () => {
+        const { DEFAULTS } = require('../src/lib/config/config');
+        // Sanity: the default itself is an object
+        expect(typeof DEFAULTS.viewerOptions).toBe('object');
+        expect(DEFAULTS.viewerOptions).not.toBeNull();
+    });
+});
+
+describe('config viewerOptions partial override', () => {
+    /** @type {string} */
+    let tmpDir;
+
+    beforeEach(() => {
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'config-viewer-'));
+        delete process.env.BOT_DIST_DIR;
+    });
+
+    afterEach(() => {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        process.env.BOT_DIST_DIR = ORIGINAL_BOT_DIST_DIR;
+    });
+
+    it('merges partial viewerOptions — non-overridden keys keep defaults', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { speed: 2000 } };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerOptions).toEqual({
+            paused: false,
+            speed: 2000,
+            keyframeInterval: 100,
+            replayBuffer: 3000,
+        });
+    });
+
+    it('merges viewerOptions toggles correctly', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { paused: true, replayBuffer: 5000 } };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerOptions).toEqual({
+            paused: true,
+            speed: 1000,
+            keyframeInterval: 100,
+            replayBuffer: 5000,
+        });
+    });
+
+    it('full viewerOptions override works', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(
+            filePath,
+            'module.exports = { viewerOptions: { paused: true, speed: 500, keyframeInterval: 50, replayBuffer: 1000 } };',
+            'utf8',
+        );
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerOptions).toEqual({
+            paused: true,
+            speed: 500,
+            keyframeInterval: 50,
+            replayBuffer: 1000,
+        });
+    });
+
+    it('empty viewerOptions {} keeps all defaults', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerOptions: {} };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerOptions).toEqual({
+            paused: false,
+            speed: 1000,
+            keyframeInterval: 100,
+            replayBuffer: 3000,
+        });
+    });
+
+    it('config without viewerOptions key keeps defaults intact', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { distDir: "./bot-dist" };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerOptions).toEqual({
+            paused: false,
+            speed: 1000,
+            keyframeInterval: 100,
+            replayBuffer: 3000,
+        });
+    });
+
+    it('no config file → viewerOptions is defaults', () => {
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerOptions).toEqual({
+            paused: false,
+            speed: 1000,
+            keyframeInterval: 100,
+            replayBuffer: 3000,
+        });
+    });
+
+    it('viewerOptions includes unknown keys from user config (forward-compat)', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(
+            filePath,
+            'module.exports = { viewerOptions: { speed: 2000, customFutureKey: "hello" } };',
+            'utf8',
+        );
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerOptions).toEqual({
+            paused: false,
+            speed: 2000,
+            keyframeInterval: 100,
+            replayBuffer: 3000,
+            customFutureKey: 'hello',
+        });
+    });
+});
+
+describe('config viewer + viewerOptions interaction', () => {
+    /** @type {string} */
+    let tmpDir;
+
+    beforeEach(() => {
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'config-viewer-int-'));
+        delete process.env.BOT_DIST_DIR;
+    });
+
+    afterEach(() => {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        process.env.BOT_DIST_DIR = ORIGINAL_BOT_DIST_DIR;
+    });
+
+    it('--viewer CLI flag sets viewer=true, leaves viewerOptions untouched', () => {
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig(['--viewer'], tmpDir, {});
+        expect(config.viewer).toBe(true);
+        expect(config.viewerOptions).toEqual({
+            paused: false,
+            speed: 1000,
+            keyframeInterval: 100,
+            replayBuffer: 3000,
+        });
+    });
+
+    it('--viewer + config file with viewerOptions merges correctly', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { paused: true, speed: 500 } };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig(['--viewer'], tmpDir, {});
+        // CLI --viewer sets viewer=true (overwrites config file's viewer if any)
+        expect(config.viewer).toBe(true);
+        // viewerOptions from config file, merged with defaults
+        expect(config.viewerOptions).toEqual({
+            paused: true,
+            speed: 500,
+            keyframeInterval: 100,
+            replayBuffer: 3000,
+        });
+    });
+
+    it('explicit overrides viewerOptions replaces entirely (highest priority)', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { paused: true, speed: 500 } };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {
+            viewerOptions: { speed: 9999, replayBuffer: 1 },
+        });
+        // Explicit overrides are highest priority — they replace the whole
+        // viewerOptions object (not a shallow merge).
+        expect(config.viewerOptions).toEqual({
+            speed: 9999,
+            replayBuffer: 1,
+        });
+    });
+
+    it('DEFAULTS.viewerOptions is not mutated after resolveConfig calls', () => {
+        const { DEFAULTS, resolveConfig } = require('../src/lib/config/config');
+        const frozen = { ...DEFAULTS.viewerOptions };
+
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { paused: true } };', 'utf8');
+        resolveConfig([], tmpDir, {});
+        resolveConfig(['--viewer'], tmpDir, {});
+
+        // DEFAULTS must remain pristine — every resolveConfig call works
+        // from a fresh copy.
+        expect(DEFAULTS.viewerOptions).toEqual(frozen);
+    });
+
+    it('resolveConfig clones viewerOptions — returned config does not share reference with DEFAULTS', () => {
+        const { DEFAULTS, resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+
+        // Mutate the returned config's viewerOptions
+        config.viewerOptions.paused = true;
+        config.viewerOptions.customInjected = 'oops';
+
+        // DEFAULTS must be unaffected
+        expect(DEFAULTS.viewerOptions.paused).toBe(false);
+        expect(DEFAULTS.viewerOptions.customInjected).toBeUndefined();
+    });
 });
 
 describe('config CLI_SCHEMA', () => {

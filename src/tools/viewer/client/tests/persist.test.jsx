@@ -121,8 +121,8 @@ describe('recording persistence', () => {
         expect(getState().recording.framesCount).toBe(0);
     });
 
-    it('caps the live recording ring buffer at REPLAY_BUFFER_DEFAULT frames', () => {
-        // REPLAY_BUFFER_DEFAULT = 3000 — inject 3005 to verify the cap
+    it('caps the live recording ring buffer at REPLAY_BUFFER_FALLBACK frames', () => {
+        // REPLAY_BUFFER_FALLBACK = 3000 — inject 3005 to verify the cap
         act(() => {
             for (let i = 0; i < 3005; i++) {
                 mocks.sseHandler('frame', {
