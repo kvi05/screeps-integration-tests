@@ -33,6 +33,8 @@ const { createMemoryHistory } = require('../src/tools/viewer/memoryHistory');
 
 /** @type {number} Maximum framework warnings to show in summary */
 const SUMMARY_WARNINGS_LIMIT = 6;
+/** @type {number} Maximum lines of error output in summary */
+const SUMMARY_ERROR_LINES = 10;
 
 /**
  * @typedef {import('../src/lib/types').WorkerMessage} WorkerMessage
@@ -310,12 +312,12 @@ function printSummary(results) {
             // FrameworkError.toString() produces multi-line formatted messages;
             // raw errors have a stack trace — the first few lines are the most useful.
             const errorLines = error.trim().split('\n');
-            const showLines = errorLines.slice(0, 10);
+            const showLines = errorLines.slice(0, SUMMARY_ERROR_LINES);
             for (const line of showLines) {
                 console.log(`       ${line.trim()}`);
             }
-            if (errorLines.length > 10) {
-                console.log(`       ... (${errorLines.length - 10} more lines)`);
+            if (errorLines.length > SUMMARY_ERROR_LINES) {
+                console.log(`       ... (${errorLines.length - SUMMARY_ERROR_LINES} more lines)`);
             }
         }
         if (result?.frameworkWarnings?.length > 0) {
@@ -370,9 +372,11 @@ async function runViewerMode(config) {
     const maxInteractive = 1;
     let interactiveRunning = 0;
 
-    // Create Memory history ring buffer
+    // Create Memory history ring buffer — capacity matches viewer replay buffer
+    // so client-side and server-side ring buffers stay in sync.
+    const replayBufferTicks = config.viewerOptions.replayBuffer;
     memoryHistory = createMemoryHistory({
-        maxTicks: 5000,
+        maxTicks: replayBufferTicks,
     });
 
     /**
@@ -454,11 +458,12 @@ async function runViewerMode(config) {
             const opts = { profiling: config.profiling || false };
 
             if (interactive) {
-                opts.viewer = { port: uiServer?.port, paused: false };
+                opts.viewer = true;
+                opts.viewerOptions = config.viewerOptions;
                 terrainSent = false;
                 lastStart.scenario = scenarioName;
                 lastStart.maxTicks = 0;
-                if (uiServer) uiServer.broadcastStart(scenarioName, 0);
+                if (uiServer) uiServer.broadcastStart(scenarioName, 0, replayBufferTicks);
                 activeChild = null; // Will be set inside runScenarioInWorker via routeIpcMessage
             }
 

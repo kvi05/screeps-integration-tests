@@ -34,6 +34,14 @@ module.exports = {
   buildCommand: null, // executable shell command; runs only with --build
   require: [], // modules to require before scenarios
   env: {}, // env for worker processes
+  viewer: false, // enable browser viewer UI (--viewer flag)
+  viewerOptions: {
+    // fine-tuning for viewer mode (partial override ok)
+    paused: false, // start paused
+    speed: 1000, // ticks/second (1000 = realtime)
+    keyframeInterval: 100, // full Memory snapshot every N ticks
+    replayBuffer: 3000, // max frames/ticks in ring buffers
+  },
 };
 ```
 
@@ -85,6 +93,22 @@ npx screeps-integration-tests --build
 
 > If you already have a ready `dist/` directory, leave `buildCommand` as
 > `null` and run the framework without `--build`.
+
+### `viewerOptions`
+
+Fine-tuning for the browser viewer (`--viewer` mode). All keys are optional —
+unspecified keys keep their defaults.
+
+<!-- prettier-ignore-start -->
+
+| Key                | Default | Description |
+| ------------------ | ------- | ----------- |
+| `paused`           | `false` | Start the scenario paused so you can inspect tick 0 before anything runs.  |
+| `speed`            | `1000`  | Ticks per second. 1000 = realtime, higher = faster. The viewer throttles the tick loop with `setTimeout(delay) |
+| `keyframeInterval` | `100`   | How often (in ticks) a **full** bot Memory snapshot is sent from the worker to the parent process. Between keyframes only the **diff** (JSON Patch — what changed since the previous tick) is transmitted via IPC. The parent stores both in a ring buffer. When the client requests Memory (`GET /api/memory`), the **server** reconstructs the full Memory by finding the nearest keyframe and replaying deltas forward. The client always receives a complete Memory object — it never processes diffs. |
+| `replayBuffer`     | `3000`  | Maximum number of frames retained in the client-side ring buffer and server-side Memory history. Older entries are evicted.   |
+
+<!-- prettier-ignore-end -->
 
 ## CLI flags
 

@@ -23,6 +23,11 @@ const { getFreePort } = require('../../lib/runtime/port');
 
 // ─── SSE helpers ────────────────────────────────────────────────────────────
 
+/** @type {number} SSE heartbeat interval (ms) — keeps connection alive through idle proxies */
+const SSE_HEARTBEAT_MS = 15000;
+/** @type {number} Default viewer speed (ticks/second; 1000 = realtime) */
+const DEFAULT_VIEWER_SPEED = 1000;
+
 /**
  * Opens an SSE connection to a client.
  * Anti-buffering headers so events flush immediately; a 15s heartbeat
@@ -46,7 +51,7 @@ function openSse(res) {
         } catch {
             /* connection gone */
         }
-    }, 15000);
+    }, SSE_HEARTBEAT_MS);
 
     let closed = false;
 
@@ -134,7 +139,7 @@ function serveStatic(res, filePath) {
  *
  * @typedef {Object} UiServer
  * @property {number} port — the port the server is listening on
- * @property {(scenario:string, maxTicks:number) => void} broadcastStart — send start event to all SSE clients
+ * @property {(scenario:string, maxTicks:number, replayBuffer?:number) => void} broadcastStart — send start event to all SSE clients
  * @property {(frame: Object) => void} broadcast — send a frame to all SSE clients
  * @property {(terrain: Object) => void} broadcastTerrain — send terrain data to all SSE clients
  * @property {(result: {scenario:string, status:string, time:number, ticks:number}) => void} broadcastScenarioResult — send scenario result to all SSE clients
@@ -165,7 +170,7 @@ async function createUiServer(opts = {}) {
     const sseClients = new Set();
 
     /** @type {{ state: string, tick: number, speed: number, scenario: string }} */
-    const serverStatus = { state: 'idle', tick: 0, speed: 1000, scenario: '' };
+    const serverStatus = { state: 'idle', tick: 0, speed: DEFAULT_VIEWER_SPEED, scenario: '' };
 
     /**
      * Reads and parses a JSON request body.
@@ -476,9 +481,9 @@ async function createUiServer(opts = {}) {
                     }
                 },
 
-                broadcastStart(scenario, maxTicks) {
+                broadcastStart(scenario, maxTicks, replayBuffer) {
                     for (const client of sseClients) {
-                        client.send('start', { scenario, maxTicks });
+                        client.send('start', { scenario, maxTicks, replayBuffer });
                     }
                 },
 

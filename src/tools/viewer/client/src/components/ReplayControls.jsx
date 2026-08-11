@@ -9,6 +9,9 @@
 
 import { PlayIcon, PauseIcon, StepForwardIcon, StepBackIcon, FilmIcon } from './Icons';
 
+/** Fallback slider max when no frames are available yet */
+const REPLAY_SLIDER_FALLBACK_MAX = 100;
+
 /**
  * @param {Object} props
  * @param {boolean} props.playing
@@ -89,7 +92,7 @@ export default function ReplayControls({
             <input
                 type="range"
                 min={0}
-                max={maxTicks || 100}
+                max={maxTicks || REPLAY_SLIDER_FALLBACK_MAX}
                 value={tick}
                 onChange={handleTickChange}
                 className="tick-slider"

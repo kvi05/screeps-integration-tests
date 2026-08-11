@@ -56,11 +56,14 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
         // The interceptor is self-contained — core never knows it's a viewer.
         if (opts.viewer) {
             const { createViewerInterceptor } = require('./tools/viewer/liveControl');
-            const viewerOpts = typeof opts.viewer === 'object' ? opts.viewer : {};
+            /** @type {import('./lib/types').ViewerOptions} */
+            const viewerOpts = opts.viewerOptions || {};
+
             opts.tickInterceptor = createViewerInterceptor({
                 scenarioPath: msg.scenarioPath,
-                paused: viewerOpts.paused || false,
-                speed: viewerOpts.speed || 1000,
+                paused: viewerOpts.paused,
+                speed: viewerOpts.speed,
+                keyframeInterval: viewerOpts.keyframeInterval,
             });
             // Also set via tickHooks — ensures createWorld() finds the
             // interceptor even if the scenario's run() builds a fresh opts

@@ -2,6 +2,10 @@
 // Creep SVG sprite generation — pure SVG-path generation, no DOM deps.
 // Used by the canvas renderer to rasterize creep sprites.
 
+/**
+ * Colour palette for creep body-part SVG segments.
+ * @type {Object<string, string>}
+ */
 const PART_COLORS = {
     heal: '#5cff6a',
     rangedAttack: '#5f8fdc',
@@ -16,7 +20,13 @@ const PART_COLORS = {
     cargoOther: '#ffffff',
 };
 
+/**
+ * Maximum body parts per creep (Screeps limit).
+ * Each part is rendered as a wedge of a circle; 50 parts → 7.2° per part.
+ * @type {number}
+ */
 const MAX_BODY_PARTS = 50;
+/** @type {number} Arc angle per body part (degrees) */
 const PART_ANGLE = 360 / MAX_BODY_PARTS;
 
 const TOP_PART_ORDER = [
