@@ -12,8 +12,10 @@
  * @component
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { MousePointerIcon, SearchIcon, ChevronDownIcon, ChevronRightIcon, TargetIcon, CopyIcon } from './Icons';
+import MemoryTree from './MemoryTree';
+import { getMemoryAtTick } from '../api/client';
 
 /** @type {Object<string,string>} */
 const TYPE_COLORS = {
@@ -51,6 +53,7 @@ function getTypeColor(type) {
  * @param {(filter:Object<string,boolean>) => void} props.onTypeFilterChange
  * @param {string} props.searchQuery
  * @param {(q:string) => void} props.onSearchChange
+ * @param {number} [props.currentTick] — current scrubber tick for Memory fetch
  */
 export default function ObjectInspector({
     objects = [],
@@ -60,8 +63,16 @@ export default function ObjectInspector({
     onTypeFilterChange,
     searchQuery = '',
     onSearchChange,
+    currentTick = 0,
 }) {
     const [expanded, setExpanded] = useState(true);
+
+    // Memory fetching state
+    const [memoryData, setMemoryData] = useState(/** @type {Object|null} */ (null));
+    const [memoryLoading, setMemoryLoading] = useState(false);
+    const [memoryError, setMemoryError] = useState(/** @type {string|null} */ (null));
+    /** @type {React.MutableRefObject<{tick:number, bot:string}|null>} */
+    const lastFetchRef = useRef(null);
 
     // Collect all unique types from objects
     const allTypes = useMemo(() => {
@@ -92,6 +103,45 @@ export default function ObjectInspector({
         () => filteredObjects.find((o) => o._id === selectedId) || null,
         [filteredObjects, selectedId],
     );
+
+    // Determine the bot username from the selected object
+    const selectedBot = useMemo(() => {
+        if (!selectedObj) return null;
+        return selectedObj.user || null;
+    }, [selectedObj]);
+
+    // Fetch Memory when selected object or tick changes
+    useEffect(() => {
+        if (!selectedBot || currentTick === undefined) {
+            setMemoryData(null);
+            setMemoryError(null);
+            return;
+        }
+        // Avoid refetch if we already have this data
+        const prev = lastFetchRef.current;
+        if (prev && prev.tick === currentTick && prev.bot === selectedBot) {
+            return;
+        }
+        let cancelled = false;
+        setMemoryLoading(true);
+        setMemoryError(null);
+        getMemoryAtTick(currentTick, selectedBot)
+            .then((data) => {
+                if (cancelled) return;
+                setMemoryData(data);
+                lastFetchRef.current = { tick: currentTick, bot: selectedBot };
+                setMemoryLoading(false);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setMemoryError(err.message || 'Failed to fetch memory');
+                setMemoryData(null);
+                setMemoryLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedBot, currentTick]);
 
     const toggleType = (type) => {
         onTypeFilterChange({ ...typeFilter, [type]: typeFilter[type] === false ? true : false });
@@ -223,6 +273,28 @@ export default function ObjectInspector({
                                         ))}
                                 </tbody>
                             </table>
+
+                            {/* Memory section */}
+                            {selectedBot && (
+                                <div className="inspector-memory">
+                                    <div className="memory-header">
+                                        <span className="memory-title">Memory — {selectedBot}</span>
+                                        <span className="memory-tick">tick {currentTick}</span>
+                                    </div>
+                                    {memoryLoading && <div className="memory-loading">Loading memory...</div>}
+                                    {memoryError && <div className="memory-error">{memoryError}</div>}
+                                    {!memoryLoading && !memoryError && memoryData === null && (
+                                        <div className="memory-empty">
+                                            No Memory data available for tick {currentTick}
+                                        </div>
+                                    )}
+                                    {!memoryLoading && !memoryError && memoryData !== null && (
+                                        <div className="memory-tree-container">
+                                            <MemoryTree data={memoryData} label="Memory" />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </>

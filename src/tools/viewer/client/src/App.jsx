@@ -892,6 +892,7 @@ export default function App() {
                                 onTypeFilterChange={setTypeFilter}
                                 searchQuery={searchQuery}
                                 onSearchChange={setSearchQuery}
+                                currentTick={recording.frames[tick]?.gameTime ?? 0}
                             />
                         )}
                         {sidebarTab === 'metrics' && <MetricsPanel frames={recording.frames} />}
