@@ -28,6 +28,14 @@ jest.mock('../src/lib/observers/snapshot', () => ({
     }),
 }));
 
+jest.mock('../src/lib/builders/memory', () => ({
+    getBotMemory: jest.fn().mockResolvedValue({}),
+}));
+
+jest.mock('../src/tools/viewer/memoryDiff', () => ({
+    computeMemoryDiff: jest.fn().mockReturnValue([]),
+}));
+
 /** @type {Function|null} Captured process.on('message', handler) */
 let messageHandler = null;
 /** @type {jest.Mock} */
@@ -393,5 +401,147 @@ describe('IPC commands', () => {
         const viewerCalls = sendMock.mock.calls.filter((c) => c[0]?.type?.startsWith('viewer:'));
         // Only the initial status from creation should exist
         expect(viewerCalls.length).toBeLessThanOrEqual(1);
+    });
+});
+
+// ─── Memory IPC (viewer:memory) ─────────────────────────────────────────────
+
+describe('afterTick — Memory IPC', () => {
+    /** @type {ReturnType<typeof createViewerInterceptor>} */
+    let interceptor;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        interceptor = createViewerInterceptor({ scenarioPath: '/t.js' });
+        // Reset getBotMemory mock to default
+        const { getBotMemory } = require('../src/lib/builders/memory');
+        getBotMemory.mockResolvedValue({ rooms: { W0N1: { creeps: 1 } } });
+
+        const { computeMemoryDiff } = require('../src/tools/viewer/memoryDiff');
+        computeMemoryDiff.mockReturnValue([{ op: 'replace', path: '/rooms/W0N1/creeps', value: 2 }]);
+    });
+
+    it('sends viewer:memory IPC with keyframe on first tick', async () => {
+        const { getBotMemory } = require('../src/lib/builders/memory');
+        getBotMemory.mockResolvedValue({ test: true });
+
+        const ctx = makeCtx(0);
+        ctx.bots = { bot1: { id: 'uid1' } };
+
+        sendMock.mockClear();
+        await interceptor.afterTick(ctx);
+
+        const memCalls = sendMock.mock.calls.filter((c) => c[0]?.type === 'viewer:memory');
+        expect(memCalls.length).toBe(1);
+        const memMsg = memCalls[0][0];
+        expect(memMsg.tick).toBe(0);
+        expect(memMsg.bots.uid1.type).toBe('keyframe');
+        expect(memMsg.bots.uid1.data).toEqual({ test: true });
+    });
+
+    it('sends viewer:memory IPC with delta on subsequent ticks', async () => {
+        const { getBotMemory } = require('../src/lib/builders/memory');
+
+        // Tick 0: keyframe
+        getBotMemory.mockResolvedValue({ v: 1 });
+        const ctx0 = makeCtx(0);
+        ctx0.bots = { bot1: { id: 'uid1' } };
+        await interceptor.afterTick(ctx0);
+
+        // Tick 1: delta
+        getBotMemory.mockResolvedValue({ v: 2 });
+        const ctx1 = makeCtx(1);
+        ctx1.bots = { bot1: { id: 'uid1' } };
+
+        sendMock.mockClear();
+        await interceptor.afterTick(ctx1);
+
+        const memCalls = sendMock.mock.calls.filter((c) => c[0]?.type === 'viewer:memory');
+        expect(memCalls.length).toBe(1);
+        const memMsg = memCalls[0][0];
+        expect(memMsg.tick).toBe(1);
+        expect(memMsg.bots.uid1.type).toBe('delta');
+    });
+
+    it('sends keyframe at keyframe interval boundaries', async () => {
+        const { getBotMemory } = require('../src/lib/builders/memory');
+
+        // Push ticks 0-99
+        for (let i = 0; i < 99; i++) {
+            getBotMemory.mockResolvedValue({ tick: i });
+            const ctx = makeCtx(i);
+            ctx.bots = { bot1: { id: 'uid1' } };
+            await interceptor.afterTick(ctx);
+        }
+
+        // Tick 100 should be a keyframe
+        getBotMemory.mockResolvedValue({ tick: 100 });
+        const ctx100 = makeCtx(100);
+        ctx100.bots = { bot1: { id: 'uid1' } };
+
+        sendMock.mockClear();
+        await interceptor.afterTick(ctx100);
+
+        const memCalls = sendMock.mock.calls.filter((c) => c[0]?.type === 'viewer:memory');
+        expect(memCalls.length).toBe(1);
+        expect(memCalls[0][0].bots.uid1.type).toBe('keyframe');
+    });
+
+    it('handles multiple bots independently', async () => {
+        const { getBotMemory } = require('../src/lib/builders/memory');
+
+        // Tick 0: keyframes for both bots
+        getBotMemory.mockResolvedValueOnce({ bot: 'bot1', v: 0 }).mockResolvedValueOnce({ bot: 'bot2', v: 0 });
+
+        const ctx0 = makeCtx(0);
+        ctx0.bots = { bot1: { id: 'uid1' }, bot2: { id: 'uid2' } };
+
+        sendMock.mockClear();
+        await interceptor.afterTick(ctx0);
+
+        const memCalls = sendMock.mock.calls.filter((c) => c[0]?.type === 'viewer:memory');
+        expect(memCalls.length).toBe(1);
+        const memMsg = memCalls[0][0];
+        expect(memMsg.bots.uid1.type).toBe('keyframe');
+        expect(memMsg.bots.uid2.type).toBe('keyframe');
+    });
+
+    it('no-ops when process.send is unavailable', async () => {
+        delete process.send;
+
+        const ctx = makeCtx(5);
+        ctx.bots = { bot1: { id: 'uid1' } };
+
+        await expect(interceptor.afterTick(ctx)).resolves.toBeUndefined();
+
+        process.send = sendMock;
+    });
+
+    it('handles getBotMemory failure gracefully (empty Memory fallback)', async () => {
+        const { getBotMemory } = require('../src/lib/builders/memory');
+        getBotMemory.mockRejectedValue(new Error('Storage not available'));
+
+        const ctx = makeCtx(0);
+        ctx.bots = { bot1: { id: 'uid1' } };
+
+        sendMock.mockClear();
+        await interceptor.afterTick(ctx);
+
+        const memCalls = sendMock.mock.calls.filter((c) => c[0]?.type === 'viewer:memory');
+        expect(memCalls.length).toBe(1);
+        // Should fall back to empty keyframe
+        expect(memCalls[0][0].bots.uid1.type).toBe('keyframe');
+        expect(memCalls[0][0].bots.uid1.data).toEqual({});
+    });
+
+    it('no memory IPC when no bots are present', async () => {
+        const ctx = makeCtx(5);
+        ctx.bots = {};
+
+        sendMock.mockClear();
+        await interceptor.afterTick(ctx);
+
+        const memCalls = sendMock.mock.calls.filter((c) => c[0]?.type === 'viewer:memory');
+        expect(memCalls.length).toBe(0);
     });
 });

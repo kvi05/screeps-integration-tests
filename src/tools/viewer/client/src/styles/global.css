@@ -1070,6 +1070,118 @@ body,
     outline: 1px solid var(--border-light);
 }
 
+/* ─── Memory inspector ─────────────────────────────────────────────────────── */
+.inspector-memory {
+    border-top: 1px solid var(--border);
+    background: var(--bg-base);
+    flex-shrink: 0;
+    max-height: 50%;
+    overflow-y: auto;
+}
+.memory-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-2) var(--sp-4);
+    background: var(--bg-overlay);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.memory-title {
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+}
+.memory-tick {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+.memory-loading,
+.memory-empty,
+.memory-error {
+    padding: var(--sp-4);
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    text-align: center;
+}
+.memory-error {
+    color: var(--error);
+}
+.memory-tree-container {
+    padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-2);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    line-height: 1.6;
+    overflow-x: auto;
+}
+
+/* MemoryTree component nodes */
+.mt-node {
+    user-select: none;
+}
+.mt-header {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    padding: 1px 0;
+    border-radius: var(--r-sm);
+    transition: background var(--t-fast);
+}
+.mt-header:hover {
+    background: var(--bg-hover);
+}
+.mt-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--text-dim);
+}
+.mt-key {
+    color: var(--accent);
+    font-weight: var(--fw-medium);
+    flex-shrink: 0;
+}
+.mt-bracket {
+    color: var(--text-dim);
+}
+.mt-preview {
+    color: var(--text-muted);
+    font-style: italic;
+}
+.mt-children {
+    border-left: 1px solid var(--border-light);
+    margin-left: 6px;
+}
+.mt-entry {
+    /* individual key-value pair in a tree node */
+}
+.mt-string .mt-val {
+    color: #ce9178;
+}
+.mt-number .mt-val {
+    color: #b5cea8;
+}
+.mt-boolean .mt-val {
+    color: #569cd6;
+}
+.mt-null-val {
+    color: var(--text-dim);
+    font-style: italic;
+}
+.mt-empty {
+    color: var(--text-dim);
+}
+.mt-val {
+    word-break: break-all;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    CONSOLE PANEL
    ═══════════════════════════════════════════════════════════════════════════ */

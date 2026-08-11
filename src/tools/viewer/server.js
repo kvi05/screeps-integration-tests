@@ -152,6 +152,7 @@ function serveStatic(res, filePath) {
  * @param {string} [opts.scenariosDir] — directory containing *.scenario.js files
  * @param {Function} [opts.onRunScenario] — callback to run a scenario: (scenarioPath, interactive) => void
  * @param {{scenario:string, maxTicks:number}} [opts.lastStart] — last start info to re-send to late-connecting SSE clients
+ * @param {Object} [opts.memoryHistory] — Memory history ring buffer for /api/memory endpoint
  * @returns {Promise<UiServer>}
  */
 async function createUiServer(opts = {}) {
@@ -277,6 +278,26 @@ async function createUiServer(opts = {}) {
         if (pathname === '/api/status' && req.method === 'GET') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(serverStatus));
+            return;
+        }
+
+        // GET /api/memory?tick=N&bot=username — reconstruct bot Memory at tick N
+        if (pathname === '/api/memory' && req.method === 'GET') {
+            const tick = parseInt(url.searchParams.get('tick') || '0', 10);
+            const bot = url.searchParams.get('bot') || '';
+            if (!opts.memoryHistory) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Memory history not available' }));
+                return;
+            }
+            const mem = opts.memoryHistory.reconstruct(tick, bot);
+            if (mem === null) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'No Memory data for this tick/bot' }));
+                return;
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(mem));
             return;
         }
 

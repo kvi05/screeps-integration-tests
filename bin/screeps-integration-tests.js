@@ -29,6 +29,7 @@ const { saveCallgrind } = require('../src/lib/runtime/profile');
 const { pruneCache } = require('../src/lib/runtime/cleanup');
 const { assertDir, FrameworkError } = require('../src/lib/errors');
 const { createUiServer } = require('../src/tools/viewer/server');
+const { createMemoryHistory } = require('../src/tools/viewer/memoryHistory');
 
 /** @type {number} Maximum framework warnings to show in summary */
 const SUMMARY_WARNINGS_LIMIT = 6;
@@ -45,6 +46,9 @@ let activeChild = null;
 
 /** @type {import('../src/tools/viewer/server').UiServer|null} UI server ref for viewer:status updates */
 let uiServer = null;
+
+/** @type {ReturnType<typeof createMemoryHistory>|null} Memory history ring buffer */
+let memoryHistory = null;
 
 /**
  * Determines if an IPC message is a final scenario result (as opposed to
@@ -366,6 +370,11 @@ async function runViewerMode(config) {
     const maxInteractive = 1;
     let interactiveRunning = 0;
 
+    // Create Memory history ring buffer
+    memoryHistory = createMemoryHistory({
+        maxTicks: 5000,
+    });
+
     /**
      * Sends a dispose command to the currently running interactive scenario.
      * The scenario will stop gracefully via its tick interceptor (beforeTick
@@ -414,6 +423,14 @@ async function runViewerMode(config) {
                 break;
             case 'viewer:disposed':
                 if (activeChild === child) activeChild = null;
+                break;
+            case 'viewer:memory':
+                if (memoryHistory) {
+                    memoryHistory.push({
+                        tick: msg.tick,
+                        bots: msg.bots,
+                    });
+                }
                 break;
         }
     }
@@ -489,6 +506,7 @@ async function runViewerMode(config) {
         uiServer = await createUiServer({
             scenariosDir: config.scenariosDir,
             lastStart,
+            memoryHistory,
             sendCommand: (cmd) => {
                 if (activeChild && activeChild.connected) {
                     activeChild.send(cmd);

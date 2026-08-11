@@ -154,3 +154,11 @@ export function postLoadSnapshot(data) {
 export function postDispose() {
     return postJSON('/api/dispose');
 }
+
+/** Fetch bot Memory at a specific tick */
+export function getMemoryAtTick(tick, bot) {
+    return fetch(`/api/memory?tick=${tick}&bot=${encodeURIComponent(bot)}`).then((r) => {
+        if (!r.ok) throw new Error(`Failed to fetch memory: ${r.status}`);
+        return r.json();
+    });
+}
