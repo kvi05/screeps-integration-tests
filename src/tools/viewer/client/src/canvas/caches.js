@@ -4,14 +4,19 @@
 import { generateCreepSvg, countBodyParts } from './creepSprite';
 import { buildTerrainCanvas, buildStructureCanvas, STATIC_RES } from './staticLayers';
 
+/** @type {Set<string>} NPC / invader user IDs (Screeps built-in) */
 const NPC_USERS = new Set(['2', '3']);
+/** @type {number} Creep sprite size in tiles */
 const CREEP_SIZE_TILES = 1.25;
+/** @type {number} Creep sprite rasterization size (px) */
 const SPRITE_PX = 96;
+/** @type {number} Number of store-fill buckets for sprite colour-coding */
 const STORE_BUCKETS = 8;
 
 // Invader SVG asset — vendored from screeps-dojo
 const INVADER_INNER =
     '<polygon points="24,4 8,12 8,38 24,46 56,25" fill="#e51f36" stroke="#120006" stroke-width="8" stroke-linejoin="miter" stroke-miterlimit="6" paint-order="stroke fill"/>';
+/** @type {{width:number, height:number}} Invader sprite SVG viewBox dimensions */
 const INVADER_VIEWBOX = { width: 64, height: 50 };
 
 /**

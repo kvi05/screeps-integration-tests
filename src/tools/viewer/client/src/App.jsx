@@ -46,11 +46,15 @@ import './styles/global.css';
  * @component
  */
 
-// 3000 frames max — empirically validated: ~10K frames (~50 MB heap Objects)
-// crashes the tab. 3000 frames keeps heap Objects under ~15-30 MB with a safety
-// margin for multi-room scenarios. Configurable via opts.viewer.replayBuffer
-// (future: plumbed from server to client via SSE 'start' event).
-const REPLAY_BUFFER_DEFAULT = 3000;
+/**
+ * Client-side ring-buffer capacity (max frames retained).
+ *
+ * The authoritative value comes from the server via the SSE `start` event
+ * (`data.replayBuffer`), which reads `config.viewerOptions.replayBuffer`.
+ * This constant is only a build-time fallback for when the SSE `start`
+ * event arrives without the field (legacy servers).
+ */
+const REPLAY_BUFFER_FALLBACK = 3000;
 
 /** Sidebar width limits — single source of truth, matches CSS --sidebar-min-w / --sidebar-max-w */
 const SIDEBAR_MIN_W = 240;
@@ -79,8 +83,8 @@ export default function App() {
     const [serverTick, setServerTick] = useState(0);
     const [serverSpeed, setServerSpeed] = useState(1);
 
-    // Ring buffer size
-    const replayBuffer = REPLAY_BUFFER_DEFAULT;
+    // Ring buffer size — received from server via SSE `start`, fallback to compile-time default
+    const [replayBuffer, setReplayBuffer] = useState(REPLAY_BUFFER_FALLBACK);
 
     // Recording: accumulated frames — persisted in sessionStorage across reloads
     /** @type {[Object, Function]} */
@@ -141,6 +145,8 @@ export default function App() {
     recordingRef.current = recording;
     const endedRef = useRef(ended);
     endedRef.current = ended;
+    const replayBufferRef = useRef(replayBuffer);
+    replayBufferRef.current = replayBuffer;
 
     // ─── Persist recording to sessionStorage (scenario end / page hide) ─────
     // The previous debounced persist JSON.stringified up to 200 frames every
@@ -201,6 +207,7 @@ export default function App() {
                     setRecording({ terrain: {}, frames: [] });
                     setClickedTile(null);
                     setSelectedId(null);
+                    if (data.replayBuffer) setReplayBuffer(data.replayBuffer);
                     firstFrame = true;
                     try {
                         sessionStorage.removeItem('sit-viewer-recording');
@@ -243,8 +250,8 @@ export default function App() {
                                 console: data.console || [],
                             },
                         ];
-                        if (newFrames.length > replayBuffer) {
-                            newFrames.splice(0, newFrames.length - replayBuffer);
+                        if (newFrames.length > replayBufferRef.current) {
+                            newFrames.splice(0, newFrames.length - replayBufferRef.current);
                         }
                         return { ...prev, frames: newFrames };
                     });

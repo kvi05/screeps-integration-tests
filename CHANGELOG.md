@@ -86,6 +86,20 @@ PR #50 [Feat/memory viewer](https://github.com/kvi05/screeps-integration-tests/p
     `liveControl.test.js` (IPC, keyframe/delta logic, error handling),
     `memory.test.jsx` (MemoryTree rendering, API client).
 
+PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-integration-tests/pull/51)
+
+- **`viewerOptions` config key.** A new section in `screeps-integration.config.js`
+  for viewer fine-tuning:
+  ```js
+  viewerOptions: {
+    paused: false,          // start paused
+    speed: 1000,            // ticks/second (1000 = realtime)
+    keyframeInterval: 100,  // full Memory snapshot every N ticks
+    replayBuffer: 3000,     // max frames/ticks in ring buffers
+  }
+  ```
+  Partial overrides are supported — only specify the keys you want to change.
+
 ### Changed
 
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
@@ -113,6 +127,30 @@ PR #46 [feat/ui-redesign](https://github.com/kvi05/screeps-integration-tests/pul
   MetricsPanel, MiniMap, LiveControls, ReplayControls, StatusBar.
 - **Color palette:** shifted to more pastel tones — less saturated, warmer
   neutrals, reduced visual harshness.
+
+PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-integration-tests/pull/51)
+
+- **Unified console log-level defaults.** `DEFAULT_LOG_LEVEL` now lives in
+  `console.js` only (single source of truth); world.js imports it instead of
+  defining a duplicate `DEFAULT_WORLD_LOG_LEVEL`. Value raised from `'error'`
+  to `'all'` — the default that `createWorld` has always passed in practice.
+- **Named all hardcoded constants across the codebase.**
+  `DEFAULT_MAX_CONSOLE_LINES`, `DEFAULT_MAX_TICKS`, `DEFAULT_EVAL_IN_BOT_TIMEOUT_MS`,
+  `SSE_HEARTBEAT_MS`, `DEFAULT_VIEWER_SPEED`, `SUMMARY_ERROR_LINES`,
+  `REPLAY_BUFFER_DEFAULT`, `REPLAY_SLIDER_FALLBACK_MAX`, canvas rendering
+  constants (`STORE_BUCKETS`, `MAX_BODY_PARTS`, `TILE_COLORS`, …) — every
+  formerly-bare number now has a named `const` with JSDoc.
+- **Extracted viewer defaults from inline function calls.**
+  `runScenario.js` no longer computes `paused`, `speed`, `keyframeInterval`
+  inside the `createViewerInterceptor` call site — they are resolved first
+  and passed as variables.
+- **`keyframeInterval` now reachable from user config.**
+  Previously hardcoded to 100 inside `liveControl.js` with no way to override;
+  now flows through `config.viewerOptions.keyframeInterval`.
+- **Unified ring-buffer capacities.** `REPLAY_BUFFER_DEFAULT` (client, App.jsx,
+  3000 frames) and `memoryHistory` maxTicks (server, 5000 ticks) were separate
+  values with the same purpose. Both now use a single
+  `config.viewerOptions.replayBuffer` (default 3000).
 
 ### Added dependencies
 

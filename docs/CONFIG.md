@@ -34,8 +34,19 @@ module.exports = {
   buildCommand: null, // executable shell command; runs only with --build
   require: [], // modules to require before scenarios
   env: {}, // env for worker processes
+  viewer: false, // always run in UI mode (--viewer flag)
+  viewerOptions: {
+    // fine-tuning for viewer mode (partial override ok)
+    paused: false, // start paused
+    speed: 1000, // ticks/second (1000 = realtime)
+    keyframeInterval: 100, // full Memory snapshot every N ticks
+    replayBuffer: 3000, // max frames/ticks in ring buffers
+  },
 };
 ```
+
+> `keyframeInterval` - _(Most likely there will be no need to change it)_ How often (in ticks) a **full** bot Memory snapshot is sent from the worker to the parent process. \
+> Between keyframes only the **diff** (JSON Patch — what changed since the previous tick) is transmitted via IPC. The parent stores both in a ring buffer. When the client requests Memory (`GET /api/memory`), the **server** reconstructs the full Memory by finding the nearest keyframe and replaying deltas forward. The client always receives a complete Memory object — it never processes diffs.
 
 ### `distDir`
 

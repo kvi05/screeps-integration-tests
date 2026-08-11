@@ -7,7 +7,9 @@ import { circle, text } from './primitives';
 
 export const STATIC_RES = 24; // px per tile for offscreen layers
 
+/** @type {Object<string, string>} Terrain tile → fill colour */
 const TILE_COLORS = { '.': '#2b2b2b', '~': '#23311e', '#': '#111111' };
+/** @type {string} Default room background colour */
 const ROOM_BG = '#2b2b2b';
 
 /**

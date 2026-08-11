@@ -136,10 +136,10 @@ describe('console capture', () => {
             expect(report.logs).toEqual([]);
         });
 
-        it('default logLevel error', () => {
+        it('default logLevel is "all" (info messages go to logs)', () => {
             const { handler, report } = createConsoleCapture();
             handler(['message']);
-            expect(report.logs).toEqual([]);
+            expect(report.logs).toEqual(['message']);
         });
 
         describe('logLevel validation', () => {

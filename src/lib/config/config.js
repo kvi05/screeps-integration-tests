@@ -42,6 +42,11 @@ const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('..
  * @property {string[]} require         — Module paths to pre-load before any scenario
  * @property {Object<string,string>} env — Environment variables passed to worker processes
  * @property {boolean} [viewer]         — Start browser viewer UI (Scenario Manager). If --only is specified, auto-launches that scenario; otherwise opens the Scenario Manager screen.
+ * @property {Object} [viewerOptions]   — Fine-tuning for viewer mode:
+ *   - {boolean} paused           — Start paused (default false)
+ *   - {number}  speed            — Ticks per second; 1000 = ~max (default 1000)
+ *   - {number}  keyframeInterval — Send full Memory snapshot every N ticks (default 100)
+ *   - {number}  replayBuffer     — Max frames/memory-ticks retained in ring buffer (default 3000)
  */
 
 /** @type {FrameworkConfig} */
@@ -59,6 +64,12 @@ const DEFAULTS = {
     require: [],
     env: {},
     viewer: false,
+    viewerOptions: {
+        paused: false,
+        speed: 1000,
+        keyframeInterval: 100,
+        replayBuffer: 3000,
+    },
 };
 
 const CLI_SCHEMA = {
@@ -219,7 +230,9 @@ function resolvePaths(cfg, configDir) {
  */
 function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overrides = {}) {
     /** @type {FrameworkConfig} */
-    const cfg = { ...DEFAULTS };
+    // viewerOptions is a nested object — clone it so callers can't mutate the
+    // shared DEFAULTS reference (shallow spread would share it).
+    const cfg = { ...DEFAULTS, viewerOptions: { ...DEFAULTS.viewerOptions } };
 
     // 1. config file
     let cliOptions;
@@ -240,7 +253,17 @@ function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overri
 
     if (configPath) {
         const fileCfg = loadConfigFile(configPath);
+        // Shallow-merge viewerOptions so users can override individual keys
+        // without repeating all defaults.
+        // Must save defaults BEFORE Object.assign — otherwise cfg.viewerOptions
+        // becomes the file object (same reference) and the spread below
+        // merges the file object with itself, losing defaults.
+        const fileViewerOpts = fileCfg.viewerOptions;
+        const defaultViewerOpts = cfg.viewerOptions;
         Object.assign(cfg, fileCfg);
+        if (fileViewerOpts && defaultViewerOpts) {
+            cfg.viewerOptions = { ...defaultViewerOpts, ...fileViewerOpts };
+        }
     }
 
     // 2. env (backward compatibility with BOT_DIST_DIR)

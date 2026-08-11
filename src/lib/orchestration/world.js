@@ -22,7 +22,7 @@ const { collectMetrics, sampleMetrics, collectBotMetrics, sampleBotMetrics } = r
 const { MetricsReport } = require('../assertions/metricsReport');
 const { checkStopCondition } = require('../observers/predicate');
 const { snapshotOwners, mergeOwners } = require('../observers/ownership');
-const { createConsoleCapture } = require('../runtime/console');
+const { createConsoleCapture, DEFAULT_LOG_LEVEL, DEFAULT_MAX_CONSOLE_LINES } = require('../runtime/console');
 const { createEventRegistry, registerDefaultEvents } = require('./events');
 const { createWorldHelpers, getRoomRcl } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
@@ -35,10 +35,6 @@ const { getTickInterceptor } = require('./tickHooks');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
 
-/** @type {string} */
-const DEFAULT_WORLD_LOG_LEVEL = 'all';
-/** @type {number} */
-const DEFAULT_MAX_CONSOLE_LINES = 10000;
 /** @type {number} */
 const DEFAULT_MAX_TICKS = 100;
 
@@ -398,7 +394,7 @@ async function createWorld(opts) {
 
     const report = createEmptyReport();
 
-    const globalLogLevel = opts.logLevel || DEFAULT_WORLD_LOG_LEVEL;
+    const globalLogLevel = opts.logLevel || DEFAULT_LOG_LEVEL;
     const maxConsoleLines = opts.maxConsoleLines || DEFAULT_MAX_CONSOLE_LINES;
 
     await initializeBots(bots, resolvedBots, adapter, opts, report, globalLogLevel, maxConsoleLines);

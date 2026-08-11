@@ -317,8 +317,12 @@
  * @property {UntilOpts} [until]                                   — early termination condition
  * @property {OnTickCallback} [onTick]                             — callback on each tick
  * @property {EventSpec[]} [events]                                 — declarative spawns by tick
- * @property {boolean|ViewerOpts} [viewer=false]                   — enable browser viewer.
- *   `true` = auto-port via getFreePort(). Object = explicit config.
+ * @property {boolean} [viewer=false]                   — enable browser viewer. When `true`,
+ *   the worker attaches a tick interceptor for live streaming.
+ * @property {ViewerOptions} [viewerOptions]            — fine-tuning for viewer behaviour
+ *   (paused, speed, keyframeInterval, replayBuffer). The CLI passes
+ *   `config.viewerOptions` through to the worker; missing keys fall back to
+ *   their defaults at the interceptor creation site.
  * @property {TickInterceptor} [tickInterceptor]                   — optional tick lifecycle hook.
  *   Injected by tooling (viewer, profiler, debugger). Core never knows what the hook does.
  */
@@ -353,17 +357,16 @@
  */
 
 /**
- * Viewer configuration.
+ * Viewer fine-tuning options.
  *
- * @typedef {Object} ViewerOpts
- * @property {number} [port]                  — explicit port (default: auto via getFreePort)
- * @property {boolean} [autoPlay]             — auto-start tick loop on connect (default: false)
- * @property {boolean} [paused=false]         — start paused (for live control)
- * @property {number} [speed=1]               — tick speed (1 = real-time, max = unthrottled)
- * @property {number} [replayBuffer=3000]     — max frames to keep in client ring buffer
- * @property {import('events').EventEmitter} [control] — internal: EventEmitter for pause/resume signalling
- * @property {number} [stepRequested=0]       — internal: remaining step ticks
- * @property {{state:string, tick:number, speed:number, scenario:string}} [status] — internal: current server status
+ * Mirrors `config.viewerOptions` — users set these in
+ * `screeps-integration.config.js` once and the CLI passes them through.
+ *
+ * @typedef {Object} ViewerOptions
+ * @property {boolean} [paused=false]         — start the tick loop paused
+ * @property {number} [speed=1000]            — ticks per second (1000 = realtime, higher = faster)
+ * @property {number} [keyframeInterval=100]  — send full Memory snapshot every N ticks
+ * @property {number} [replayBuffer=3000]     — max frames/ticks retained in client + server ring buffers
  */
 
 // ─── Viewer data types ──────────────────────────────────────────────────────

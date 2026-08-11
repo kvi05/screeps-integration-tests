@@ -29,7 +29,7 @@ const { applyMemoryDiff, deepClone } = require('./memoryDiff');
  * Creates a Memory history ring buffer.
  *
  * @param {Object} [opts]
- * @param {number} [opts.maxTicks=5000] — max ticks to retain
+ * @param {number} [opts.maxTicks=3000] — max ticks to retain
  * @returns {{
  *   push: (entry: MemoryEntry) => void,
  *   reconstruct: (tick: number, bot: string) => Object|null,
@@ -38,7 +38,7 @@ const { applyMemoryDiff, deepClone } = require('./memoryDiff');
  * }}
  */
 function createMemoryHistory(opts = {}) {
-    const maxTicks = opts.maxTicks || 5000;
+    const maxTicks = opts.maxTicks || 3000;
 
     /** @type {MemoryEntry[]} Ring buffer */
     const buffer = [];

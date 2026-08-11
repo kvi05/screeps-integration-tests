@@ -1,6 +1,7 @@
 // Adapted from screeps-dojo (MIT).
 // Room name → grid position computation for multi-room layout.
 
+/** @type {RegExp} Screeps room name pattern: e.g. W0N1, E5S3 */
 const ROOM_NAME_PATTERN = /^([WE])(\d+)([NS])(\d+)$/;
 
 /**

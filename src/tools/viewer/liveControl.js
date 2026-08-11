@@ -35,6 +35,11 @@ const { computeMemoryDiff } = require('./memoryDiff');
  * The interceptor is self-contained: it owns its own state (paused, speed,
  * step counter) and communicates with the parent via `process.send`.
  *
+ * Default values for optional parameters originate from
+ * `DEFAULTS.viewerOptions` in `lib/config/config.js` — the single source of
+ * truth.  The `||` fallbacks here are a terminal backstop for callers that
+ * bypass the config pipeline (e.g. unit tests).
+ *
  * @param {Object} opts
  * @param {string} opts.scenarioPath — scenario file path (for status messages)
  * @param {boolean} [opts.paused=false] — start paused

@@ -335,6 +335,17 @@ describe('UiServer', () => {
         expect(startEvent.data).toEqual({ scenario: 'test-scenario', maxTicks: 200 });
     });
 
+    it('broadcastStart forwards replayBuffer in SSE start event', async () => {
+        server = await createUiServer({ port: 0 });
+        const ssePromise = collectSseEvents(server.port, 400);
+        await new Promise((r) => setTimeout(r, 100));
+        server.broadcastStart('test-scenario', 200, 1500);
+        const { events } = await ssePromise;
+        const startEvent = events.find((e) => e.type === 'start');
+        expect(startEvent).toBeDefined();
+        expect(startEvent.data).toEqual({ scenario: 'test-scenario', maxTicks: 200, replayBuffer: 1500 });
+    });
+
     it('broadcastScenarioResult sends SSE scenario-result event', async () => {
         server = await createUiServer({ port: 0 });
         const ssePromise = collectSseEvents(server.port, 400);
