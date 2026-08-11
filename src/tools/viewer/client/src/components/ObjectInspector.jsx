@@ -113,8 +113,9 @@ export default function ObjectInspector({
     // Fetch Memory when selected object or tick changes
     useEffect(() => {
         if (!selectedBot || currentTick === undefined) {
-            setMemoryData(null);
             setMemoryError(null);
+            // Keep memoryData — it stays valid for when the user reselects
+            // the same bot at the same tick.
             return;
         }
         // Avoid refetch if we already have this data
@@ -122,9 +123,11 @@ export default function ObjectInspector({
         if (prev && prev.tick === currentTick && prev.bot === selectedBot) {
             return;
         }
+        // New bot/tick — clear stale data before fetching
+        setMemoryData(null);
+        setMemoryError(null);
         let cancelled = false;
         setMemoryLoading(true);
-        setMemoryError(null);
         getMemoryAtTick(currentTick, selectedBot)
             .then((data) => {
                 if (cancelled) return;
