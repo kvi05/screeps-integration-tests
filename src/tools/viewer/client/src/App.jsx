@@ -145,6 +145,8 @@ export default function App() {
     recordingRef.current = recording;
     const endedRef = useRef(ended);
     endedRef.current = ended;
+    const replayBufferRef = useRef(replayBuffer);
+    replayBufferRef.current = replayBuffer;
 
     // ─── Persist recording to sessionStorage (scenario end / page hide) ─────
     // The previous debounced persist JSON.stringified up to 200 frames every
@@ -248,8 +250,8 @@ export default function App() {
                                 console: data.console || [],
                             },
                         ];
-                        if (newFrames.length > replayBuffer) {
-                            newFrames.splice(0, newFrames.length - replayBuffer);
+                        if (newFrames.length > replayBufferRef.current) {
+                            newFrames.splice(0, newFrames.length - replayBufferRef.current);
                         }
                         return { ...prev, frames: newFrames };
                     });

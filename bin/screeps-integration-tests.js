@@ -361,8 +361,8 @@ function printSummary(results) {
 async function runViewerMode(config) {
     /** @type {boolean} */
     let terrainSent = false;
-    /** @type {{scenario:string, maxTicks:number}} */
-    const lastStart = { scenario: '', maxTicks: 0 };
+    /** @type {{scenario:string, maxTicks:number, replayBuffer:number}} */
+    const lastStart = { scenario: '', maxTicks: 0, replayBuffer: 0 };
     /** @type {Array<{scenarioPath:string, interactive:boolean}>} */
     const scenarioQueue = [];
     let activeCount = 0;
@@ -463,6 +463,7 @@ async function runViewerMode(config) {
                 terrainSent = false;
                 lastStart.scenario = scenarioName;
                 lastStart.maxTicks = 0;
+                lastStart.replayBuffer = replayBufferTicks;
                 if (uiServer) uiServer.broadcastStart(scenarioName, 0, replayBufferTicks);
                 activeChild = null; // Will be set inside runScenarioInWorker via routeIpcMessage
             }

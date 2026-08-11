@@ -156,7 +156,7 @@ function serveStatic(res, filePath) {
  * @param {Function} [opts.sendCommand] — callback to forward commands to worker: (cmd) => void
  * @param {string} [opts.scenariosDir] — directory containing *.scenario.js files
  * @param {Function} [opts.onRunScenario] — callback to run a scenario: (scenarioPath, interactive) => void
- * @param {{scenario:string, maxTicks:number}} [opts.lastStart] — last start info to re-send to late-connecting SSE clients
+ * @param {{scenario:string, maxTicks:number, replayBuffer:number}} [opts.lastStart] — last start info to re-send to late-connecting SSE clients
  * @param {Object} [opts.memoryHistory] — Memory history ring buffer for /api/memory endpoint
  * @returns {Promise<UiServer>}
  */
