@@ -20,6 +20,8 @@
 
 const { EventEmitter, once } = require('events');
 const { collectSnapshot } = require('../../lib/observers/snapshot');
+const { getBotMemory } = require('../../lib/builders/memory');
+const { computeMemoryDiff } = require('./memoryDiff');
 
 /**
  * @typedef {import('../../lib/types').TickInterceptor} TickInterceptor
@@ -37,6 +39,7 @@ const { collectSnapshot } = require('../../lib/observers/snapshot');
  * @param {string} opts.scenarioPath — scenario file path (for status messages)
  * @param {boolean} [opts.paused=false] — start paused
  * @param {number} [opts.speed=1000] — ticks per second (1000 = realtime, higher = faster)
+ * @param {number} [opts.keyframeInterval=100] — send full Memory every N ticks
  * @returns {TickInterceptor}
  */
 function createViewerInterceptor(opts = {}) {
@@ -50,6 +53,8 @@ function createViewerInterceptor(opts = {}) {
     let speed = opts.speed || 1000;
     /** @type {boolean} Signals the tick loop to stop gracefully */
     let disposed = false;
+    /** @type {number} Keyframe interval for Memory diffs */
+    const keyframeInterval = opts.keyframeInterval || 100;
 
     const status = {
         state: paused ? 'paused' : 'running',
@@ -57,6 +62,9 @@ function createViewerInterceptor(opts = {}) {
         speed,
         scenario: opts.scenarioPath || '',
     };
+
+    /** @type {Object<string, *>} Per-bot: previous Memory for diff computation */
+    const previousMemory = {};
 
     /**
      * Sends a viewer:status message to the parent process.
@@ -159,7 +167,8 @@ function createViewerInterceptor(opts = {}) {
         },
 
         /**
-         * Called after observations. Sends viewer:frame snapshot via IPC.
+         * Called after observations. Sends viewer:frame snapshot and
+         * viewer:memory Memory diffs via IPC.
          *
          * @param {TickHookContext} ctx
          */
@@ -173,6 +182,40 @@ function createViewerInterceptor(opts = {}) {
                 process.send({ type: 'viewer:frame', ...snapshot });
             } catch {
                 /* non-critical */
+            }
+
+            // Collect Memory diffs for all bots
+            if (ctx.bots && Object.keys(ctx.bots).length > 0) {
+                try {
+                    /** @type {Object<string, {type: string, data: *}>} */
+                    const botsMemory = {};
+                    for (const [_username, bot] of Object.entries(ctx.bots)) {
+                        const botUserId = bot.id;
+                        if (!botUserId) continue;
+                        try {
+                            const mem = await getBotMemory(ctx.adapter, botUserId);
+                            const prev = previousMemory[botUserId];
+
+                            if (prev === undefined || ctx.tickNum % keyframeInterval === 0) {
+                                // Keyframe: send full Memory
+                                botsMemory[botUserId] = { type: 'keyframe', data: mem };
+                            } else {
+                                // Delta: compute diff vs previous tick
+                                const diff = computeMemoryDiff(prev, mem);
+                                botsMemory[botUserId] = { type: 'delta', data: diff };
+                            }
+
+                            previousMemory[botUserId] = mem;
+                        } catch {
+                            // Bot has no Memory — skip
+                            botsMemory[botUserId] = { type: 'keyframe', data: {} };
+                            previousMemory[botUserId] = {};
+                        }
+                    }
+                    process.send({ type: 'viewer:memory', tick: ctx.tickNum, bots: botsMemory });
+                } catch {
+                    /* non-critical */
+                }
             }
         },
 
