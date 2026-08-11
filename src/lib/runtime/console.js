@@ -36,7 +36,14 @@ const ERROR_PATTERNS = [
  */
 const WARN_PATTERNS = [];
 
-const DEFAULT_LOG_LEVEL = 'error';
+/**
+ * Default console log level for {@link createConsoleCapture}.
+ * 'all' — capture every line (info + warn + error). Matches the default
+ * behaviour of `createWorld` so that tests see the full console output
+ * without extra configuration.
+ */
+const DEFAULT_LOG_LEVEL = 'all';
+/** @type {number} Maximum lines in report.logs — spam protection. */
 const DEFAULT_MAX_CONSOLE_LINES = 10000;
 const VALID_LOG_LEVELS = ['all', 'error', 'warn'];
 
@@ -68,7 +75,7 @@ function looksLikeWarn(line) {
  *
  * @param {Object} [opts]
  * @param {Object} [opts.report] — external report object (created internally if not provided)
- * @param {'all'|'error'|'warn'} [opts.logLevel='error'] — threshold for report.logs: 'all' — all logs, 'warn' — errors and warnings, 'error' — errors only
+ * @param {'all'|'error'|'warn'} [opts.logLevel='all'] — threshold for report.logs: 'all' — all logs, 'warn' — errors and warnings, 'error' — errors only
  * @param {number} [opts.maxConsoleLines=10000] — max lines in report (spam protection)
  * @returns {{ handler: Function, report: { errors: string[], warnings: string[], logs: string[] } }}
  */
