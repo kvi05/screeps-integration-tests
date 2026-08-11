@@ -63,6 +63,29 @@ PR #46 [feat/ui-redesign](https://github.com/kvi05/screeps-integration-tests/pul
   panel — detail view with meta grid, copy-to-clipboard buttons, extension
   sections for metrics history and description.
 
+PR #50 [Feat/memory viewer](https://github.com/kvi05/screeps-integration-tests/pull/50)
+
+- **Memory Viewer — per-tick bot Memory inspection in the browser.** Click on
+  any creep/structure in the Canvas → Object Inspector now shows Memory for the
+  owning bot at the current scrubber tick.
+  - **Keyframe + delta storage:** `memoryDiff.js` computes RFC 6902 JSON Patches
+    between consecutive Memory snapshots. Keyframes (full Memory) are sent every
+    100 ticks; intermediate ticks use deltas for efficient storage.
+  - **Ring buffer:** `memoryHistory.js` in the parent process stores per-tick
+    Memory entries (up to 5000 ticks), survives worker restarts. Reconstructs
+    Memory at any tick by walking forward from the nearest keyframe.
+  - **IPC pipeline:** `liveControl.js` reads Memory via `getBotMemory()` and
+    sends `viewer:memory` messages to the parent after each tick.
+  - **REST endpoint:** `GET /api/memory?tick=N&bot=username` returns
+    reconstructed Memory as JSON.
+  - **Client UI:** `MemoryTree` collapsible JSON tree component with
+    type-based syntax highlighting (strings, numbers, booleans, null).
+    `ObjectInspector` auto-fetches Memory when the selected object has an owner.
+  - **Unit tests:** `memoryDiff.test.js` (JSON Patch round-trip, edge cases),
+    `memoryHistory.test.js` (ring buffer, eviction, multi-bot),
+    `liveControl.test.js` (IPC, keyframe/delta logic, error handling),
+    `memory.test.jsx` (MemoryTree rendering, API client).
+
 ### Changed
 
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
