@@ -371,35 +371,108 @@ async function createUiServer(opts = {}) {
             return;
         }
 
-        // ─── REST: Save/Load Snapshot ─────────────────────────────────────
+        // ─── REST: Save/Load/Rewind Snapshot ──────────────────────────────
 
-        // POST /api/save-snapshot — save current state
+        // POST /api/save-snapshot — save current state to file
         if (pathname === '/api/save-snapshot' && req.method === 'POST') {
-            // Forward to worker for serialization
-            // if (opts.sendCommand) {
-            //     opts.sendCommand({ type: 'viewer:cmd', action: 'saveSnapshot' });
-            // }
-            res.writeHead(501, { 'Content-Type': 'application/json' });
-            res.end(
-                JSON.stringify({
-                    ok: false,
-                    status: 'not_implemented',
-                    message: 'Snapshot saving is not yet implemented',
-                }),
-            );
+            if (opts.sendCommand) {
+                opts.sendCommand({ type: 'viewer:cmd', action: 'saveSnapshot' });
+            }
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, message: 'Snapshot save in progress' }));
             return;
         }
 
-        // POST /api/load-snapshot — load saved state
+        // POST /api/load-snapshot — load state from uploaded JSON
         if (pathname === '/api/load-snapshot' && req.method === 'POST') {
-            res.writeHead(501, { 'Content-Type': 'application/json' });
-            res.end(
-                JSON.stringify({
-                    ok: false,
-                    status: 'not_implemented',
-                    message: 'Snapshot loading is not yet implemented',
-                }),
-            );
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                return;
+            }
+            if (opts.sendCommand) {
+                opts.sendCommand({
+                    type: 'viewer:cmd',
+                    action: 'loadSnapshot',
+                    params: { snapshot: body.data || body },
+                });
+            }
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, message: 'Snapshot load in progress' }));
+            return;
+        }
+
+        // POST /api/restore-tick — rewind to a past tick
+        if (pathname === '/api/restore-tick' && req.method === 'POST') {
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                body = {};
+            }
+            const tick = body.tick !== undefined ? body.tick : parseInt(url.searchParams.get('tick') || '0', 10);
+            if (opts.sendCommand) {
+                opts.sendCommand({
+                    type: 'viewer:cmd',
+                    action: 'restoreTick',
+                    params: { tick },
+                });
+            }
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, message: `Restore to tick ${tick} in progress` }));
+            return;
+        }
+
+        // GET /api/snapshots — list saved snapshot files
+        if (pathname === '/api/snapshots' && req.method === 'GET') {
+            const snapshotsDir = path.join(process.cwd(), 'snapshots');
+            /** @type {Array<{file:string, size:number, modified:string}>} */
+            const snapshots = [];
+            try {
+                const entries = fs.readdirSync(snapshotsDir);
+                for (const entry of entries) {
+                    if (entry.endsWith('.json')) {
+                        const stat = fs.statSync(path.join(snapshotsDir, entry));
+                        snapshots.push({
+                            file: entry,
+                            size: stat.size,
+                            modified: stat.mtime.toISOString(),
+                        });
+                    }
+                }
+                snapshots.sort((a, b) => b.modified.localeCompare(a.modified));
+            } catch {
+                // Directory doesn't exist — return empty list
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ snapshots }));
+            return;
+        }
+
+        // GET /snapshots/:filename — serve a saved snapshot file
+        if (pathname.startsWith('/snapshots/') && req.method === 'GET') {
+            const requestedFile = path.basename(pathname); // strip path traversal
+            if (!requestedFile || !requestedFile.endsWith('.json')) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Not found' }));
+                return;
+            }
+            const snapshotsDir = path.join(process.cwd(), 'snapshots');
+            const filePath = path.join(snapshotsDir, requestedFile);
+            // Security: ensure the resolved path is still inside snapshotsDir
+            if (!filePath.startsWith(snapshotsDir)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden' }));
+                return;
+            }
+            if (serveStatic(res, filePath)) {
+                return;
+            }
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Snapshot file not found' }));
             return;
         }
 
@@ -496,6 +569,28 @@ async function createUiServer(opts = {}) {
                 broadcastEnd(reason, ticksRun) {
                     for (const client of sseClients) {
                         client.send('end', { reason, ticksRun });
+                    }
+                },
+
+                /**
+                 * Broadcast an error event to all SSE clients.
+                 * @param {string} code — error category (e.g. 'restore', 'save')
+                 * @param {string} message — human-readable error message
+                 */
+                broadcastError(code, message) {
+                    for (const client of sseClients) {
+                        client.send('error', { code, message });
+                    }
+                },
+
+                /**
+                 * Broadcast a restore-confirmation event to all SSE clients.
+                 * Signals the client to reset its local frame buffer.
+                 * @param {number} tick — the tick the server was restored to
+                 */
+                broadcastRestored(tick) {
+                    for (const client of sseClients) {
+                        client.send('restored', { tick });
                     }
                 },
 
