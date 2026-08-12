@@ -102,6 +102,8 @@ PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-inte
 
   Partial overrides are supported — only specify the keys you want to change.
 
+PR #54 [Feat/phase 3](https://github.com/kvi05/screeps-integration-tests/pull/54)
+
 - **Snapshot launch — `createWorld({ snapshot })` and time-travel restore.**
   Recreate a full world from a saved snapshot (v2 format) without a scenario
   file — useful for CI debugging and interactive exploration from Scenario
