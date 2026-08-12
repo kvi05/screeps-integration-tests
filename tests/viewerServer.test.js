@@ -13,6 +13,8 @@
  */
 
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { createUiServer } = require('../src/tools/viewer/server');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -21,9 +23,9 @@ const { createUiServer } = require('../src/tools/viewer/server');
  * @param {number} port
  * @returns {Promise<string>} response body
  */
-function httpGet(port, path = '/') {
+function httpGet(port, urlPath = '/') {
     return new Promise((resolve, reject) => {
-        http.get(`http://127.0.0.1:${port}${path}`, (res) => {
+        http.get(`http://127.0.0.1:${port}${urlPath}`, (res) => {
             const chunks = [];
             res.on('data', (chunk) => chunks.push(chunk));
             res.on('end', () => resolve(Buffer.concat(chunks).toString()));
@@ -87,14 +89,14 @@ function collectSseEvents(port, timeout = 300) {
  * @param {Object} [body]
  * @returns {Promise<{status: number, body: string, headers: Object}>}
  */
-function httpPost(port, path, body) {
+function httpPost(port, urlPath, body) {
     return new Promise((resolve, reject) => {
         const data = body ? JSON.stringify(body) : '';
         const req = http.request(
             {
                 hostname: '127.0.0.1',
                 port,
-                path,
+                path: urlPath,
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
             },
@@ -311,7 +313,6 @@ describe('UiServer', () => {
 
     it('/api/scenarios returns real scenarios when scenariosDir is set', async () => {
         // Point to the examples directory which has real scenarios
-        const path = require('path');
         const scenariosDir = path.resolve(__dirname, '..', 'examples', 'scenarios');
         server = await createUiServer({ port: 0, scenariosDir });
         const body = await httpGet(server.port, '/api/scenarios');
@@ -384,6 +385,85 @@ describe('UiServer', () => {
         expect(statusEvents.length).toBeGreaterThanOrEqual(1);
         const lastStatus = statusEvents[statusEvents.length - 1];
         expect(lastStatus.data.state).toBe('running');
+    });
+
+    // ─── Snapshot file serving ───────────────────────────────────────────
+
+    it('GET /snapshots/:file serves a saved .json snapshot', async () => {
+        // Set up a temp snapshots directory with a test file
+        const snapshotsDir = path.join(process.cwd(), 'snapshots');
+        fs.mkdirSync(snapshotsDir, { recursive: true });
+        const testFile = path.join(snapshotsDir, '_test-serve.json');
+        fs.writeFileSync(testFile, JSON.stringify({ meta: { tick: 42 }, db: { 'rooms.objects': [] } }));
+
+        server = await createUiServer({ port: 0 });
+
+        try {
+            const result = await new Promise((resolve, reject) => {
+                http.get(`http://127.0.0.1:${server.port}/snapshots/_test-serve.json`, (res) => {
+                    const chunks = [];
+                    res.on('data', (chunk) => chunks.push(chunk));
+                    res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+                }).on('error', reject);
+            });
+
+            expect(result.status).toBe(200);
+            const parsed = JSON.parse(result.body);
+            expect(parsed.meta.tick).toBe(42);
+        } finally {
+            fs.unlinkSync(testFile);
+            try {
+                fs.rmdirSync(snapshotsDir);
+            } catch {
+                /* not empty — ignore */
+            }
+        }
+    });
+
+    it('GET /snapshots/:file returns 404 for non-.json file', async () => {
+        server = await createUiServer({ port: 0 });
+
+        const result = await new Promise((resolve, reject) => {
+            http.get(`http://127.0.0.1:${server.port}/snapshots/not-json.txt`, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+            }).on('error', reject);
+        });
+
+        expect(result.status).toBe(404);
+    });
+
+    it('GET /snapshots/:file returns 404 for non-existent file', async () => {
+        server = await createUiServer({ port: 0 });
+
+        const result = await new Promise((resolve, reject) => {
+            http.get(`http://127.0.0.1:${server.port}/snapshots/nonexistent-file.json`, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+            }).on('error', reject);
+        });
+
+        expect(result.status).toBe(404);
+    });
+
+    it('GET /snapshots/ with path traversal is neutralized by URL normalization', async () => {
+        server = await createUiServer({ port: 0 });
+
+        const result = await new Promise((resolve, reject) => {
+            // URL parser normalizes '/../' out — request becomes '/malicious.json' (not under /snapshots/)
+            http.get(`http://127.0.0.1:${server.port}/snapshots/../malicious.json`, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+            }).on('error', reject);
+        });
+
+        // URL normalization strips '../' → pathname becomes '/malicious.json'
+        // which falls through to SPA fallback → 200 (serves index.html)
+        expect(result.status).toBe(200);
+        expect(result.body).toContain('<div id="root">');
     });
 });
 

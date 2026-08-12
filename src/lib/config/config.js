@@ -68,7 +68,7 @@ const DEFAULTS = {
         paused: false,
         speed: 1000,
         keyframeInterval: 100,
-        replayBuffer: 3000,
+        replayBuffer: 5000,
     },
 };
 

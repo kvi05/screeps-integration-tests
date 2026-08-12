@@ -8,6 +8,7 @@ import ConsolePanel from './components/ConsolePanel';
 import MetricsPanel from './components/MetricsPanel';
 import MiniMap from './components/MiniMap';
 import ScenarioManager from './components/ScenarioManager';
+import SaveLoadPanel from './components/SaveLoadPanel';
 import { connectSSE, postDispose, postPause, postResume, postSpeed } from './api/client';
 import { loadPrefs, savePrefs } from './state/prefs';
 import {
@@ -82,6 +83,8 @@ export default function App() {
     const [serverState, setServerState] = useState('idle');
     const [serverTick, setServerTick] = useState(0);
     const [serverSpeed, setServerSpeed] = useState(1);
+    /** @type {[{code:string, message:string}|null, Function]} SSE error forwarded from server */
+    const [sseError, setSseError] = useState(/** @type {{code:string, message:string}|null} */ (null));
 
     // Ring buffer size — received from server via SSE `start`, fallback to compile-time default
     const [replayBuffer, setReplayBuffer] = useState(REPLAY_BUFFER_FALLBACK);
@@ -262,6 +265,15 @@ export default function App() {
                     setPlaying(false);
                     setServerState('idle');
                     break;
+                case 'restored': {
+                    // Server was restored to a past tick — reset local frame buffer
+                    setRecording({ terrain: recording.terrain, frames: [] });
+                    setTick(0);
+                    setSub(null);
+                    setServerTick(data.tick || 0);
+                    setPlaying(true);
+                    break;
+                }
                 case 'status': {
                     if (data.state) setServerState(data.state);
                     if (data.tick !== undefined) setServerTick(data.tick);
@@ -289,6 +301,14 @@ export default function App() {
                             }),
                         );
                     }
+                    break;
+                }
+                case 'error': {
+                    // Server-side error forwarded via SSE (e.g. restore/save failure)
+                    setSseError({
+                        code: data.code || 'unknown',
+                        message: data.message || 'Unknown server error',
+                    });
                     break;
                 }
                 case 'disconnect':
@@ -903,7 +923,15 @@ export default function App() {
                             />
                         )}
                         {sidebarTab === 'metrics' && <MetricsPanel frames={recording.frames} />}
-                        {sidebarTab === 'saveload' && <SaveLoadPanel />}
+                        {sidebarTab === 'saveload' && (
+                            <SaveLoadPanel
+                                currentTick={serverTick}
+                                connected={connected}
+                                ended={ended}
+                                sseError={sseError}
+                                onClearError={() => setSseError(null)}
+                            />
+                        )}
                         {sidebarTab === 'settings' && (
                             <SettingsPanel
                                 showMiniMap={showMiniMap}
@@ -986,57 +1014,6 @@ export default function App() {
                             <kbd>`</kbd>console
                         </span>
                     </span>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ─── Save/Load Panel (placeholder for future SL-1 to SL-5) ──────────────────
-function SaveLoadPanel() {
-    return (
-        <div className="save-load-panel">
-            <div className="save-load-section">
-                <h3>
-                    <DownloadIcon size={16} />
-                    Snapshot
-                </h3>
-                <p>Save the current world state to a JSON file for later inspection or replay.</p>
-                <div className="save-load-actions">
-                    <button className="btn-primary" disabled title="Coming soon">
-                        <DownloadIcon size={14} />
-                        Save Snapshot
-                    </button>
-                    <button className="btn-secondary" disabled title="Coming soon">
-                        Load Snapshot
-                    </button>
-                </div>
-            </div>
-            <div className="save-load-section">
-                <h3>
-                    <DatabaseIcon size={16} />
-                    Auto-save
-                </h3>
-                <p>Automatically save each tick to memory for rewind capability.</p>
-                <div className="save-load-actions">
-                    <button className="btn-secondary" disabled title="Coming soon">
-                        Configure limit...
-                    </button>
-                </div>
-            </div>
-            <div className="save-load-section">
-                <h3>
-                    <FilmIcon size={16} />
-                    Export
-                </h3>
-                <p>Export snapshot as room fixture or memory fixture.</p>
-                <div className="save-load-actions">
-                    <button className="btn-secondary" disabled title="Coming soon">
-                        Room fixture
-                    </button>
-                    <button className="btn-secondary" disabled title="Coming soon">
-                        Memory fixture
-                    </button>
                 </div>
             </div>
         </div>

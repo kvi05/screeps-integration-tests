@@ -64,6 +64,7 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
                 paused: viewerOpts.paused,
                 speed: viewerOpts.speed,
                 keyframeInterval: viewerOpts.keyframeInterval,
+                replayBuffer: viewerOpts.replayBuffer,
             });
             // Also set via tickHooks — ensures createWorld() finds the
             // interceptor even if the scenario's run() builds a fresh opts
