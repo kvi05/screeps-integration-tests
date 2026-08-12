@@ -181,7 +181,7 @@ describe('config DEFAULTS', () => {
             paused: false,
             speed: 1000,
             keyframeInterval: 100,
-            replayBuffer: 3000,
+            replayBuffer: 5000,
         });
     });
 
@@ -221,7 +221,7 @@ describe('config viewerOptions partial override', () => {
             paused: false,
             speed: 2000,
             keyframeInterval: 100,
-            replayBuffer: 3000,
+            replayBuffer: 5000,
         });
     });
 
@@ -264,7 +264,7 @@ describe('config viewerOptions partial override', () => {
             paused: false,
             speed: 1000,
             keyframeInterval: 100,
-            replayBuffer: 3000,
+            replayBuffer: 5000,
         });
     });
 
@@ -277,7 +277,7 @@ describe('config viewerOptions partial override', () => {
             paused: false,
             speed: 1000,
             keyframeInterval: 100,
-            replayBuffer: 3000,
+            replayBuffer: 5000,
         });
     });
 
@@ -288,7 +288,7 @@ describe('config viewerOptions partial override', () => {
             paused: false,
             speed: 1000,
             keyframeInterval: 100,
-            replayBuffer: 3000,
+            replayBuffer: 5000,
         });
     });
 
@@ -305,7 +305,7 @@ describe('config viewerOptions partial override', () => {
             paused: false,
             speed: 2000,
             keyframeInterval: 100,
-            replayBuffer: 3000,
+            replayBuffer: 5000,
             customFutureKey: 'hello',
         });
     });
@@ -333,7 +333,7 @@ describe('config viewer + viewerOptions interaction', () => {
             paused: false,
             speed: 1000,
             keyframeInterval: 100,
-            replayBuffer: 3000,
+            replayBuffer: 5000,
         });
     });
 
@@ -349,7 +349,7 @@ describe('config viewer + viewerOptions interaction', () => {
             paused: true,
             speed: 500,
             keyframeInterval: 100,
-            replayBuffer: 3000,
+            replayBuffer: 5000,
         });
     });
 
