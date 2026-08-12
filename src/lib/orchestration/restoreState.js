@@ -108,7 +108,7 @@ async function clearAndRefill(collection, documents, label) {
  *
  * Steps:
  *   1. Read current gameTime (BEFORE overwriting — needed for truncation)
- *   2. Overwrite rooms.objects (clear + refill)
+ *   2. Overwrite rooms.objects (clear + refill, ownership remapped)
  *   3. Overwrite rooms.terrain (only if snapshot has terrain data)
  *   4. Overwrite rooms.flags (only if snapshot has flags data)
  *   5. Set gameTime in env
@@ -117,6 +117,9 @@ async function clearAndRefill(collection, documents, label) {
  *   8. Truncate future per-tick snapshots (sit:snap: > tick)
  *   9. Truncate roomHistory
  *  10. Update report.ticksRun (if extras.report)
+ *  11. Activate rooms (ACTIVE_ROOMS) — the engine reads-and-clears
+ *      this set every tick; without it the restored rooms would never
+ *      be processed and ticks would run empty/fast.
  *
  * TODO(phase3-step6.3): Validate snapshot.version >= '2.0' for
  *   compatibility; currently any version is accepted silently.
@@ -128,17 +131,45 @@ async function clearAndRefill(collection, documents, label) {
  * @param {Object} [extras.report] — worker report to update ticksRun
  * @param {Object<string,Object>} [extras.memories] — per-bot Memory
  *   (from memoryHistory for rewind; if absent, uses snapshot.env.memory)
+ * @param {Object<string,string>} [extras.userIdMap] — map of old bot
+ *   user ids (from the snapshot) to current bot ids. Used when a world
+ *   is recreated from a snapshot and bots got fresh ids: restored
+ *   objects' `user` fields are rewritten so the new bots keep owning
+ *   their spawns, controllers, creeps, etc.
  * @returns {Promise<{tick:number, rooms:number, bots:number}>}
  */
 async function restoreState(adapter, bots, snapshot, extras = {}) {
     const { db, env } = adapter;
+
+    // 0. Remap bot ownership: restored objects reference the OLD user ids
+    //    from the snapshot, but a recreated world assigns NEW ids to its
+    //    bots. Without remapping the bots would not own their objects.
+    const userIdMap = extras.userIdMap || {};
+    const hasUserMap = Object.keys(userIdMap).length > 0;
+
+    /**
+     * Returns docs with `user` fields remapped from old to new bot ids.
+     * Non-mutating — the caller's snapshot object stays untouched.
+     *
+     * @param {Object[]} docs
+     * @returns {Object[]}
+     */
+    function remapOwners(docs) {
+        if (!hasUserMap) return docs;
+        return docs.map((doc) => {
+            if (doc.user && userIdMap[doc.user]) {
+                return { ...doc, user: userIdMap[doc.user] };
+            }
+            return doc;
+        });
+    }
 
     // 1. Read current gameTime BEFORE overwriting (needed for truncation)
     const currentTick = parseInt((await env.get(env.keys.GAMETIME)) || '0', 10);
     const targetTick = snapshot.env.gameTime;
 
     // 2. rooms.objects — always restore
-    await clearAndRefill(db['rooms.objects'], snapshot.db['rooms.objects'], 'rooms.objects');
+    await clearAndRefill(db['rooms.objects'], remapOwners(snapshot.db['rooms.objects']), 'rooms.objects');
 
     // 3. terrain — only if snapshot HAS terrain data (rewind doesn't)
     //    Check key existence, not just truthiness: empty array = "clear terrain"
@@ -148,7 +179,7 @@ async function restoreState(adapter, bots, snapshot, extras = {}) {
 
     // 4. flags — only if snapshot HAS flags data
     if (db['rooms.flags'] && isPresent(snapshot.db['rooms.flags'])) {
-        await clearAndRefill(db['rooms.flags'], snapshot.db['rooms.flags'], 'rooms.flags');
+        await clearAndRefill(db['rooms.flags'], remapOwners(snapshot.db['rooms.flags']), 'rooms.flags');
     }
 
     // 5. gameTime
@@ -204,6 +235,15 @@ async function restoreState(adapter, bots, snapshot, extras = {}) {
     if (extras.report) {
         extras.report.ticksRun = targetTick;
         extras.report.stopReason = null;
+    }
+
+    // 11. Activate rooms — the engine reads-and-clears ACTIVE_ROOMS on
+    //     every tick to decide which rooms to process. After a restore
+    //     (especially snapshot launch on a fresh server) the set is empty,
+    //     so the restored rooms must be re-added — otherwise ticks would
+    //     run without any room processing.
+    for (const roomName of snapshot.meta.rooms) {
+        await env.sadd(env.keys.ACTIVE_ROOMS, roomName);
     }
 
     return {

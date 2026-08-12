@@ -25,14 +25,17 @@ const { getBotMemory } = require('../../lib/builders/memory');
 /**
  * Builds a minimal botConfig object from bots map for snapshot metadata.
  *
+ * Stores the bot's user `_id` so that a world recreated from the snapshot
+ * can remap object ownership (the new server assigns fresh bot ids).
+ *
  * @param {Object<string, {id:string}>} bots — map of username → { id }
- * @returns {Object<string, {username:string, opts:{}}>}
+ * @returns {Object<string, {username:string, id:string|null, opts:{}}>}
  */
 function buildBotConfig(bots) {
-    /** @type {Object<string, {username:string, opts:{}}>} */
+    /** @type {Object<string, {username:string, id:string|null, opts:{}}>} */
     const config = {};
-    for (const [username] of Object.entries(bots)) {
-        config[username] = { username, opts: {} };
+    for (const [username, bot] of Object.entries(bots)) {
+        config[username] = { username, id: bot.id || null, opts: {} };
     }
     return config;
 }

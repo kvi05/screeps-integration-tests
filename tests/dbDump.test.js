@@ -40,6 +40,7 @@ function createMockAdapter(initialState = {}) {
             ROOM_HISTORY: 'roomHistory:',
             ROOM_STATUS_DATA: 'roomStatusData',
             ACCESSIBLE_ROOMS: 'accessibleRooms',
+            ACTIVE_ROOMS: 'activeRooms',
         },
         async get(key) {
             return envStore[key] ?? null;
@@ -49,6 +50,17 @@ function createMockAdapter(initialState = {}) {
         },
         async del(key) {
             delete envStore[key];
+        },
+        async sadd(key, value) {
+            /** @type {string[]} */
+            let members = [];
+            try {
+                members = JSON.parse(envStore[key] || '[]');
+            } catch {
+                members = [];
+            }
+            if (!members.includes(value)) members.push(value);
+            envStore[key] = JSON.stringify(members);
         },
         async hget(key, field) {
             // Simulate hget: key is a prefix, field is appended
@@ -140,7 +152,7 @@ describe('collectFullDump', () => {
         expect(dump.meta.rooms).toEqual(['W0N1']);
         expect(dump.meta.timestamp).toBeTruthy();
         expect(dump.version).toBe('2.0');
-        expect(dump.meta.botConfig).toEqual({ bot1: { username: 'bot1', opts: {} } });
+        expect(dump.meta.botConfig).toEqual({ bot1: { username: 'bot1', id: 'uid1', opts: {} } });
         expect(dump.meta.frameworkVersion).toBeTruthy();
         expect(dump.meta.frameworkVersion).toMatch(/^\d+\.\d+\.\d+/);
 
