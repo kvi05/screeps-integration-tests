@@ -60,6 +60,15 @@ export function connectSSE(onEvent) {
         }
     });
 
+    es.addEventListener('restored', (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            onEvent('restored', data);
+        } catch {
+            /* skip */
+        }
+    });
+
     es.addEventListener('status', (e) => {
         try {
             const data = JSON.parse(e.data);
@@ -75,6 +84,15 @@ export function connectSSE(onEvent) {
             onEvent('scenario-result', data);
         } catch {
             /* skip */
+        }
+    });
+
+    es.addEventListener('error', (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            onEvent('error', data);
+        } catch {
+            onEvent('error', { message: 'Unknown server error' });
         }
     });
 
@@ -148,6 +166,16 @@ export function postSaveSnapshot() {
 /** Load a snapshot */
 export function postLoadSnapshot(data) {
     return postJSON('/api/load-snapshot', { data });
+}
+
+/** Rewind to a specific tick */
+export function postRestoreTick(tick) {
+    return postJSON('/api/restore-tick', { tick });
+}
+
+/** List saved snapshot files */
+export function getSnapshots() {
+    return fetch('/api/snapshots').then((r) => r.json());
 }
 
 /** Stop the current interactive scenario */
