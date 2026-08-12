@@ -2,17 +2,17 @@
 
 /**
  * @file Rewinds the mockup server to a past tick by reconstructing state
- *   from per-tick snapshots (`sit:snap:<N>`), then overwriting the DB.
- *   Does NOT restart the worker — overwrites in-place.
+ *   from per-tick snapshots (`sit:snap:<N>`), then delegating to
+ *   `restoreState` for the actual DB overwrite.
  *
  * Responsibility:
- *   - `rewindToTick` — full rewind: validate, reconstruct, overwrite, truncate
+ *   - `rewindToTick` — thin wrapper: reads sit:snap, builds snapshot object,
+ *     calls `restoreState`.  Does NOT contain restore logic itself.
  *
  * @module tools/viewer/rewind
  */
 
-const { clearAndRefill } = require('./dbDump');
-const { getBotMemory } = require('../../lib/builders/memory');
+const { restoreState } = require('../../lib/orchestration/restoreState');
 
 /**
  * @typedef {import('../../lib/runtime/storageAdapter').StorageAdapter} StorageAdapter
@@ -21,16 +21,10 @@ const { getBotMemory } = require('../../lib/builders/memory');
 /**
  * Rewinds the server to tick N using per-tick snapshots (sit:snap:<N>).
  *
- * Steps:
- *   1. Validate tickN < current gameTime
- *   2. Read per-tick snapshot — flat array of ALL room objects
- *   3. Reconstruct Memory from extras.memories (IPC round-trip) or fallback
- *   4. Overwrite db['rooms.objects'] (clear + refill via clearAndRefill)
- *   5. Overwrite env Memory for each bot
- *   6. Set gameTime = tickN
- *   7. Truncate future sit:snap keys (ticks > tickN are gone)
- *   8. Truncate roomHistory
- *   9. Update report.ticksRun (if extras.report)
+ * This is a thin wrapper over {@link restoreState}.  It reads the flat
+ * object array from `sit:snap:<N>`, builds a minimal snapshot object
+ * (without terrain/flags — rewind preserves static structure), and
+ * delegates all DB/env overwrite logic to `restoreState`.
  *
  * @param {StorageAdapter} adapter
  * @param {Object<string, {id:string}>} bots — map of username → { id }
@@ -44,7 +38,7 @@ const { getBotMemory } = require('../../lib/builders/memory');
  * @throws {Error} if tickN >= current gameTime or no snapshot at tickN
  */
 async function rewindToTick(adapter, bots, roomStatus, tickN, extras = {}) {
-    const { db, env } = adapter;
+    const { env } = adapter;
 
     // 1. Validate
     const currentTick = parseInt((await env.get(env.keys.GAMETIME)) || '0', 10);
@@ -62,66 +56,35 @@ async function rewindToTick(adapter, bots, roomStatus, tickN, extras = {}) {
     }
     const allObjects = JSON.parse(raw);
 
-    // 3. Reconstruct Memory for each bot
-    //    extras.memories comes from parent's memoryHistory via IPC round-trip.
-    //    Fall back to current Memory if a bot has no reconstructed data.
-    /** @type {Object<string, Object>} */
-    const memories = {};
-    for (const [username, bot] of Object.entries(bots)) {
-        let mem = extras.memories && extras.memories[username];
-        if (mem === null || mem === undefined) {
-            // Fallback: use current Memory (best effort)
-            try {
-                mem = await getBotMemory(adapter, bot.id);
-            } catch {
-                mem = {};
-            }
-        }
-        memories[username] = mem;
-    }
-
-    // 4. Overwrite rooms.objects (clear + refill with stripped LokiJS internals)
-    await clearAndRefill(db['rooms.objects'], allObjects, 'rooms.objects');
-
-    // 5. Overwrite Memory
-    for (const [username, bot] of Object.entries(bots)) {
-        if (memories[username] !== null && memories[username] !== undefined) {
-            await env.set(env.keys.MEMORY + bot.id, JSON.stringify(memories[username]));
-        }
-    }
-
-    // 6. Set gameTime
-    await env.set(env.keys.GAMETIME, String(tickN));
-
-    // 7. Truncate: delete FUTURE sit:snap keys (ticks after tickN are gone)
-    for (let i = tickN + 1; i <= currentTick; i++) {
-        try {
-            await env.del('sit:snap:' + i);
-        } catch {
-            /* ignore — key may not exist */
-        }
-    }
-
-    // 8. Truncate roomHistory (past is gone after rewind)
-    for (const roomName of Object.keys(roomStatus)) {
-        try {
-            await env.del(env.keys.ROOM_HISTORY + roomName);
-        } catch {
-            /* ignore — may not exist */
-        }
-    }
-
-    // 9. Update worker state
-    if (extras.report) {
-        extras.report.ticksRun = tickN;
-        extras.report.stopReason = null;
-    }
-
-    return {
-        tick: tickN,
-        rooms: Object.keys(roomStatus).length,
-        bots: Object.keys(bots).length,
+    // 3. Build snapshot object
+    //    terrain/flags are NOT included — restoreState skips them
+    //    when the key is absent (rewind preserves static terrain)
+    const snapshot = {
+        version: '2.0',
+        meta: {
+            scenario: '',
+            timestamp: '',
+            tick: tickN,
+            bots: Object.keys(bots),
+            rooms: Object.keys(roomStatus),
+            botConfig: {},
+            frameworkVersion: '',
+        },
+        db: {
+            'rooms.objects': allObjects,
+            // 'rooms.terrain' — intentionally absent: rewind doesn't touch terrain
+            // 'rooms.flags' — intentionally absent: rewind doesn't touch flags
+        },
+        env: {
+            gameTime: tickN,
+            memory: extras.memories || {},
+            roomStatus: null,
+            accessibleRooms: null,
+        },
     };
+
+    // 4. Delegate to restoreState
+    return restoreState(adapter, bots, snapshot, extras);
 }
 
 module.exports = { rewindToTick };

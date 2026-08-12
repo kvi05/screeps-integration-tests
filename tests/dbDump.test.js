@@ -139,6 +139,10 @@ describe('collectFullDump', () => {
         expect(dump.meta.bots).toEqual(['bot1']);
         expect(dump.meta.rooms).toEqual(['W0N1']);
         expect(dump.meta.timestamp).toBeTruthy();
+        expect(dump.version).toBe('2.0');
+        expect(dump.meta.botConfig).toEqual({ bot1: { username: 'bot1', opts: {} } });
+        expect(dump.meta.frameworkVersion).toBeTruthy();
+        expect(dump.meta.frameworkVersion).toMatch(/^\d+\.\d+\.\d+/);
 
         expect(dump.db['rooms.objects']).toHaveLength(1);
         expect(dump.db['rooms.objects'][0]._id).toBe('c1');
@@ -232,6 +236,18 @@ describe('collectFullDump', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('restoreFromDump', () => {
+    it('throws on missing snapshot.db', async () => {
+        const { adapter } = createMockAdapter({ env: { gameTime: '10' } });
+        await expect(restoreFromDump(adapter, {}, { env: { gameTime: 5 } }, {})).rejects.toThrow(/missing db or env/);
+    });
+
+    it('throws on missing snapshot.env', async () => {
+        const { adapter } = createMockAdapter({ env: { gameTime: '10' } });
+        await expect(restoreFromDump(adapter, {}, { db: { 'rooms.objects': [] } }, {})).rejects.toThrow(
+            /missing db or env/,
+        );
+    });
+
     it('overwrites rooms.objects (old objects gone, new inserted)', async () => {
         const { adapter } = createMockAdapter({
             objects: [{ _id: 'old1', type: 'creep', x: 1, y: 1, room: 'W0N1' }],
