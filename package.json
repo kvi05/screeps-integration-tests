@@ -19,6 +19,7 @@
         "./events": "./src/public/events.js",
         "./errors": "./src/public/errors.js",
         "./constants": "./src/public/constants.js",
+        "./snapshot": "./src/public/snapshot.js",
         "./package.json": "./package.json"
     },
     "files": [

@@ -310,6 +310,12 @@
  * @property {number} [ticks=100]                                  — tick limit (unless `until.maxTicks` is set)
  * @property {boolean} [profiling=false]                           — enable profiling (screeps-profiler + callgrind)
  *
+ * @property {string|Object} [snapshot]                            — path to a snapshot JSON file, or a
+ *   snapshot object. When set, room and bot specs are built from `snapshot.meta`
+ *   (unless explicitly overridden by `rooms`/`bots`), and the world state is restored
+ *   from the snapshot after materialization — `report.ticksRun` starts at
+ *   `snapshot.env.gameTime`. See `screeps-integration-tests/snapshot`.
+ *
  * @property {'all'|'error'|'warn'} [logLevel='all']             — log threshold for world.report.logs
  * @property {number} [maxConsoleLines=10000]
  * @property {MetricsOpts} [metrics]                               — metrics collection settings
