@@ -39,6 +39,11 @@ const SUMMARY_ERROR_LINES = 10;
 /**
  * @typedef {import('../src/lib/types').WorkerMessage} WorkerMessage
  * @typedef {import('../src/lib/types').SummaryEntry} SummaryEntry
+ *
+ * @typedef {Object} SnapshotDump — full world snapshot sent by worker via viewer:snapshot-data IPC
+ * @property {{scenario:string, timestamp:string, tick:number, bots:string[], rooms:string[]}} meta
+ * @property {{'rooms.objects':Object[], 'rooms.terrain':Object[], 'rooms.flags':Object[]}} db
+ * @property {{gameTime:number, memory:Object<string,Object>, roomStatus:Object|null, accessibleRooms:string[]|null}} env
  */
 
 const RUNNER_SCRIPT = path.join(__dirname, '..', 'src', 'runScenario.js');
@@ -422,6 +427,62 @@ async function runViewerMode(config) {
                     }
                 }
                 break;
+            case 'viewer:snapshot-data':
+                if (msg.dump) {
+                    /** @type {SnapshotDump} */
+                    const dump = msg.dump;
+                    try {
+                        const dir = path.join(process.cwd(), 'snapshots');
+                        fs.mkdirSync(dir, { recursive: true });
+                        // Extract scenario name from path: /path/to/my-scenario.scenario.js → my-scenario
+                        const scenarioRaw = dump.meta.scenario || '';
+                        const scenarioName =
+                            path
+                                .basename(scenarioRaw)
+                                .replace(/\.scenario\.js$/, '')
+                                .replace(/[<>:"/\\|?*]/g, '_') || 'unknown';
+
+                        // Human-readable timestamp: YYYY-MM-DD_HH-mm
+                        const now = new Date();
+                        const pad = (n) => String(n).padStart(2, '0');
+                        const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+                        const filename = `snapshot-${scenarioName}-tick${dump.meta.tick}-${ts}.json`;
+                        const filepath = path.join(dir, filename);
+                        fs.writeFileSync(filepath, JSON.stringify(dump));
+                        console.log(`[viewer] Snapshot saved: ${filepath}`);
+                        if (activeChild && activeChild.connected) {
+                            activeChild.send({
+                                type: 'viewer:snapshot-saved',
+                                path: filepath,
+                            });
+                        }
+                    } catch (err) {
+                        console.error(`[viewer] Failed to save snapshot: ${err.message}`);
+                    }
+                }
+                break;
+            case 'viewer:snapshot-error':
+                console.error(`[viewer] Snapshot save failed: ${msg.error}`);
+                break;
+            case 'viewer:restored':
+                if (uiServer) {
+                    uiServer.updateStatus({
+                        state: 'running',
+                        tick: msg.tick,
+                    });
+                    // Tell clients to reset their local frame buffer
+                    uiServer.broadcastRestored(msg.tick);
+                }
+                break;
+            case 'viewer:restore-error':
+                console.error(`[viewer] Restore failed: ${msg.error}`);
+                if (uiServer) {
+                    // Broadcast error to SSE clients so UI can display it.
+                    // Do NOT call updateStatus here — the worker already sends
+                    // the correct state via viewer:status (preserving wasPaused).
+                    uiServer.broadcastError('restore', msg.error || 'Unknown restore error');
+                }
+                break;
             case 'viewer:scenario-result':
                 if (uiServer) uiServer.broadcastScenarioResult(msg);
                 break;
@@ -434,6 +495,25 @@ async function runViewerMode(config) {
                         tick: msg.tick,
                         bots: msg.bots,
                     });
+                }
+                break;
+            case 'viewer:memory-request':
+                if (memoryHistory && msg.tick !== undefined && msg.bots) {
+                    /** @type {Object<string, Object>} */
+                    const memories = {};
+                    for (const username of msg.bots) {
+                        const mem = memoryHistory.reconstruct(msg.tick, username);
+                        if (mem !== null) {
+                            memories[username] = mem;
+                        }
+                    }
+                    if (child && child.connected) {
+                        child.send({
+                            type: 'viewer:memory-reconstruct',
+                            tick: msg.tick,
+                            memories,
+                        });
+                    }
                 }
                 break;
         }
