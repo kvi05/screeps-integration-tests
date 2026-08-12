@@ -48,7 +48,6 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
             loadRoomFixturesFromDir(msg.roomFixturesDir);
         }
 
-        const scenario = require(msg.scenarioPath);
         const opts = msg.opts || {};
 
         // ── Tool injection: viewer tick interceptor ──────────────────────
@@ -72,15 +71,47 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
             setTickInterceptor(opts.tickInterceptor);
         }
 
-        const result = await scenario.run(opts);
+        /** @type {import('./lib/types').ScenarioOutput} */
+        let result;
 
+        // ── Branching: snapshot launch vs normal scenario ──────────────
+        if (opts.restoreSnapshot) {
+            // ── Snapshot launch mode ───────────────────────────────────
+            // No scenario file — createWorld builds world from snapshot meta.
+            const { createWorld } = require('./lib/orchestration/world');
+
+            const snapshot = opts.restoreSnapshot;
+            const world = await createWorld({
+                snapshot,
+                viewer: true,
+                viewerOptions: opts.viewerOptions,
+                // tickInterceptor already set above via opts + setTickInterceptor
+            });
+
+            // createWorld has:
+            //   1. Built room/bot specs from snapshot.meta
+            //   2. Materialized rooms + bots
+            //   3. Called restoreState() — DB overwritten from snapshot
+            //   4. Set report.ticksRun = snapshot.env.gameTime
+            // Now world.run() starts ticking from the snapshot tick.
+
+            result = await world.run();
+        } else {
+            // ── Normal scenario mode ──────────────────────────────────
+            const scenario = require(msg.scenarioPath);
+            result = await scenario.run(opts);
+        }
+
+        // ── Send scenario result (common for both paths) ──────────────
         // Send scenario result for viewer ScenarioManager.
         // Always send when running in a forked process (headless or interactive).
         if (process.send) {
             try {
                 process.send({
                     type: 'viewer:scenario-result',
-                    scenario: msg.scenarioPath,
+                    scenario: /** @type {string} */ (
+                        opts.restoreSnapshot?.meta?.scenario || msg.scenarioPath || 'snapshot-launch'
+                    ),
                     status: result?.skipped ? 'skip' : 'pass',
                     time: result?.wallClockMs || 0,
                     ticks: result?.ticksRun || 0,

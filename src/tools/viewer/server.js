@@ -154,8 +154,10 @@ function serveStatic(res, filePath) {
  * @param {number} [opts.port] — explicit port (default: auto via getFreePort)
  * @param {string} [opts.distDir] — path to ui/dist/ (default: computed relative to this file)
  * @param {Function} [opts.sendCommand] — callback to forward commands to worker: (cmd) => void
+ * @param {string} [opts.snapshotsDir] — directory for saved world snapshots (*.json)
  * @param {string} [opts.scenariosDir] — directory containing *.scenario.js files
  * @param {Function} [opts.onRunScenario] — callback to run a scenario: (scenarioPath, interactive) => void
+ * @param {Function} [opts.onRunFromSnapshot] — callback to launch from snapshot: (snapshotData) => void
  * @param {{scenario:string, maxTicks:number, replayBuffer:number}} [opts.lastStart] — last start info to re-send to late-connecting SSE clients
  * @param {Object} [opts.memoryHistory] — Memory history ring buffer for /api/memory endpoint
  * @returns {Promise<UiServer>}
@@ -165,6 +167,9 @@ async function createUiServer(opts = {}) {
 
     // Compute the path to ui/dist relative to this file's location
     const distDir = opts.distDir || path.resolve(__dirname, 'dist');
+
+    // Snapshots directory — defaults to ./snapshots in cwd if not configured
+    const snapshotsDir = opts.snapshotsDir || path.join(process.cwd(), 'snapshots');
 
     /** @type {Set<ReturnType<typeof openSse>>} */
     const sseClients = new Set();
@@ -426,21 +431,114 @@ async function createUiServer(opts = {}) {
             return;
         }
 
-        // GET /api/snapshots — list saved snapshot files
+        // POST /api/run-from-snapshot — launch a scenario from a snapshot file
+        if (pathname === '/api/run-from-snapshot' && req.method === 'POST') {
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                return;
+            }
+            const snapshotFile = body.snapshotFile;
+            if (!snapshotFile) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Missing snapshotFile' }));
+                return;
+            }
+            // Security: use path.basename to strip any path traversal
+            const safeName = path.basename(snapshotFile);
+            if (!safeName || !safeName.endsWith('.json')) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid filename' }));
+                return;
+            }
+            const filePath = path.join(snapshotsDir, safeName);
+            // Security: ensure the resolved path is still inside snapshotsDir
+            if (!filePath.startsWith(snapshotsDir)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden' }));
+                return;
+            }
+            // Read snapshot from disk
+            let snapshotData;
+            try {
+                snapshotData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            } catch {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Snapshot not found or invalid' }));
+                return;
+            }
+            // Launch: fork worker with restoreSnapshot
+            if (opts.onRunFromSnapshot) {
+                opts.onRunFromSnapshot(snapshotData);
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // DELETE /api/snapshots/:file — delete a saved snapshot
+        if (pathname.startsWith('/api/snapshots/') && req.method === 'DELETE') {
+            // Extract filename: /api/snapshots/my-file.json → my-file.json
+            const fileName = decodeURIComponent(pathname.slice('/api/snapshots/'.length));
+            // Security: use path.basename to strip any path traversal
+            const safeName = path.basename(fileName);
+            if (!safeName || !safeName.endsWith('.json')) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid filename' }));
+                return;
+            }
+            const filePath = path.join(snapshotsDir, safeName);
+            // Security: ensure the resolved path is still inside snapshotsDir
+            if (!filePath.startsWith(snapshotsDir)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden' }));
+                return;
+            }
+            try {
+                fs.unlinkSync(filePath);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true }));
+            } catch {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'File not found' }));
+            }
+            return;
+        }
+
+        // GET /api/snapshots — list saved snapshot files with metadata
         if (pathname === '/api/snapshots' && req.method === 'GET') {
-            const snapshotsDir = path.join(process.cwd(), 'snapshots');
-            /** @type {Array<{file:string, size:number, modified:string}>} */
+            /** @type {Array<{file:string, size:number, modified:string, tick?:number, scenario?:string}>} */
             const snapshots = [];
             try {
                 const entries = fs.readdirSync(snapshotsDir);
                 for (const entry of entries) {
                     if (entry.endsWith('.json')) {
-                        const stat = fs.statSync(path.join(snapshotsDir, entry));
-                        snapshots.push({
+                        const fullPath = path.join(snapshotsDir, entry);
+                        const stat = fs.statSync(fullPath);
+                        const item = {
                             file: entry,
                             size: stat.size,
                             modified: stat.mtime.toISOString(),
-                        });
+                        };
+                        // Parse meta for tick + scenario (best-effort)
+                        try {
+                            const data = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+                            if (data.meta) {
+                                item.tick = data.meta.tick;
+                                item.scenario = data.meta.scenario
+                                    ? data.meta.scenario
+                                          .split(/[/\\]/)
+                                          .pop()
+                                          .replace(/\.scenario\.js$/, '')
+                                    : undefined;
+                            }
+                        } catch {
+                            /* corrupted file — skip meta */
+                        }
+                        snapshots.push(item);
                     }
                 }
                 snapshots.sort((a, b) => b.modified.localeCompare(a.modified));
@@ -460,7 +558,6 @@ async function createUiServer(opts = {}) {
                 res.end(JSON.stringify({ error: 'Not found' }));
                 return;
             }
-            const snapshotsDir = path.join(process.cwd(), 'snapshots');
             const filePath = path.join(snapshotsDir, requestedFile);
             // Security: ensure the resolved path is still inside snapshotsDir
             if (!filePath.startsWith(snapshotsDir)) {
