@@ -90,6 +90,7 @@ PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-inte
 
 - **`viewerOptions` config key.** A new section in `screeps-integration.config.js`
   for viewer fine-tuning:
+
   ```js
   viewerOptions: {
     paused: false,          // start paused
@@ -98,7 +99,28 @@ PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-inte
     replayBuffer: 3000,     // max frames/ticks in ring buffers
   }
   ```
+
   Partial overrides are supported — only specify the keys you want to change.
+
+PR #54 [Feat/phase 3](https://github.com/kvi05/screeps-integration-tests/pull/54)
+
+- **Snapshot launch — `createWorld({ snapshot })` and time-travel restore.**
+  Recreate a full world from a saved snapshot (v2 format) without a scenario
+  file — useful for CI debugging and interactive exploration from Scenario
+  Manager.
+  - `createWorld({ snapshot: filePath | snapshotObject })` — builds rooms/bots
+    from snapshot metadata, materializes them, then restores the exact world
+    state (objects, terrain, flags, memory, gameTime) via `restoreState`.
+  - `screeps-integration-tests/snapshot` sub-path export: `restoreState`,
+    `readSnapshot`.
+  - REST: `POST /api/run-from-snapshot` (launch from saved file),
+    `DELETE /api/snapshots/:file` (delete saved snapshot).
+  - `GET /api/snapshots` now returns `tick` and `scenario` metadata per file
+    (parsed on the fly — no extra fetch needed).
+  - Worker restore mode: when `opts.restoreSnapshot` is set, the worker
+    creates a world from snapshot instead of requiring a scenario file.
+  - Snapshots directory is now derived from `scenariosDir` (sibling of the
+    scenarios folder), not `process.cwd()`.
 
 ### Changed
 

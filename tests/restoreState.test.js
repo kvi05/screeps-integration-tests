@@ -44,6 +44,7 @@ function createMockAdapter(initialState = {}) {
             ROOM_HISTORY: 'roomHistory:',
             ROOM_STATUS_DATA: 'roomStatusData',
             ACCESSIBLE_ROOMS: 'accessibleRooms',
+            ACTIVE_ROOMS: 'activeRooms',
         },
         async get(key) {
             return envStore[key] ?? null;
@@ -53,6 +54,17 @@ function createMockAdapter(initialState = {}) {
         },
         async del(key) {
             delete envStore[key];
+        },
+        async sadd(key, value) {
+            /** @type {string[]} */
+            let members = [];
+            try {
+                members = JSON.parse(envStore[key] || '[]');
+            } catch {
+                members = [];
+            }
+            if (!members.includes(value)) members.push(value);
+            envStore[key] = JSON.stringify(members);
         },
     };
 
@@ -643,5 +655,129 @@ describe('restoreState', () => {
         expect(result.tick).toBe(7);
         expect(result.rooms).toBe(2);
         expect(result.bots).toBe(2);
+    });
+
+    // ── Room activation ───────────────────────────────────────────────────
+
+    it('activates snapshot rooms via ACTIVE_ROOMS', async () => {
+        const { adapter, getEnv } = createMockAdapter({
+            env: { gameTime: '10' },
+        });
+
+        const snapshot = createSnapshot({
+            meta: { ...createSnapshot().meta, rooms: ['W0N1', 'W1N1'] },
+            db: { 'rooms.objects': [], 'rooms.terrain': [], 'rooms.flags': [] },
+        });
+
+        await restoreState(adapter, {}, snapshot);
+
+        const env = getEnv();
+        expect(JSON.parse(env.activeRooms)).toEqual(['W0N1', 'W1N1']);
+    });
+
+    it('re-activates a room already present in ACTIVE_ROOMS without duplicates', async () => {
+        const { adapter, getEnv } = createMockAdapter({
+            env: { gameTime: '10', activeRooms: '["W0N1"]' },
+        });
+
+        const snapshot = createSnapshot({
+            db: { 'rooms.objects': [], 'rooms.terrain': [], 'rooms.flags': [] },
+        });
+
+        await restoreState(adapter, {}, snapshot);
+
+        const env = getEnv();
+        expect(JSON.parse(env.activeRooms)).toEqual(['W0N1']);
+    });
+
+    // ── Ownership remap ───────────────────────────────────────────────────
+
+    it('remaps object user fields via extras.userIdMap', async () => {
+        const { adapter, getState } = createMockAdapter({
+            env: { gameTime: '10' },
+        });
+
+        const snapshot = createSnapshot({
+            db: {
+                'rooms.objects': [
+                    { _id: 'o1', type: 'spawn', room: 'W0N1', user: 'oldId' },
+                    { _id: 'o2', type: 'controller', room: 'W0N1', user: 'oldId' },
+                    { _id: 'o3', type: 'source', room: 'W0N1' },
+                ],
+                'rooms.terrain': [],
+                'rooms.flags': [],
+            },
+        });
+
+        await restoreState(adapter, { bot1: { id: 'newBotId' } }, snapshot, {
+            userIdMap: { oldId: 'newBotId' },
+        });
+
+        const { objects } = getState();
+        expect(objects.find((o) => o._id === 'o1').user).toBe('newBotId');
+        expect(objects.find((o) => o._id === 'o2').user).toBe('newBotId');
+        expect(objects.find((o) => o._id === 'o3').user).toBeUndefined();
+    });
+
+    it('does not mutate the original snapshot docs when remapping', async () => {
+        const { adapter } = createMockAdapter({
+            env: { gameTime: '10' },
+        });
+
+        /** @type {Object[]} */
+        const docs = [{ _id: 'o1', type: 'spawn', room: 'W0N1', user: 'oldId' }];
+        const snapshot = createSnapshot({
+            db: { 'rooms.objects': docs, 'rooms.terrain': [], 'rooms.flags': [] },
+        });
+
+        await restoreState(adapter, { bot1: { id: 'newBotId' } }, snapshot, {
+            userIdMap: { oldId: 'newBotId' },
+        });
+
+        expect(docs[0].user).toBe('oldId');
+    });
+
+    it('leaves user fields untouched without extras.userIdMap', async () => {
+        const { adapter, getState } = createMockAdapter({
+            env: { gameTime: '10' },
+        });
+
+        const snapshot = createSnapshot({
+            db: {
+                'rooms.objects': [{ _id: 'o1', type: 'spawn', room: 'W0N1', user: 'someId' }],
+                'rooms.terrain': [],
+                'rooms.flags': [],
+            },
+        });
+
+        await restoreState(adapter, { bot1: { id: 'newBotId' } }, snapshot, {});
+
+        const { objects } = getState();
+        expect(objects[0].user).toBe('someId');
+    });
+
+    it('remaps flag user fields via extras.userIdMap', async () => {
+        const { adapter, getState } = createMockAdapter({
+            env: { gameTime: '10' },
+        });
+
+        const snapshot = createSnapshot({
+            db: {
+                'rooms.objects': [],
+                'rooms.terrain': [],
+                'rooms.flags': [
+                    { _id: 'f1', room: 'W0N1', user: 'oldId' },
+                    { _id: 'f2', room: 'W0N1', user: 'otherId' },
+                ],
+            },
+        });
+
+        await restoreState(adapter, { bot1: { id: 'newBotId' } }, snapshot, {
+            userIdMap: { oldId: 'newBotId' },
+        });
+
+        const { flags } = getState();
+        expect(flags.find((f) => f._id === 'f1').user).toBe('newBotId');
+        expect(flags.find((f) => f._id === 'f2').user).toBe('otherId');
     });
 });

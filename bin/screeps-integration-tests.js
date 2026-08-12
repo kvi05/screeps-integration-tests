@@ -220,7 +220,16 @@ function findScenarios(scenariosDir, only) {
  * @returns {Promise<WorkerMessage & {time?: number}>}
  */
 async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onIpcMessage) {
-    const child = fork(RUNNER_SCRIPT, [], { silent: true });
+    // SIT_SNAPSHOTS_DIR is read directly by lib/orchestration/world.js
+    // (resolveSnapshotsDir). Passing it via env guarantees the value reaches
+    // createWorld even when a scenario does not spread opts into it.
+    const child = fork(RUNNER_SCRIPT, [], {
+        silent: true,
+        env: {
+            ...process.env,
+            ...(opts && opts.snapshotsDir ? { SIT_SNAPSHOTS_DIR: opts.snapshotsDir } : {}),
+        },
+    });
     pipeChildStreams(child);
     const startTime = Date.now();
 
@@ -368,7 +377,7 @@ async function runViewerMode(config) {
     let terrainSent = false;
     /** @type {{scenario:string, maxTicks:number, replayBuffer:number}} */
     const lastStart = { scenario: '', maxTicks: 0, replayBuffer: 0 };
-    /** @type {Array<{scenarioPath:string, interactive:boolean}>} */
+    /** @type {Array<{scenarioPath:string, interactive:boolean, snapshotData?:Object}>} */
     const scenarioQueue = [];
     let activeCount = 0;
     // Interactive scenarios run one-at-a-time to avoid viewer race conditions.
@@ -417,7 +426,7 @@ async function runViewerMode(config) {
             case 'viewer:snapshot':
                 if (msg.data) {
                     try {
-                        const dir = path.join(process.cwd(), 'snapshots');
+                        const dir = config.snapshotsDir;
                         fs.mkdirSync(dir, { recursive: true });
                         const filename = `snapshot-${Date.now()}.json`;
                         fs.writeFileSync(path.join(dir, filename), JSON.stringify(msg.data, null, 2));
@@ -432,7 +441,7 @@ async function runViewerMode(config) {
                     /** @type {SnapshotDump} */
                     const dump = msg.dump;
                     try {
-                        const dir = path.join(process.cwd(), 'snapshots');
+                        const dir = config.snapshotsDir;
                         fs.mkdirSync(dir, { recursive: true });
                         // Extract scenario name from path: /path/to/my-scenario.scenario.js → my-scenario
                         const scenarioRaw = dump.meta.scenario || '';
@@ -530,12 +539,16 @@ async function runViewerMode(config) {
                 break;
             }
 
-            const { scenarioPath, interactive } = scenarioQueue.shift();
+            const { scenarioPath, interactive, snapshotData } = scenarioQueue.shift();
             activeCount++;
             if (interactive) interactiveRunning++;
-            const scenarioName = path.basename(scenarioPath, '.scenario.js');
+            const scenarioName = snapshotData
+                ? snapshotData.meta && snapshotData.meta.scenario
+                    ? path.basename(snapshotData.meta.scenario).replace(/\.scenario\.js$/, '')
+                    : 'snapshot-launch'
+                : path.basename(scenarioPath, '.scenario.js');
 
-            const opts = { profiling: config.profiling || false };
+            const opts = { profiling: config.profiling || false, snapshotsDir: config.snapshotsDir };
 
             if (interactive) {
                 opts.viewer = true;
@@ -546,6 +559,10 @@ async function runViewerMode(config) {
                 lastStart.replayBuffer = replayBufferTicks;
                 if (uiServer) uiServer.broadcastStart(scenarioName, 0, replayBufferTicks);
                 activeChild = null; // Will be set inside runScenarioInWorker via routeIpcMessage
+                // Snapshot launch: pass snapshot data to worker for restore mode
+                if (snapshotData) {
+                    opts.restoreSnapshot = snapshotData;
+                }
             }
 
             // For interactive scenarios, we need to track activeChild.
@@ -588,9 +605,32 @@ async function runViewerMode(config) {
         processQueue();
     };
 
+    /**
+     * Launch a world from a saved snapshot (via REST).
+     * Uses the existing worker infrastructure — the worker detects
+     * `opts.restoreSnapshot` and creates the world from snapshot meta
+     * instead of requiring a scenario file.
+     *
+     * @param {Object} snapshotData — full snapshot object from disk
+     */
+    const launchFromSnapshot = (snapshotData) => {
+        // Dispose existing interactive scenario if any
+        disposeActiveScenario();
+
+        // Queue as interactive scenario — processQueue handles activeChild,
+        // concurrency, and IPC routing (routeIpcMessage)
+        scenarioQueue.push({
+            scenarioPath: '', // empty — runScenario.js detects restoreSnapshot
+            interactive: true,
+            snapshotData,
+        });
+        processQueue();
+    };
+
     try {
         uiServer = await createUiServer({
             scenariosDir: config.scenariosDir,
+            snapshotsDir: config.snapshotsDir,
             lastStart,
             memoryHistory,
             sendCommand: (cmd) => {
@@ -599,6 +639,7 @@ async function runViewerMode(config) {
                 }
             },
             onRunScenario: launchScenario,
+            onRunFromSnapshot: launchFromSnapshot,
         });
     } catch (err) {
         console.error('[runner] Failed to start UI server:', err.message);
@@ -740,7 +781,7 @@ async function main() {
 
             const result = await runScenarioInWorker(
                 scenarioPath,
-                { profiling: config.profiling, viewer: config.viewer },
+                { profiling: config.profiling, viewer: config.viewer, snapshotsDir: config.snapshotsDir },
                 config.timeout,
                 config.roomFixturesDir,
                 null, // no IPC routing in batch mode

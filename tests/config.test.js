@@ -119,6 +119,19 @@ describe('config resolveConfig', () => {
             expect(config.cacheDir).toBe(path.join(tmpDir, '.cache'));
         });
 
+        it('resolves snapshotsDir default relative to configDir', () => {
+            const { resolveConfig } = require('../src/lib/config/config');
+            const { config } = resolveConfig([], tmpDir, {});
+            expect(config.snapshotsDir).toBe(path.resolve(tmpDir, 'snapshots'));
+        });
+
+        it('resolves snapshotsDir from config file relative to configDir', () => {
+            createConfigFile('module.exports = { snapshotsDir: "./custom-snapshots" };');
+            const { resolveConfig } = require('../src/lib/config/config');
+            const { config } = resolveConfig([], tmpDir, {});
+            expect(config.snapshotsDir).toBe(path.join(tmpDir, 'custom-snapshots'));
+        });
+
         it('does not resolve absolute paths relative to configDir', () => {
             const absPath = path.resolve('/absolute-cache');
             createConfigFile(`module.exports = { cacheDir: "${absPath.replace(/\\/g, '\\\\')}" };`);
