@@ -13,6 +13,7 @@ From lowest to highest:
    - `BOT_DIST_DIR` → `distDir`
    - `SIT_MEMORY_FIXTURES_DIR` → `memoryFixturesDir` (read by `lib/builders/memory.js`; also set by CLI from config)
    - `SIT_CACHE_DIR` → `cacheDir` (read by `lib/orchestration/world.js` and `src/tools/clean-cache.js`; also set by CLI from config)
+   - `SIT_SNAPSHOTS_DIR` → `snapshotsDir` (read by `lib/orchestration/world.js`; set for workers by the CLI from config)
 4. CLI arguments
 5. Explicit overrides from code
 
@@ -24,6 +25,7 @@ Relative paths are resolved **from the config file's directory**; if there is no
 module.exports = {
   distDir: './dist', // bot modules; fallback: BOT_DIST_DIR, then ./dist
   scenariosDir: './scenarios', // *.scenario.js
+  snapshotsDir: './snapshots', // saved world snapshots (*.json)
   memoryFixturesDir: './fixtures', // *.memory.json
   roomFixturesDir: null, // *.room.js; null = auto-load disabled
   profilesDir: './profiles', // callgrind profiles
