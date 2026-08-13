@@ -557,7 +557,14 @@ async function runViewerMode(config) {
                 lastStart.scenario = scenarioName;
                 lastStart.maxTicks = 0;
                 lastStart.replayBuffer = replayBufferTicks;
-                if (uiServer) uiServer.broadcastStart(scenarioName, 0, replayBufferTicks);
+                if (uiServer) {
+                    uiServer.broadcastStart(
+                        scenarioName,
+                        0,
+                        replayBufferTicks,
+                        config.viewerOptions ? config.viewerOptions.paused : false,
+                    );
+                }
                 activeChild = null; // Will be set inside runScenarioInWorker via routeIpcMessage
                 // Snapshot launch: pass snapshot data to worker for restore mode
                 if (snapshotData) {

@@ -139,7 +139,7 @@ function serveStatic(res, filePath) {
  *
  * @typedef {Object} UiServer
  * @property {number} port — the port the server is listening on
- * @property {(scenario:string, maxTicks:number, replayBuffer?:number) => void} broadcastStart — send start event to all SSE clients
+ * @property {(scenario:string, maxTicks:number, replayBuffer?:number, paused?:boolean) => void} broadcastStart — send start event to all SSE clients
  * @property {(frame: Object) => void} broadcast — send a frame to all SSE clients
  * @property {(terrain: Object) => void} broadcastTerrain — send terrain data to all SSE clients
  * @property {(result: {scenario:string, status:string, time:number, ticks:number}) => void} broadcastScenarioResult — send scenario result to all SSE clients
@@ -651,9 +651,9 @@ async function createUiServer(opts = {}) {
                     }
                 },
 
-                broadcastStart(scenario, maxTicks, replayBuffer) {
+                broadcastStart(scenario, maxTicks, replayBuffer, paused) {
                     for (const client of sseClients) {
-                        client.send('start', { scenario, maxTicks, replayBuffer });
+                        client.send('start', { scenario, maxTicks, replayBuffer, paused });
                     }
                 },
 
