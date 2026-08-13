@@ -357,6 +357,12 @@ export const DownloadIcon = (p) => (
     </Icon>
 );
 
+export const BookmarkIcon = (p) => (
+    <Icon {...p}>
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </Icon>
+);
+
 export const SettingsIcon = (p) => (
     <Icon {...p}>
         <circle cx="12" cy="12" r="3" />

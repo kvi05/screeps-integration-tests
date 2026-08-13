@@ -208,20 +208,28 @@ body,
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   TOOLBAR
+   TIMELINE BAR (unified Live / Replay / Rewound controls)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.viewer-toolbar {
+.timeline-bar {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: var(--sp-3);
     height: var(--toolbar-h);
     padding: 0 var(--sp-6);
     background: var(--bg-raised);
-    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
     flex-shrink: 0;
     user-select: none;
     z-index: var(--z-toolbar);
+}
+
+.timeline-separator {
+    width: 2px;
+    height: 30px;
+    background: var(--border);
+    margin: 0 var(--sp-2);
+    flex-shrink: 0;
 }
 
 /* ─── Toolbar buttons ────────────────────────────────────────────────────── */
@@ -248,48 +256,6 @@ body,
 }
 .btn-back svg {
     opacity: 0.7;
-}
-
-/* ─── Toolbar separator ───────────────────────────────────────────────────── */
-.toolbar-separator {
-    width: 2px;
-    height: 30px;
-    background: var(--border);
-    margin: 0 var(--sp-5);
-    flex-shrink: 0;
-}
-
-/* ─── Control groups ─────────────────────────────────────────────────────── */
-.live-controls,
-.replay-controls {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-}
-
-.control-group-label {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    font-size: var(--fs-xs);
-    font-weight: var(--fw-semibold);
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-}
-.control-group-label .label-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: var(--r-full);
-    flex-shrink: 0;
-}
-.control-group-label.live .label-dot {
-    background: var(--success);
-    box-shadow: 0 0 6px var(--success);
-}
-.control-group-label.replay .label-dot {
-    background: var(--accent);
 }
 
 /* ─── Icon buttons ───────────────────────────────────────────────────────── */
@@ -519,12 +485,18 @@ body,
     cursor: grab;
 }
 
-/* ─── Toolbar action buttons (save/load, hot-reload, etc.) ────────────────── */
-.toolbar-actions {
+/* ─── Timeline actions (rewind / save / bookmark) ──────────────────────────── */
+.timeline-actions {
     display: flex;
     align-items: center;
     gap: var(--sp-2);
-    margin-left: auto;
+}
+
+/* Timeline scrubber spans the remaining width (overrides .tick-slider cap) */
+.timeline-bar .timeline-slider {
+    flex: 1;
+    max-width: none;
+    min-width: 80px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2679,9 +2651,6 @@ body,
 
 @media (max-width: 768px) {
     .viewer-sidebar {
-        display: none;
-    }
-    .control-group-label {
         display: none;
     }
 }

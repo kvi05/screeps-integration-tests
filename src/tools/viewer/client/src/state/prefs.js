@@ -12,7 +12,7 @@ const STORAGE_KEY = 'sit-viewer-prefs';
 
 /** @type {{speed:number, showMiniMap:boolean, showConsole:boolean, consoleFilter:string}} */
 const DEFAULTS = {
-    speed: 5,
+    speed: 1000,
     showMiniMap: false,
     showConsole: true,
     consoleFilter: 'all',
