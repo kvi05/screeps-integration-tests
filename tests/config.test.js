@@ -6,6 +6,17 @@ const os = require('os');
 
 const ORIGINAL_BOT_DIST_DIR = process.env.BOT_DIST_DIR;
 
+/**
+ * Baseline viewerOptions expected across tests.
+ * Variations are expressed as `{ ...DEFAULT_VIEWER_OPTIONS, key: value }`.
+ */
+const DEFAULT_VIEWER_OPTIONS = {
+    paused: false,
+    speed: 1000,
+    keyframeInterval: 100,
+    replayBuffer: 3000,
+};
+
 describe('config resolveConfig', () => {
     let tmpDir;
 
@@ -190,12 +201,7 @@ describe('config DEFAULTS', () => {
 
     it('viewerOptions has all keys with correct defaults', () => {
         const { DEFAULTS } = require('../src/lib/config/config');
-        expect(DEFAULTS.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(DEFAULTS.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('viewer default is false', () => {
@@ -230,12 +236,7 @@ describe('config viewerOptions partial override', () => {
         fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { speed: 2000 } };', 'utf8');
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 2000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, speed: 2000 });
     });
 
     it('merges viewerOptions toggles correctly', () => {
@@ -243,12 +244,7 @@ describe('config viewerOptions partial override', () => {
         fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { paused: true, replayBuffer: 5000 } };', 'utf8');
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: true,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, paused: true, replayBuffer: 5000 });
     });
 
     it('full viewerOptions override works', () => {
@@ -273,12 +269,7 @@ describe('config viewerOptions partial override', () => {
         fs.writeFileSync(filePath, 'module.exports = { viewerOptions: {} };', 'utf8');
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(config.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('config without viewerOptions key keeps defaults intact', () => {
@@ -286,23 +277,13 @@ describe('config viewerOptions partial override', () => {
         fs.writeFileSync(filePath, 'module.exports = { distDir: "./bot-dist" };', 'utf8');
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(config.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('no config file → viewerOptions is defaults', () => {
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(config.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('viewerOptions includes unknown keys from user config (forward-compat)', () => {
@@ -314,13 +295,7 @@ describe('config viewerOptions partial override', () => {
         );
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 2000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-            customFutureKey: 'hello',
-        });
+        expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, speed: 2000, customFutureKey: 'hello' });
     });
 });
 
@@ -342,12 +317,7 @@ describe('config viewer + viewerOptions interaction', () => {
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig(['--viewer'], tmpDir, {});
         expect(config.viewer).toBe(true);
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(config.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('--viewer + config file with viewerOptions merges correctly', () => {
@@ -358,12 +328,7 @@ describe('config viewer + viewerOptions interaction', () => {
         // CLI --viewer sets viewer=true (overwrites config file's viewer if any)
         expect(config.viewer).toBe(true);
         // viewerOptions from config file, merged with defaults
-        expect(config.viewerOptions).toEqual({
-            paused: true,
-            speed: 500,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, paused: true, speed: 500 });
     });
 
     it('explicit overrides viewerOptions replaces entirely (highest priority)', () => {
