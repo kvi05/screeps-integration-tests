@@ -122,6 +122,20 @@ PR #54 [Feat/phase 3](https://github.com/kvi05/screeps-integration-tests/pull/54
   - Snapshots directory is now derived from `scenariosDir` (sibling of the
     scenarios folder), not `process.cwd()`.
 
+PR #55 [Feat/phase 4](https://github.com/kvi05/screeps-integration-tests/pull/55)
+
+- **Seamless unified timeline** — removed the separate Live / Replay control
+  groups and replaced them with a single bottom `Timeline` bar. The scrubber
+  cursor is the single source of truth: at the recorded edge the live server
+  is the time source (play/pause/step drive it), in the past the client plays
+  through buffered frames and pauses the server automatically.
+- **Post-end local replay.** The viewer is now notified when an interactive
+  scenario finishes (`end` SSE event), so the recorded frames remain playable
+  after the worker has exited. Server-only actions (rewind/save/step) are
+  correctly disabled once the scenario ends — there is no live DB to restore.
+- **`viewerOptions.paused` forwarded in the SSE start handshake** — the viewer
+  starts paused when configured.
+
 ### Changed
 
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
