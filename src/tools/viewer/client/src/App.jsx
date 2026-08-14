@@ -389,6 +389,16 @@ export default function App() {
         }
     }, [playing, isAtEdge, serverState, connected, ended]);
 
+    // ─── Auto-stop local replay at the edge after the scenario ended ────
+    // Once the client has played through the buffered frames and there is no
+    // live server left to hand over to, reset the play state so the button
+    // shows "Play" again instead of staying stuck in "Pause".
+    useEffect(() => {
+        if (ended && playing && isAtEdge) {
+            setPlaying(false);
+        }
+    }, [ended, playing, isAtEdge]);
+
     // ─── Chase: follow new frames while the SERVER is the time source ───
     // Runs only when the server is actually advancing (running/stepping).
     // During client playback (server paused) the cursor is driven by the
@@ -409,7 +419,7 @@ export default function App() {
     // the edge, isAtEdge flips and the reconciliation effect resumes the
     // live server — seamless handover.
     useEffect(() => {
-        if (!playing || ended || serverAdvancing || isAtEdge) return;
+        if (!playing || serverAdvancing || isAtEdge) return;
         const interval = Math.max(9, 1000 / speed);
 
         const timer = setInterval(() => {
@@ -427,7 +437,7 @@ export default function App() {
         }, interval);
 
         return () => clearInterval(timer);
-    }, [playing, speed, recording.frames.length, ended, serverAdvancing, isAtEdge]);
+    }, [playing, speed, recording.frames.length, serverAdvancing, isAtEdge]);
 
     // ─── Controls callbacks ─────────────────────────────────────────────────
 
@@ -491,6 +501,9 @@ export default function App() {
 
     // Save a snapshot of the current server state to disk
     const handleSaveSnapshot = useCallback(() => {
+        const controllable = connectedRef.current && !endedRef.current && serverStateRef.current !== 'idle';
+        if (!controllable) return;
+
         postSaveSnapshot().catch(() => {
             /* SSE error event carries the message */
         });
