@@ -257,4 +257,49 @@ describe('seamless playback (no modes)', () => {
         expect(getState().playback.tick).toBe(0);
         expect(getState().playback.playing).toBe(false);
     });
+
+    it('after end, local replay plays through buffered frames', () => {
+        vi.useFakeTimers();
+        try {
+            goLive(5);
+            expect(getState().playback.tick).toBe(4);
+
+            act(() => {
+                mocks.sseHandler('end', {});
+            });
+            expect(getState().playback.playing).toBe(false);
+            expect(getState().playback.tick).toBe(4);
+
+            act(() => {
+                api.seekTick(1); // cursor into the past
+            });
+            postResume.mockClear();
+            act(() => {
+                api.setPlaying(true);
+            });
+
+            // No live server left — must NOT try to resume it
+            expect(postResume).not.toHaveBeenCalled();
+
+            // Client timer ticks through the buffered frames (9ms per tick)
+            act(() => {
+                vi.advanceTimersByTime(9);
+            });
+            expect(getState().playback.tick).toBe(2);
+
+            act(() => {
+                vi.advanceTimersByTime(18);
+            });
+            expect(getState().playback.tick).toBe(4); // reached the edge
+
+            // At the edge after end there is no server — playback stops
+            act(() => {
+                vi.advanceTimersByTime(9);
+            });
+            expect(getState().playback.playing).toBe(false);
+            expect(postResume).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });

@@ -149,6 +149,11 @@ describe('Timeline', () => {
         expect(utils.onRewind).toHaveBeenCalled();
     });
 
+    it('rewind is disabled after the scenario ended (no live server)', () => {
+        const utils = renderTimeline({ ended: true, serverState: 'idle', tick: 25, maxTicks: 50 });
+        expect(rewindBtn(utils)).toBeDisabled();
+    });
+
     it('save is enabled at the edge while the server is controllable', () => {
         const utils = renderTimeline({ tick: 50, maxTicks: 50 });
         expect(saveBtn(utils)).not.toBeDisabled();
