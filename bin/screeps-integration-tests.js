@@ -586,6 +586,11 @@ async function runViewerMode(config) {
                     if (interactive) interactiveRunning--;
                     // Clear active child if this was our interactive scenario
                     if (interactive) activeChild = null;
+                    // Tell the viewer the scenario has finished so the client
+                    // switches to local replay of the recorded frames.
+                    if (interactive && uiServer) {
+                        uiServer.broadcastEnd(result.status, result.result?.ticksRun || 0);
+                    }
                     if (result.status === 'fail' || result.status === 'timeout') {
                         console.error(`[viewer] ${scenarioName} failed: ${result.error || result.status}`);
                     }
