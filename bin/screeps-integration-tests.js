@@ -27,6 +27,7 @@ const { once } = require('events');
 const { resolveConfig, printHelpAndExit, printVersionAndExit } = require('../src/lib/config/config');
 const { saveCallgrind } = require('../src/lib/runtime/profile');
 const { pruneCache } = require('../src/lib/runtime/cleanup');
+const { ensureEngineSnapshotCompat } = require('../src/lib/runtime/engineSnapshot');
 const { assertDir, FrameworkError } = require('../src/lib/errors');
 const { createUiServer } = require('../src/tools/viewer/server');
 const { createMemoryHistory } = require('../src/tools/viewer/memoryHistory');
@@ -557,7 +558,14 @@ async function runViewerMode(config) {
                 lastStart.scenario = scenarioName;
                 lastStart.maxTicks = 0;
                 lastStart.replayBuffer = replayBufferTicks;
-                if (uiServer) uiServer.broadcastStart(scenarioName, 0, replayBufferTicks);
+                if (uiServer) {
+                    uiServer.broadcastStart(
+                        scenarioName,
+                        0,
+                        replayBufferTicks,
+                        config.viewerOptions ? config.viewerOptions.paused : false,
+                    );
+                }
                 activeChild = null; // Will be set inside runScenarioInWorker via routeIpcMessage
                 // Snapshot launch: pass snapshot data to worker for restore mode
                 if (snapshotData) {
@@ -579,6 +587,11 @@ async function runViewerMode(config) {
                     if (interactive) interactiveRunning--;
                     // Clear active child if this was our interactive scenario
                     if (interactive) activeChild = null;
+                    // Tell the viewer the scenario has finished so the client
+                    // switches to local replay of the recorded frames.
+                    if (interactive && uiServer) {
+                        uiServer.broadcastEnd(result.status, result.result?.ticksRun || 0);
+                    }
                     if (result.status === 'fail' || result.status === 'timeout') {
                         console.error(`[viewer] ${scenarioName} failed: ${result.error || result.status}`);
                     }
@@ -724,6 +737,22 @@ async function main() {
     const cleanupResult = pruneCache({ keep: config.cacheKeep, cacheDir: config.cacheDir });
     if (cleanupResult.removed > 0) {
         console.log(`[runner] Cache cleanup: removed ${cleanupResult.removed}, kept ${cleanupResult.kept}`);
+    }
+
+    // ── Engine snapshot compatibility ──────────────────────────────────
+    // `@screeps/driver` ships a prebuilt V8 snapshot that breaks after every
+    // Node.js upgrade. Regenerate it eagerly, ONCE per run, BEFORE any
+    // worker is forked — workers then hit only the stamp fast path in
+    // prepareServer (a single file read, no lock contention).
+    try {
+        ensureEngineSnapshotCompat();
+    } catch (err) {
+        if (err instanceof FrameworkError) {
+            console.error(`\n${err.toString()}`);
+        } else {
+            console.error('[runner] Engine snapshot check failed:', err.stack || err.message);
+        }
+        process.exit(1);
     }
 
     // ── Viewer mode ────────────────────────────────────────────────────

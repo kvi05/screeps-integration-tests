@@ -10,8 +10,11 @@ vi.mock('../src/api/client', () => ({
     })),
     postResume: vi.fn(() => Promise.resolve()),
     postPause: vi.fn(() => Promise.resolve()),
+    postStep: vi.fn(() => Promise.resolve()),
     postSpeed: vi.fn(() => Promise.resolve()),
     postDispose: vi.fn(() => Promise.resolve()),
+    postRestoreTick: vi.fn(() => Promise.resolve()),
+    postSaveSnapshot: vi.fn(() => Promise.resolve()),
 }));
 
 describe('keyboard shortcuts', () => {
@@ -129,6 +132,43 @@ describe('keyboard shortcuts', () => {
         expect(getState().playback.playing).toBe(true);
         pressKey(' ');
         expect(getState().playback.playing).toBe(false);
+    });
+
+    it('Space works while the timeline scrubber is focused', () => {
+        // Render a second App instance in viewer mode — the Timeline (and
+        // its range-input scrubber) is only mounted there.
+        document.body.innerHTML = '';
+        try {
+            sessionStorage.setItem('sit-viewer-mode', 'viewer');
+        } catch {
+            /* ignore */
+        }
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        act(() => {
+            render(React.createElement(App), { container });
+        });
+        const viewerApi = window.__viewerTest;
+        act(() => {
+            viewerApi.setPlaying(false);
+        });
+
+        const slider = container.querySelector('input[type="range"]');
+        expect(slider).not.toBeNull();
+        slider.focus();
+        expect(document.activeElement).toBe(slider);
+
+        act(() => {
+            slider.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+        });
+        expect(window.__viewerTest.getState().playback.playing).toBe(true);
+
+        // Restore the default app mode for the following tests
+        try {
+            sessionStorage.removeItem('sit-viewer-mode');
+        } catch {
+            /* ignore */
+        }
     });
 
     // ── Input focus: hotkeys suppressed ─────────────────────────────

@@ -7,8 +7,11 @@ vi.mock('../src/api/client', () => ({
     connectSSE: vi.fn(() => ({ close: vi.fn() })),
     postResume: vi.fn(() => Promise.resolve()),
     postPause: vi.fn(() => Promise.resolve()),
+    postStep: vi.fn(() => Promise.resolve()),
     postSpeed: vi.fn(() => Promise.resolve()),
     postDispose: vi.fn(() => Promise.resolve()),
+    postRestoreTick: vi.fn(() => Promise.resolve()),
+    postSaveSnapshot: vi.fn(() => Promise.resolve()),
 }));
 
 describe('state & lifecycle', () => {
@@ -80,7 +83,7 @@ describe('state & lifecycle', () => {
             expect(s).toHaveProperty('tick');
             expect(s).toHaveProperty('playing');
             expect(s).toHaveProperty('speed');
-            expect(s).toHaveProperty('liveMode');
+            expect(s).toHaveProperty('atEdge');
         });
 
         it('ui has all expected fields', () => {
@@ -115,9 +118,9 @@ describe('state & lifecycle', () => {
             expect(getState().recording.framesCount).toBe(0);
         });
 
-        it('playback starts in liveMode, playing', () => {
+        it('playback starts at the edge, playing', () => {
             const pb = getState().playback;
-            expect(pb.liveMode).toBe(true);
+            expect(pb.atEdge).toBe(true);
             expect(pb.playing).toBe(true);
             expect(pb.tick).toBe(0);
         });
@@ -176,7 +179,7 @@ describe('state & lifecycle', () => {
                 api.seekTick(5);
             });
             expect(getState().playback.tick).toBe(5);
-            expect(getState().playback.liveMode).toBe(false);
+            expect(getState().playback.atEdge).toBe(false);
         });
 
         it('clamps to 0 for negative values', () => {
@@ -195,12 +198,12 @@ describe('state & lifecycle', () => {
             expect(getState().playback.tick).toBe(4); // last index = 4
         });
 
-        it('switches to replay mode (liveMode=false)', () => {
+        it('switches away from the edge (atEdge=false)', () => {
             injectFrames(5);
             act(() => {
                 api.seekTick(2);
             });
-            expect(getState().playback.liveMode).toBe(false);
+            expect(getState().playback.atEdge).toBe(false);
         });
     });
 

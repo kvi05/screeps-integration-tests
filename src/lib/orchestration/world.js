@@ -417,6 +417,7 @@ async function createWorld(opts) {
     });
 
     const { server, adapter } = prepared;
+    const { engineWatch } = prepared;
     const added = await addBots({
         adapter,
         bots: opts.bots || [],
@@ -441,7 +442,12 @@ async function createWorld(opts) {
     const roomStatus = await materializeRooms(opts.rooms, adapter, defaultBotUserId, roomToBotUserId);
 
     await server.start();
+
     const runtime = { ...prepared, ...added };
+    // Engine processes exist only after start() — activate the fail-fast
+    // engine watch (attaches exit listeners; routes dispose so the expected
+    // shutdown is not recorded as an engine death).
+    runtime.dispose = engineWatch.activate(runtime.dispose);
 
     const report = createEmptyReport();
 
@@ -553,7 +559,9 @@ async function createWorld(opts) {
             }
         }
 
-        await doServerTick(server, report);
+        // An engine crash rejects with ENGINE_CRASH instead of hanging
+        // server.tick() forever (signal-deaths are silent in the mockup).
+        await engineWatch.race(doServerTick(server, report));
         await observeAllRooms(adapter, roomStatus, report, metricsConfig, tickNum);
         await observeAllBots(adapter, bots, report, metricsConfig, tickNum);
 
@@ -642,7 +650,9 @@ async function createWorld(opts) {
             runError = e;
         }
 
-        await exportProfiles(resolvedBots, world.writeMemory, server, report);
+        // Same guard as in doTick: an engine death must not hang the
+        // profile-export tick.
+        await engineWatch.race(exportProfiles(resolvedBots, world.writeMemory, server, report));
         const result = await finalizeReport(
             report,
             startTime,
@@ -692,6 +702,8 @@ async function createWorld(opts) {
         // stopping the server. `helpers` is initialized below, before any
         // caller can invoke dispose().
         helpers.disposeEvalInBot();
+        // runtime.dispose is wrapped by engineWatch.activate(): the watch is
+        // stopped first so the expected shutdown is not an engine death.
         await runtime.dispose();
     }
 

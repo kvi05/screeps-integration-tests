@@ -13,8 +13,11 @@ vi.mock('../src/api/client', () => ({
     }),
     postResume: vi.fn(() => Promise.resolve()),
     postPause: vi.fn(() => Promise.resolve()),
+    postStep: vi.fn(() => Promise.resolve()),
     postSpeed: vi.fn(() => Promise.resolve()),
     postDispose: vi.fn(() => Promise.resolve()),
+    postRestoreTick: vi.fn(() => Promise.resolve()),
+    postSaveSnapshot: vi.fn(() => Promise.resolve()),
 }));
 
 const STORAGE_KEY = 'sit-viewer-recording';

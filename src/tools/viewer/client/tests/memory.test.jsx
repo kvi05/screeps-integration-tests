@@ -8,8 +8,11 @@ vi.mock('../src/api/client', () => ({
     connectSSE: vi.fn(() => ({ close: vi.fn() })),
     postResume: vi.fn(() => Promise.resolve()),
     postPause: vi.fn(() => Promise.resolve()),
+    postStep: vi.fn(() => Promise.resolve()),
     postSpeed: vi.fn(() => Promise.resolve()),
     postDispose: vi.fn(() => Promise.resolve()),
+    postRestoreTick: vi.fn(() => Promise.resolve()),
+    postSaveSnapshot: vi.fn(() => Promise.resolve()),
     getMemoryAtTick: vi.fn().mockResolvedValue({ rooms: { W0N0: { creeps: 3 } } }),
 }));
 

@@ -1,18 +1,25 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import CanvasStage from './components/CanvasStage';
-import LiveControls from './components/LiveControls';
-import ReplayControls from './components/ReplayControls';
+import Timeline from './components/Timeline';
 import ObjectInspector from './components/ObjectInspector';
 import ConsolePanel from './components/ConsolePanel';
 import MetricsPanel from './components/MetricsPanel';
 import MiniMap from './components/MiniMap';
 import ScenarioManager from './components/ScenarioManager';
 import SaveLoadPanel from './components/SaveLoadPanel';
-import { connectSSE, postDispose, postPause, postResume, postSpeed } from './api/client';
+import {
+    connectSSE,
+    postDispose,
+    postPause,
+    postRestoreTick,
+    postResume,
+    postSaveSnapshot,
+    postSpeed,
+    postStep,
+} from './api/client';
 import { loadPrefs, savePrefs } from './state/prefs';
 import {
-    ArrowLeftIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
     MousePointerIcon,
@@ -25,8 +32,6 @@ import {
     WifiIcon,
     WifiOffIcon,
     FilmIcon,
-    DownloadIcon,
-    RefreshCwIcon,
 } from './components/Icons';
 import './styles/global.css';
 
@@ -37,7 +42,8 @@ import './styles/global.css';
  * - SSE connection lifecycle
  * - Frame accumulation (ring buffer, sessionStorage)
  * - Playback state (playing/paused, tick, speed, sub-frame)
- * - Live server control (via REST → IPC)
+ * - Seamless unified timeline — cursor-driven playback with automatic
+ *   server pause/resume (no explicit live/replay modes)
  * - Object inspector (click on canvas)
  * - Console panel (logs from frames)
  * - Metrics graphs
@@ -138,6 +144,10 @@ export default function App() {
     cameraRef.current = cameraForMiniMap;
 
     const sseRef = useRef(null);
+    const connectedRef = useRef(connected);
+    connectedRef.current = connected;
+    const serverStateRef = useRef(serverState);
+    serverStateRef.current = serverState;
     const playingRef = useRef(playing);
     playingRef.current = playing;
     const speedRef = useRef(speed);
@@ -202,9 +212,10 @@ export default function App() {
                 case 'start':
                     setScenario(data.scenario || '');
                     setConnected(true);
-                    setServerState('running');
+                    // Respect viewerOptions.paused: start paused if the server did
+                    setServerState(data.paused ? 'paused' : 'running');
                     setEnded(false);
-                    setPlaying(true);
+                    setPlaying(!data.paused);
                     setTick(0);
                     setSub(null);
                     setRecording({ terrain: {}, frames: [] });
@@ -266,12 +277,12 @@ export default function App() {
                     setServerState('idle');
                     break;
                 case 'restored': {
-                    // Server was restored to a past tick — reset local frame buffer
+                    // Server was rewound to a past tick — reset local frame buffer
                     setRecording({ terrain: recording.terrain, frames: [] });
                     setTick(0);
                     setSub(null);
                     setServerTick(data.tick || 0);
-                    setPlaying(true);
+                    setPlaying(false);
                     break;
                 }
                 case 'status': {
@@ -357,38 +368,66 @@ export default function App() {
         console.groupEnd();
     }, [ended]);
 
-    // ─── Playback: track mode (live vs replay) ──────────────────────────
-    const [liveMode, setLiveMode] = useState(true);
+    // ─── Derived playback state ─────────────────────────────────────────
+    // The server is the time source while running/stepping.
+    const serverAdvancing = serverState === 'running' || serverState === 'stepping';
+    // Cursor at the recorded edge → ready to hand over to the live server.
+    const isAtEdge = recording.frames.length === 0 || tick >= recording.frames.length - 1;
 
+    // ─── Reconciliation: keep the server in sync with the cursor ────────
+    // Invariant: the server ticks ⟺ playing && cursor at the edge.
+    // This single effect replaces all manual pause/resume calls — scrubbing
+    // back pauses the server, and playing at the edge resumes it.
     useEffect(() => {
-        if (connected && !ended) {
-            setLiveMode(true);
-            setPlaying(true);
+        if (!connected || ended) return;
+        if (serverState === 'idle' || serverState === 'stepping') return;
+        const running = serverState === 'running';
+        if (playing && isAtEdge && !running) {
+            postResume().catch(() => {});
+        } else if (!playing && running) {
+            postPause().catch(() => {});
         }
-    }, [connected, ended]);
+    }, [playing, isAtEdge, serverState, connected, ended]);
 
-    // ─── Live mode: chase latest frame ──────────────────────────────────
+    // ─── Auto-stop local replay at the edge after the scenario ended ────
+    // Once the client has played through the buffered frames and there is no
+    // live server left to hand over to, reset the play state so the button
+    // shows "Play" again instead of staying stuck in "Pause".
     useEffect(() => {
-        if (!playing || ended || !liveMode) return;
+        if (ended && playing && isAtEdge) {
+            setPlaying(false);
+        }
+    }, [ended, playing, isAtEdge]);
+
+    // ─── Chase: follow new frames while the SERVER is the time source ───
+    // Runs only when the server is actually advancing (running/stepping).
+    // During client playback (server paused) the cursor is driven by the
+    // timer below — chasing here would jump the cursor straight to the
+    // latest frame the moment play is pressed in the past.
+    useEffect(() => {
+        if (ended || !serverAdvancing) return;
         const latest = recording.frames.length - 1;
         if (latest >= 0 && tickRef.current !== latest) {
             tickRef.current = latest;
             setTick(latest);
             setSub(null);
         }
-    }, [playing, recording.frames.length, ended, liveMode]);
+    }, [serverAdvancing, recording.frames.length, ended]);
 
-    // ─── Replay mode: timer-based playback ──────────────────────────────
+    // ─── Client timer: play through buffered frames ─────────────────────
+    // Runs only while the server is NOT advancing. When the cursor reaches
+    // the edge, isAtEdge flips and the reconciliation effect resumes the
+    // live server — seamless handover.
     useEffect(() => {
-        if (!playing || ended || liveMode) return;
-        if (recording.frames.length === 0) return;
-        const latest = recording.frames.length - 1;
-        const interval = Math.max(33, 1000 / speed);
+        if (!playing || serverAdvancing || isAtEdge) return;
+        const interval = Math.max(9, 1000 / speed);
 
         const timer = setInterval(() => {
+            const latest = recordingRef.current.frames.length - 1;
             const cur = tickRef.current;
             if (cur >= latest) {
-                setPlaying(false);
+                // No live server to hand over to — stop the timer
+                if (endedRef.current || !connectedRef.current) setPlaying(false);
                 return;
             }
             const next = Math.min(cur + 1, latest);
@@ -398,74 +437,76 @@ export default function App() {
         }, interval);
 
         return () => clearInterval(timer);
-    }, [playing, speed, recording.frames.length, ended, liveMode]);
+    }, [playing, speed, recording.frames.length, serverAdvancing, isAtEdge]);
 
     // ─── Controls callbacks ─────────────────────────────────────────────────
 
-    const handleTogglePlay = useCallback(
-        (play) => {
-            setPlaying(play);
-            if (!play) {
-                setSub(null);
-                return;
-            }
-            // Mutual exclusion: playing replay ⇒ pause live server
-            if (play && !liveMode) {
-                // Replay is playing → pause live if connected
-                if (connected && !ended) {
-                    postPause().catch(() => {});
-                }
-            }
-            if (play && liveMode && connected && !ended) {
-                // Live is already playing — nothing extra needed
-                return;
-            }
-            if (play && !liveMode === false && connected && !ended) {
-                setLiveMode(true);
-            }
-        },
-        [connected, ended, liveMode],
-    );
-
-    // Toggle live server play/pause (called by space key + LiveControls)
-    const handleToggleLivePlay = useCallback((play) => {
-        if (play) {
-            // Resume live → auto-pause replay
-            setPlaying(false);
-            setSub(null);
-            postResume().catch(() => {});
-            setLiveMode(true);
-            setPlaying(true);
-        } else {
-            postPause().catch(() => {});
-            setPlaying(false);
+    // Play/pause — reconciliation decides whether the server or the
+    // client timer is the time source.
+    const handleTogglePlay = useCallback((play) => {
+        setPlaying(play);
+        if (!play) {
             setSub(null);
         }
     }, []);
 
     const handleSeekTick = useCallback((t) => {
-        setLiveMode(false);
-        const max = recordingRef.current.frames.length - 1;
-        setTick(Math.max(0, Math.min(t, max)));
-        setSub(null);
-    }, []);
-
-    const handleStepForward = useCallback(() => {
-        setLiveMode(false);
         setPlaying(false);
         setSub(null);
-        setTick((prev) => Math.min(prev + 1, recordingRef.current.frames.length - 1));
+        const max = recordingRef.current.frames.length - 1;
+        setTick(Math.max(0, Math.min(t, max)));
+    }, []);
+
+    // In the past → cursor move. At the recorded edge → step the live server.
+    const handleStepForward = useCallback(() => {
+        setPlaying(false);
+        setSub(null);
+        const latest = recordingRef.current.frames.length - 1;
+        if (tickRef.current >= latest) {
+            const st = serverStateRef.current;
+            if (connectedRef.current && !endedRef.current && st !== 'running' && st !== 'stepping') {
+                postStep(1).catch(() => {});
+            }
+            return;
+        }
+        setTick((prev) => Math.min(prev + 1, latest));
     }, []);
 
     const handleStepBack = useCallback(() => {
-        setLiveMode(false);
         setPlaying(false);
         setSub(null);
         setTick((prev) => Math.max(0, prev - 1));
     }, []);
 
+    // Unified speed — applies to both server ticks and client playback.
     const handleSetSpeed = useCallback((s) => {
         setSpeed(s);
+        if (connectedRef.current && !endedRef.current) {
+            postSpeed(s).catch(() => {});
+        }
+    }, []);
+
+    // Rewind the server to the current scrubber tick (discards later ticks)
+    const handleRewind = useCallback(() => {
+        const frames = recordingRef.current.frames;
+        const idx = Math.max(0, Math.min(tickRef.current, frames.length - 1));
+        const frame = frames[idx];
+        const gameTick = frame && typeof frame.gameTime === 'number' ? frame.gameTime : idx;
+        setPlaying(false);
+        setSub(null);
+        postRestoreTick(gameTick).catch(() => {
+            /* SSE error event carries the message */
+        });
+    }, []);
+
+    // Save a snapshot of the current server state to disk
+    const handleSaveSnapshot = useCallback(() => {
+        const controllable = connectedRef.current && !endedRef.current && serverStateRef.current !== 'idle';
+        if (!controllable) return;
+
+        postSaveSnapshot().catch(() => {
+            /* SSE error event carries the message */
+        });
     }, []);
 
     // ─── Canvas click → Object Inspector ────────────────────────────────────
@@ -511,19 +552,22 @@ export default function App() {
     // ─── Keyboard shortcuts ─────────────────────────────────────────────────
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')
-                return;
+            const tag = e.target.tagName;
+            const isTimelineSlider = e.target instanceof HTMLInputElement && e.target.type === 'range';
+            // Hotkeys are suppressed while typing in form controls — except
+            // Space on the timeline scrubber: a range input has no native
+            // Space behavior, and the play/pause hotkey must keep working
+            // right after the user grabs the timeline.
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+                if (!isTimelineSlider || e.key !== ' ') return;
+            }
 
             switch (e.key) {
                 case ' ':
                     e.preventDefault();
-                    // Toggle LIVE server play/pause when connected, replay otherwise
-                    if (connected && !ended) {
-                        const isLiveRunning = serverState === 'running' || serverState === 'stepping';
-                        handleToggleLivePlay(!isLiveRunning);
-                    } else {
-                        handleTogglePlay(!playingRef.current);
-                    }
+                    // Single play/pause — reconciliation routes it to the
+                    // server or the client timer based on cursor position.
+                    handleTogglePlay(!playingRef.current);
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
@@ -534,24 +578,22 @@ export default function App() {
                     handleStepBack();
                     break;
                 case ']':
-                    // Increase Live server speed
+                    // Increase unified speed (server + client)
                     {
-                        const speeds = [1, 5, 10, 20, 1000];
-                        const idx = speeds.indexOf(serverSpeed);
+                        const speeds = [1, 5, 10, 20, 50, 1000];
+                        const idx = speeds.indexOf(speedRef.current);
                         if (idx >= 0 && idx < speeds.length - 1) {
-                            const next = speeds[idx + 1];
-                            postSpeed(next).catch(() => {});
+                            handleSetSpeed(speeds[idx + 1]);
                         }
                     }
                     break;
                 case '[':
-                    // Decrease Live server speed
+                    // Decrease unified speed (server + client)
                     {
-                        const speeds = [1, 5, 10, 20, 1000];
-                        const idx = speeds.indexOf(serverSpeed);
+                        const speeds = [1, 5, 10, 20, 50, 1000];
+                        const idx = speeds.indexOf(speedRef.current);
                         if (idx > 0) {
-                            const next = speeds[idx - 1];
-                            postSpeed(next).catch(() => {});
+                            handleSetSpeed(speeds[idx - 1]);
                         }
                     }
                     break;
@@ -565,16 +607,7 @@ export default function App() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [
-        handleToggleLivePlay,
-        handleTogglePlay,
-        handleStepForward,
-        handleStepBack,
-        serverSpeed,
-        serverState,
-        connected,
-        ended,
-    ]);
+    }, [handleTogglePlay, handleStepForward, handleStepBack, handleSetSpeed, serverState]);
 
     // ─── Test API ───────────────────────────────────────────────────────────
     if (import.meta.env.DEV) {
@@ -602,7 +635,7 @@ export default function App() {
                         tick: tickRef.current,
                         playing: playingRef.current,
                         speed: speedRef.current,
-                        liveMode,
+                        atEdge: isAtEdge,
                     },
                     /** UI toggles */
                     ui: {
@@ -647,7 +680,7 @@ export default function App() {
                 setPlaying(val);
             },
             seekTick(t) {
-                setLiveMode(false);
+                setPlaying(false);
                 setTick(Math.max(0, Math.min(t, recordingRef.current.frames.length - 1)));
             },
             getCamera() {
@@ -710,44 +743,6 @@ export default function App() {
 
     return (
         <div className="viewer-layout">
-            {/* ─── Toolbar ─────────────────────────────────────── */}
-            <div className="viewer-toolbar">
-                <button onClick={handleBackToScenarios} className="btn-back" title="Back to Scenarios">
-                    <ArrowLeftIcon size={16} />
-                    Scenarios
-                </button>
-                <div className="toolbar-separator" />
-                <LiveControls
-                    connected={connected}
-                    serverState={serverState}
-                    serverTick={serverTick}
-                    serverSpeed={serverSpeed}
-                    onServerStateChange={setServerState}
-                    onToggleLivePlay={handleToggleLivePlay}
-                />
-                <div className="toolbar-separator" />
-                <ReplayControls
-                    playing={playing}
-                    tick={tick}
-                    maxTicks={maxTicks}
-                    speed={speed}
-                    onTogglePlay={handleTogglePlay}
-                    onSeekTick={handleSeekTick}
-                    onSetSpeed={handleSetSpeed}
-                    onStepForward={handleStepForward}
-                    onStepBack={handleStepBack}
-                />
-                {/* Future: SL-1/2 save/load, HR-1 hot reload */}
-                <div className="toolbar-actions">
-                    <button className="icon-btn" title="Save snapshot (coming soon)" disabled>
-                        <DownloadIcon size={16} />
-                    </button>
-                    <button className="icon-btn" title="Hot reload bot (coming soon)" disabled>
-                        <RefreshCwIcon size={16} />
-                    </button>
-                </div>
-            </div>
-
             {/* ─── Main area: canvas + side panels ────── */}
             <div className="viewer-main">
                 <div className="viewer-canvas-area">
@@ -968,6 +963,26 @@ export default function App() {
                 onJumpToTick={handleSeekTick}
                 visible={showConsole}
                 onToggle={setShowConsole}
+            />
+
+            {/* ─── Unified timeline ──────────────────────────── */}
+            <Timeline
+                connected={connected}
+                ended={ended}
+                serverState={serverState}
+                serverTick={serverTick}
+                playing={playing}
+                tick={tick}
+                maxTicks={maxTicks}
+                speed={speed}
+                onTogglePlay={handleTogglePlay}
+                onSeekTick={handleSeekTick}
+                onStepForward={handleStepForward}
+                onStepBack={handleStepBack}
+                onSetSpeed={handleSetSpeed}
+                onRewind={handleRewind}
+                onSave={handleSaveSnapshot}
+                onBackToScenarios={handleBackToScenarios}
             />
 
             {/* ─── Status bar ──────────────────────────── */}

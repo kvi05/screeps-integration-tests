@@ -77,8 +77,8 @@ function createViewerInterceptor(opts = {}) {
     let lastCtx = null;
 
     /** @type {number} How many per-tick DB snapshots to keep for rewind.
-     *  Default matches config.viewerOptions.replayBuffer (5000). */
-    const MAX_SNAPSHOTS = opts.replayBuffer || 5000;
+     *  Default matches config.viewerOptions.replayBuffer (3000). */
+    const MAX_SNAPSHOTS = opts.replayBuffer || 3000;
 
     /** @type {string} Prefix for per-tick snapshot keys in env storage */
     const SNAP_KEY_PREFIX = 'sit:snap:';
