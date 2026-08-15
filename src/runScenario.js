@@ -8,6 +8,9 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
  * @typedef {import('./lib/types').WorkerMessage} WorkerMessage
  */
 
+/** @type {boolean} A final message was already scheduled — the first one wins */
+let finalMessageScheduled = false;
+
 /**
  * Sends the final worker message and exits once it is flushed to the IPC
  * channel.
@@ -18,6 +21,10 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
  * (exit code 0)". The send callback fires only after the message has been
  * handed to the channel, which makes the exit safe.
  *
+ * Idempotent at module level: the first final message wins. Later calls
+ * (e.g. from the global crash guards after the scenario has already
+ * finished) are ignored — the worker is already on its way out.
+ *
  * process.exit() is still necessary: server.stop() does not fully release
  * storage (file descriptor leak).
  *
@@ -25,6 +32,11 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
  * @returns {void}
  */
 function sendFinalMessage(message) {
+    if (finalMessageScheduled) {
+        return;
+    }
+    finalMessageScheduled = true;
+
     if (!process.send) {
         process.exit(0);
         return;
@@ -39,13 +51,76 @@ function sendFinalMessage(message) {
     };
     // Safety net: never hang the worker if the send callback is lost.
     const fallback = setTimeout(() => exitNow(1), 5000);
-    process.send(message, (err) => {
-        clearTimeout(fallback);
-        if (err) {
-            console.error(`[worker] failed to deliver the final message: ${err.message ?? err}`);
+
+    try {
+        process.send(message, (err) => {
+            clearTimeout(fallback);
+            if (err) {
+                console.error(`[worker] failed to deliver the final message: ${err.message ?? err}`);
+            }
+            exitNow(err ? 1 : 0);
+        });
+    } catch (serializeError) {
+        // The result is not serializable (BigInt, circular structure, ...).
+        // Report a readable failure instead of losing the result entirely.
+        const detail = serializeError.message ?? String(serializeError);
+        console.error(`[worker] final message is not serializable: ${detail}`);
+        try {
+            process.send({ status: 'fail', error: `Worker result is not serializable: ${detail}` }, (err) => {
+                clearTimeout(fallback);
+                exitNow(err ? 1 : 0);
+            });
+        } catch {
+            clearTimeout(fallback);
+            exitNow(1);
         }
-        exitNow(err ? 1 : 0);
-    });
+    }
+}
+
+/**
+ * Installs last-resort process guards so a crash inside the worker never
+ * leaves the parent with a bare "Worker exited unexpectedly (exit code 1)".
+ *
+ * The try/catch around scenario.run() only covers awaited failures. Errors
+ * escaping it — exceptions in event-loop callbacks, promises without
+ * handlers, tool (viewer interceptor) bugs — used to kill the worker with a
+ * non-zero exit code and no final message. The guards convert the first such
+ * error into a `fail` WorkerMessage carrying the real stack, then terminate
+ * the worker through sendFinalMessage().
+ *
+ * @returns {void}
+ */
+function installGlobalGuards() {
+    let reported = false;
+
+    /**
+     * @param {string} kind — 'exception' or 'rejection'
+     * @param {*} error
+     * @returns {void}
+     */
+    const report = (kind, error) => {
+        if (reported) {
+            return;
+        }
+        reported = true;
+        const detail = error && error.stack ? error.stack : String(error);
+        console.error(`[worker] uncaught ${kind}: ${detail}`);
+        if (!process.send) {
+            process.exit(1);
+            return;
+        }
+        try {
+            sendFinalMessage({
+                status: 'fail',
+                error: `Uncaught ${kind} in the worker process:\n${detail}`,
+            });
+        } catch {
+            process.exit(1);
+        }
+    };
+
+    process.on('uncaughtException', (err) => report('exception', err));
+    process.on('unhandledRejection', (reason) => report('rejection', reason));
 }
 
 /**
@@ -66,8 +141,11 @@ function sendFinalMessage(message) {
  * {@link TickInterceptor} injected before `scenario.run()`. The interceptor
  * is self-contained and owns its own IPC/state. The worker itself is tool-agnostic.
  *
- * process.exit(0) is called after sending the message,
- * because server.stop() does not fully release storage (file descriptor leak).
+ * The worker terminates itself via sendFinalMessage(): the process exits in
+ * the send callback, once the final message is flushed to the IPC channel.
+ * process.exit() is still necessary, because server.stop() does not fully
+ * release storage (file descriptor leak). Global guards convert any uncaught
+ * error into a `fail` message with a real stack instead of a bare exit.
  *
  * @example
  * // Run from bin/screeps-integration-tests.js:
@@ -78,6 +156,7 @@ function sendFinalMessage(message) {
  */
 
 (async () => {
+    installGlobalGuards();
     try {
         const [msg] = await once(process, 'message');
 
