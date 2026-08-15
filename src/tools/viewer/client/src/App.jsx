@@ -757,16 +757,39 @@ export default function App() {
                         onCameraChange={setCameraForMiniMap}
                     />
 
+                    {/* ─── Floating transport controls (frosted glass, top) ──
+                         Always mounted — controls must be usable before the
+                         first frame arrives (the server re-sends its last
+                         frame on connect, but a cold start may still have none) */}
+                    <Timeline
+                        connected={connected}
+                        ended={ended}
+                        serverState={serverState}
+                        serverTick={serverTick}
+                        playing={playing}
+                        tick={tick}
+                        maxTicks={maxTicks}
+                        speed={speed}
+                        onTogglePlay={handleTogglePlay}
+                        onSeekTick={handleSeekTick}
+                        onStepForward={handleStepForward}
+                        onStepBack={handleStepBack}
+                        onSetSpeed={handleSetSpeed}
+                        onRewind={handleRewind}
+                        onSave={handleSaveSnapshot}
+                        onBackToScenarios={handleBackToScenarios}
+                    />
+
                     {/* Canvas overlays */}
                     {currentRoom && !isLoading && (
-                        <div className="canvas-overlay canvas-room-label">
+                        <div className="canvas-overlay canvas-room-label glass-panel">
                             <MapIcon size={12} />
                             {currentRoom}
                         </div>
                     )}
                     {!isLoading && (
                         <div
-                            className="canvas-overlay interactive canvas-zoom-indicator"
+                            className="canvas-overlay interactive canvas-zoom-indicator glass-panel"
                             onClick={() => canvasStageRef.current?.resetCamera?.()}
                             title="Reset camera (click)"
                             style={{ cursor: 'pointer' }}
@@ -776,7 +799,7 @@ export default function App() {
                         </div>
                     )}
                     {!isLoading && (
-                        <div className="canvas-overlay interactive canvas-toolbar">
+                        <div className="canvas-overlay interactive canvas-toolbar glass-panel">
                             <button
                                 className={`icon-btn ${showGrid ? 'active' : ''}`}
                                 onClick={() => setShowGrid(!showGrid)}
@@ -963,26 +986,6 @@ export default function App() {
                 onJumpToTick={handleSeekTick}
                 visible={showConsole}
                 onToggle={setShowConsole}
-            />
-
-            {/* ─── Unified timeline ──────────────────────────── */}
-            <Timeline
-                connected={connected}
-                ended={ended}
-                serverState={serverState}
-                serverTick={serverTick}
-                playing={playing}
-                tick={tick}
-                maxTicks={maxTicks}
-                speed={speed}
-                onTogglePlay={handleTogglePlay}
-                onSeekTick={handleSeekTick}
-                onStepForward={handleStepForward}
-                onStepBack={handleStepBack}
-                onSetSpeed={handleSetSpeed}
-                onRewind={handleRewind}
-                onSave={handleSaveSnapshot}
-                onBackToScenarios={handleBackToScenarios}
             />
 
             {/* ─── Status bar ──────────────────────────── */}

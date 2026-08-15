@@ -1,8 +1,17 @@
 /**
- * @file Timeline — seamless unified time controls.
+ * @file Timeline — seamless unified time controls, a floating frosted-glass
+ * overlay on top of the canvas.
  *
- * A single timeline bar at the bottom of the viewer with no explicit
- * modes. The scrubber cursor is the single source of truth:
+ * Three visually separated floating groups, all inside one `transport-row`
+ * flex container spanning the full width — so the center bar can never
+ * overlap the side pills on narrow screens (the scrubber shrinks first):
+ *
+ * - `transport-back` (left): navigation back to the Scenario Manager
+ * - `transport-bar` (center, flexible): transport — play/pause, step back/forward,
+ *   unified speed, scrubber, tick display, live server-tick indicator, rewind
+ * - `transport-actions` (right): save snapshot, bookmark (coming soon)
+ *
+ * The scrubber cursor remains the single source of truth:
  *
  * - Cursor at the recorded edge → the live server is the time source
  *   (play/pause and step-forward drive the server).
@@ -115,118 +124,143 @@ export default function Timeline({
     const playPauseIcon = playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />;
 
     return (
-        <div className="timeline-bar">
-            <button className="btn-back" onClick={onBackToScenarios} title="Back to Scenarios">
-                <ArrowLeftIcon size={16} />
-                Scenarios
-            </button>
+        <>
+            {/* ─── Transport row — single flex container spanning the full
+                   width so the center bar can never overlap the side pills ── */}
+            <div className="transport-row">
+                {/* ─── Navigation back to the Scenario Manager (left) ────── */}
+                <div className="transport-back glass-panel">
+                    <button className="btn-back" onClick={onBackToScenarios} title="Back to Scenarios">
+                        <ArrowLeftIcon size={16} />
+                        Scenarios
+                    </button>
+                </div>
 
-            <div className="timeline-separator" />
+                {/* ─── Transport controls (center, flexible) ─────────────── */}
+                <div className="transport-bar glass-panel">
+                    <button
+                        className={`icon-btn ${playing ? 'primary' : ''}`}
+                        onClick={handlePlayPause}
+                        disabled={playDisabled}
+                        title={playPauseTitle}
+                        aria-label={playPauseTitle}
+                    >
+                        {playPauseIcon}
+                    </button>
 
-            <button
-                className={`icon-btn ${playing ? 'primary' : ''}`}
-                onClick={handlePlayPause}
-                disabled={playDisabled}
-                title={playPauseTitle}
-                aria-label={playPauseTitle}
-            >
-                {playPauseIcon}
-            </button>
+                    <button
+                        className="icon-btn"
+                        onClick={onStepBack}
+                        disabled={stepBackDisabled}
+                        title="Step back -1 tick"
+                        aria-label="Step back one tick"
+                    >
+                        <StepBackIcon size={16} />
+                    </button>
 
-            <button
-                className="icon-btn"
-                onClick={onStepBack}
-                disabled={stepBackDisabled}
-                title="Step back -1 tick"
-                aria-label="Step back one tick"
-            >
-                <StepBackIcon size={16} />
-            </button>
+                    <button
+                        className="icon-btn"
+                        onClick={onStepForward}
+                        disabled={stepForwardDisabled}
+                        title={stepForwardTitle}
+                        aria-label={stepForwardTitle}
+                    >
+                        <StepForwardIcon size={16} />
+                    </button>
 
-            <button
-                className="icon-btn"
-                onClick={onStepForward}
-                disabled={stepForwardDisabled}
-                title={stepForwardTitle}
-                aria-label={stepForwardTitle}
-            >
-                <StepForwardIcon size={16} />
-            </button>
+                    <div className="timeline-separator" />
 
-            <div className="speed-control">
-                <label>Speed</label>
-                <select
-                    className="speed-select"
-                    value={speed}
-                    onChange={(e) => onSetSpeed(Number(e.target.value))}
-                    disabled={speedDisabled}
-                    aria-label="Speed"
-                >
-                    <option value={1}>1×</option>
-                    <option value={5}>5×</option>
-                    <option value={10}>10×</option>
-                    <option value={20}>20×</option>
-                    <option value={50}>50×</option>
-                    <option value={1000}>Max</option>
-                </select>
-                <button
-                    className="speed-step-btn"
-                    onClick={() => stepSpeed(-1)}
-                    disabled={speedDisabled}
-                    title="Decrease speed"
-                >
-                    −
-                </button>
-                <button
-                    className="speed-step-btn"
-                    onClick={() => stepSpeed(1)}
-                    disabled={speedDisabled}
-                    title="Increase speed"
-                >
-                    +
-                </button>
+                    <div className="speed-control">
+                        <select
+                            className="speed-select"
+                            value={speed}
+                            onChange={(e) => onSetSpeed(Number(e.target.value))}
+                            disabled={speedDisabled}
+                            aria-label="Speed"
+                        >
+                            <option value={1}>1×</option>
+                            <option value={5}>5×</option>
+                            <option value={10}>10×</option>
+                            <option value={20}>20×</option>
+                            <option value={50}>50×</option>
+                            <option value={1000}>Max</option>
+                        </select>
+                        <button
+                            className="speed-step-btn"
+                            onClick={() => stepSpeed(-1)}
+                            disabled={speedDisabled}
+                            title="Decrease speed"
+                        >
+                            −
+                        </button>
+                        <button
+                            className="speed-step-btn"
+                            onClick={() => stepSpeed(1)}
+                            disabled={speedDisabled}
+                            title="Increase speed"
+                        >
+                            +
+                        </button>
+                    </div>
+
+                    <input
+                        type="range"
+                        min={0}
+                        max={sliderMax}
+                        value={sliderValue}
+                        onChange={handleScrub}
+                        className="tick-slider timeline-slider"
+                        title={`Scrub timeline (server tick ${serverTick})`}
+                        aria-label="Scrub timeline"
+                    />
+
+                    <span className="tick-display">
+                        <span className="tick-current">{tick}</span>
+                        <span className="tick-sep">/</span>
+                        <span>{hasFrames ? maxTicks : '—'}</span>
+                    </span>
+
+                    {/* Live server tick — the authoritative time source */}
+                    <div className="server-tick-indicator" title="Live server tick">
+                        <span className={`server-tick-dot ${serverState}`} />
+                        <span className="server-tick-label">live</span>
+                        <span className="server-tick-value">{serverTick}</span>
+                    </div>
+
+                    <div className="timeline-separator" />
+
+                    <button
+                        className="icon-btn"
+                        onClick={onRewind}
+                        disabled={rewindDisabled}
+                        title={`Rewind server to tick ${tick}`}
+                        aria-label="Rewind server"
+                    >
+                        <RewindIcon size={16} />
+                    </button>
+                </div>
+
+                {/* ─── Actions (top-right) ───────────────────────────────────── */}
+                <div className="transport-actions glass-panel">
+                    <button
+                        className="icon-btn"
+                        onClick={onSave}
+                        disabled={saveDisabled}
+                        title="Save snapshot"
+                        aria-label="Save snapshot"
+                    >
+                        <DownloadIcon size={16} />
+                    </button>
+                    <button
+                        className="icon-btn"
+                        disabled
+                        title="Bookmark tick (coming soon)"
+                        aria-label="Bookmark tick"
+                    >
+                        <BookmarkIcon size={16} />
+                    </button>
+                </div>
             </div>
-
-            <input
-                type="range"
-                min={0}
-                max={sliderMax}
-                value={sliderValue}
-                onChange={handleScrub}
-                className="tick-slider timeline-slider"
-                title={`Scrub timeline (server tick ${serverTick})`}
-                aria-label="Scrub timeline"
-            />
-
-            <span className="tick-display">
-                <span className="tick-current">{tick}</span>
-                <span className="tick-sep">/</span>
-                <span>{hasFrames ? maxTicks : '—'}</span>
-            </span>
-
-            <div className="timeline-actions">
-                <button
-                    className="icon-btn"
-                    onClick={onRewind}
-                    disabled={rewindDisabled}
-                    title={`Rewind server to tick ${tick}`}
-                    aria-label="Rewind server"
-                >
-                    <RewindIcon size={16} />
-                </button>
-                <button
-                    className="icon-btn"
-                    onClick={onSave}
-                    disabled={saveDisabled}
-                    title="Save snapshot"
-                    aria-label="Save snapshot"
-                >
-                    <DownloadIcon size={16} />
-                </button>
-                <button className="icon-btn" disabled title="Bookmark tick (coming soon)" aria-label="Bookmark tick">
-                    <BookmarkIcon size={16} />
-                </button>
-            </div>
-        </div>
+        </>
     );
 }
