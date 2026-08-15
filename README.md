@@ -147,11 +147,6 @@ layout engine, drawing primitives, structure shells, and creep sprites.
   await world.exec();
   await world.tick(1);
   ```
-- **`Storage connection lost`:** when many worlds run back-to-back in one
-  scenario, you may see `Storage connection lost` in stderr. This is a known
-  race in `@screeps/common`'s singleton storage; the framework filters it and
-  it does not affect results. \
-  Details — [CONTRIBUTING.md Known issues](./CONTRIBUTING.md#known-issues).
 - **Harvest without CARRY / full store — energy is lost:** on the official
   Screeps server, when a creep calls `.harvest()` but cannot hold the energy
   (no `CARRY` body part or full store), the energy automatically drops to the

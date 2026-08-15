@@ -13,6 +13,12 @@ cd screeps-integration-tests
 npm ci          # use ci, not install — we track package-lock.json
 ```
 
+**Engine snapshot after Node.js upgrades.** `@screeps/driver` ships a
+prebuilt V8 snapshot that only works with the exact V8 version it was built
+with. After a Node.js patch upgrade, engine processes would crash or hang;
+`ensureEngineSnapshotCompat` now regenerates the snapshot automatically
+(stamp-guarded, lock-serialised), once per run before workers are forked.
+
 ## Project structure at a glance
 
 ```
@@ -63,19 +69,6 @@ lint → format:check → unit tests → integration tests
 | `npm run test:integration:profiling` | Scenarios with callgrind profiling     |
 | `npm run test:integration:capture`   | Capture fixture                        |
 | `npm run check`                      | Full CI pipeline                       |
-
-### Known issues
-
-**Storage-singleton race.** `@screeps/common/lib/storage.js` holds one TCP
-socket per process. When multiple `createWorld` calls happen in a row in
-one scenario (e.g. `world-spawn` with 15 worlds), there is a narrow window
-between `dispose()` and the next `server.start()` where the old socket is
-not yet closed and the new storage process is not yet listening.
-
-In practice it doesn't manifest: the 1-second reconnect in `storage.js`
-(Screeps) + the duration of the `createWorld` pipeline cover the race.
-Symptom — `Storage connection lost` in stderr (filtered in
-`pipeChildStreams`). It does not affect results.
 
 ## Code conventions
 
