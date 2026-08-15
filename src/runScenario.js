@@ -9,6 +9,46 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
  */
 
 /**
+ * Sends the final worker message and exits once it is flushed to the IPC
+ * channel.
+ *
+ * A fixed sleep before process.exit() is a heuristic: under load the parent
+ * may be slow to read, the message stays queued in the pipe, and exit(0)
+ * truncates it — the parent then reports "Worker exited unexpectedly
+ * (exit code 0)". The send callback fires only after the message has been
+ * handed to the channel, which makes the exit safe.
+ *
+ * process.exit() is still necessary: server.stop() does not fully release
+ * storage (file descriptor leak).
+ *
+ * @param {WorkerMessage} message
+ * @returns {void}
+ */
+function sendFinalMessage(message) {
+    if (!process.send) {
+        process.exit(0);
+        return;
+    }
+    let exited = false;
+    const exitNow = (code) => {
+        if (exited) {
+            return;
+        }
+        exited = true;
+        process.exit(code);
+    };
+    // Safety net: never hang the worker if the send callback is lost.
+    const fallback = setTimeout(() => exitNow(1), 5000);
+    process.send(message, (err) => {
+        clearTimeout(fallback);
+        if (err) {
+            console.error(`[worker] failed to deliver the final message: ${err.message ?? err}`);
+        }
+        exitNow(err ? 1 : 0);
+    });
+}
+
+/**
  * Worker entry point for running a single scenario.
  *
  * Each scenario is isolated in a separate child process (`child_process.fork`).
@@ -124,7 +164,7 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
         /** @type {WorkerMessage} */
         const message = result?.skipped ? { status: 'skip', result } : { status: 'pass', result };
 
-        process.send(message);
+        sendFinalMessage(message);
     } catch (e) {
         // Preserve FrameworkError formatting across IPC.
         // FrameworkError.toString() provides the user-friendly multi-line message;
@@ -137,12 +177,10 @@ const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestratio
             status: 'fail',
             error: formatted ? `${formatted}\n\n${e.stack || ''}` : e.stack || String(e),
         };
-        process.send(message);
+        sendFinalMessage(message);
     } finally {
         clearTickInterceptor();
-        // Terminate worker process.
-        // server.stop() does not fully release storage — process.exit() is necessary.
-        // Small delay (100ms) to ensure the message is delivered to the parent.
-        setTimeout(() => process.exit(0), 100);
+        // The worker terminates itself inside sendFinalMessage() once the
+        // final message is flushed to the IPC channel.
     }
 })();
