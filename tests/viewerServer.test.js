@@ -327,7 +327,7 @@ describe('UiServer', () => {
     it('broadcastStart sends SSE start event', async () => {
         server = await createUiServer({ port: 0 });
         // Start SSE connection, then broadcast after a small delay
-        const ssePromise = collectSseEvents(server.port, 400);
+        const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
         server.broadcastStart('test-scenario', 200);
         const { events } = await ssePromise;
@@ -338,7 +338,7 @@ describe('UiServer', () => {
 
     it('broadcastStart forwards replayBuffer in SSE start event', async () => {
         server = await createUiServer({ port: 0 });
-        const ssePromise = collectSseEvents(server.port, 400);
+        const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
         server.broadcastStart('test-scenario', 200, 1500);
         const { events } = await ssePromise;
@@ -349,7 +349,7 @@ describe('UiServer', () => {
 
     it('broadcastScenarioResult sends SSE scenario-result event', async () => {
         server = await createUiServer({ port: 0 });
-        const ssePromise = collectSseEvents(server.port, 400);
+        const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
         server.broadcastScenarioResult({ scenario: 'test', status: 'pass', time: 100, ticks: 30 });
         const { events } = await ssePromise;
@@ -360,7 +360,7 @@ describe('UiServer', () => {
 
     it('updateStatus broadcasts SSE status event', async () => {
         server = await createUiServer({ port: 0 });
-        const ssePromise = collectSseEvents(server.port, 400);
+        const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
         server.updateStatus({ state: 'running', tick: 42, speed: 5 });
         const { events } = await ssePromise;
@@ -380,11 +380,61 @@ describe('UiServer', () => {
     it('new SSE client gets current status on connect', async () => {
         server = await createUiServer({ port: 0 });
         server.updateStatus({ state: 'running', tick: 10, speed: 3 });
-        const { events } = await collectSseEvents(server.port, 500);
+        const { events } = await collectSseEvents(server.port, 300);
         const statusEvents = events.filter((e) => e.type === 'status');
         expect(statusEvents.length).toBeGreaterThanOrEqual(1);
         const lastStatus = statusEvents[statusEvents.length - 1];
         expect(lastStatus.data.state).toBe('running');
+    });
+
+    it('new SSE client gets the last frame re-sent on connect', async () => {
+        server = await createUiServer({ port: 0 });
+        server.broadcast({ gameTime: 42, objects: [], console: [] });
+        const { events } = await collectSseEvents(server.port, 300);
+        const frameEvents = events.filter((e) => e.type === 'frame');
+        expect(frameEvents.length).toBeGreaterThanOrEqual(1);
+        expect(frameEvents[frameEvents.length - 1].data.gameTime).toBe(42);
+    });
+
+    it('new SSE client gets the last terrain re-sent on connect', async () => {
+        server = await createUiServer({ port: 0 });
+        server.broadcastTerrain({ W0N1: plainsRows() });
+        const { events } = await collectSseEvents(server.port, 300);
+        const terrainEvents = events.filter((e) => e.type === 'terrain');
+        expect(terrainEvents.length).toBeGreaterThanOrEqual(1);
+        expect(terrainEvents[terrainEvents.length - 1].data.W0N1).toHaveLength(50);
+    });
+
+    it('broadcastStart clears stale cached frames for late clients', async () => {
+        // lastStart mimics interactive mode: a late client gets a fresh
+        // `start`, but must NOT get the previous scenario's frame/terrain
+        server = await createUiServer({ port: 0, lastStart: { scenario: 'new-scenario', maxTicks: 100 } });
+        server.broadcast({ gameTime: 1, objects: [], console: [] });
+        server.broadcastStart('new-scenario', 100);
+        const { events } = await collectSseEvents(server.port, 300);
+        expect(events.find((e) => e.type === 'frame')).toBeUndefined();
+        expect(events.find((e) => e.type === 'terrain')).toBeUndefined();
+        const startEvent = events.find((e) => e.type === 'start');
+        expect(startEvent).toBeDefined();
+        expect(startEvent.data.scenario).toBe('new-scenario');
+    });
+
+    it('re-sent start event carries the current paused state (page reload while paused)', async () => {
+        server = await createUiServer({ port: 0, lastStart: { scenario: 'test', maxTicks: 0, replayBuffer: 100 } });
+        server.updateStatus({ state: 'paused', tick: 42 });
+        const { events } = await collectSseEvents(server.port, 300);
+        const startEvent = events.find((e) => e.type === 'start');
+        expect(startEvent).toBeDefined();
+        expect(startEvent.data.paused).toBe(true);
+    });
+
+    it('re-sent start event is not paused while the server is running', async () => {
+        server = await createUiServer({ port: 0, lastStart: { scenario: 'test', maxTicks: 0, replayBuffer: 100 } });
+        server.updateStatus({ state: 'running', tick: 42 });
+        const { events } = await collectSseEvents(server.port, 300);
+        const startEvent = events.find((e) => e.type === 'start');
+        expect(startEvent).toBeDefined();
+        expect(startEvent.data.paused).toBe(false);
     });
 
     // ─── Snapshot file serving ───────────────────────────────────────────

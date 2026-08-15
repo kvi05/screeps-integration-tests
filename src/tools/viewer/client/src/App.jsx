@@ -246,7 +246,9 @@ export default function App() {
                     if (firstFrame) {
                         firstFrame = false;
                         setConnected(true);
-                        setServerState('running');
+                        // Do NOT set serverState here — status/start events are
+                        // authoritative. Cached frames re-sent on connect would
+                        // otherwise flip a paused server to 'running'.
                         if (data.terrain && Object.keys(data.terrain).length > 0) {
                             setRecording((prev) => ({
                                 ...prev,

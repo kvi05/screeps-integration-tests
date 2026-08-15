@@ -153,6 +153,8 @@ describe('keyboard shortcuts', () => {
             viewerApi.setPlaying(false);
         });
 
+        // Transport controls are always mounted — the scrubber must be
+        // usable even before the first frame arrives.
         const slider = container.querySelector('input[type="range"]');
         expect(slider).not.toBeNull();
         slider.focus();

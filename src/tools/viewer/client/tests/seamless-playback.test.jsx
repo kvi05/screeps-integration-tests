@@ -247,6 +247,30 @@ describe('seamless playback (no modes)', () => {
         expect(postResume).not.toHaveBeenCalled();
     });
 
+    it('reload while paused: status → start(paused) → cached frame, no resume', () => {
+        // A late-connecting client gets status first, then the re-sent start
+        // (with merged paused=true) and the cached last frame. The button must
+        // reflect the real paused state and the frame must render.
+        act(() => {
+            mocks.sseHandler('status', { state: 'paused', tick: 7 });
+        });
+        act(() => {
+            mocks.sseHandler('start', { scenario: 'demo.scenario.js', paused: true });
+        });
+        act(() => {
+            mocks.sseHandler('frame', {
+                gameTime: 7,
+                objects: [{ _id: 'o7', type: 'source', x: 25, y: 25, room: 'W0N0' }],
+                console: [],
+            });
+        });
+        expect(getState().server.state).toBe('paused');
+        expect(getState().playback.playing).toBe(false);
+        expect(getState().recording.framesCount).toBe(1);
+        expect(postResume).not.toHaveBeenCalled();
+        expect(postPause).not.toHaveBeenCalled();
+    });
+
     it('restored event resets the buffer and pauses playback', () => {
         goLive(5);
         expect(getState().recording.framesCount).toBe(5);
