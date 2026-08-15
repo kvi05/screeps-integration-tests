@@ -196,6 +196,8 @@ PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 ### Fixed
 
+PR #56 [Fix/engine snapshot node24](https://github.com/kvi05/screeps-integration-tests/pull/56)
+
 - **Engine snapshot auto-regeneration after Node.js upgrades.** `@screeps/driver`
   ships a prebuilt V8 snapshot (`build/runtime.snapshot.bin`) that only works
   with the exact V8 version it was created with. After a Node.js patch upgrade
