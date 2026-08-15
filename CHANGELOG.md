@@ -194,6 +194,39 @@ PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 - `chart.js`, `react-chartjs-2`, `react-router-dom` (viewer client)
 
+### Fixed
+
+- **Engine snapshot auto-regeneration after Node.js upgrades.** `@screeps/driver`
+  ships a prebuilt V8 snapshot (`build/runtime.snapshot.bin`) that only works
+  with the exact V8 version it was created with. After a Node.js patch upgrade
+  the engine child processes crashed (Windows) or hung integration tests
+  forever (Linux CI). The CLI runner now regenerates the snapshot with the
+  vendor's own `make-runtime-snapshot.js` eagerly — once per run, before any
+  worker is forked (`ensureEngineSnapshotCompat`; stamp-guarded,
+  lock-serialised across concurrent runs). `prepareServer` keeps the same
+  check as an idempotent safety net for direct `createWorld` usage outside
+  the CLI (fast path: a single stamp-file read).
+- **Fail fast on engine process death.** An `engineWatch` attached to the mock
+  server converts engine crashes — including signal-deaths that
+  screeps-server-mockup only reports as `info` — into an actionable
+  `ENGINE_CRASH` error instead of an endless `server.tick()` hang. Crashes of
+  non-engine processes (e.g. storage) that the mockup restarts automatically
+  are logged as warnings and no longer kill the worker through an unhandled
+  `error` event.
+- **Worker final message is flushed before exit.** `runScenario.js` used a
+  fixed 100ms delay before `process.exit(0)`, which could lose the final IPC
+  message under load (`Worker exited unexpectedly (exit code 0)`). The worker
+  now exits via the `process.send` callback once the message is flushed to
+  the channel.
+- **Storage startup retry on port collisions.** Parallel workers could pick
+  the same ephemeral port (probe→release window in `getFreePort`) and crash
+  each other's storage process. `prepareServer` now retries with a fresh port
+  up to 3 times before failing.
+- **CI cache key includes the resolved Node version.** Native modules cached
+  under `24.x` were reused across Node patch upgrades with a different V8,
+  masking the snapshot mismatch; the cache key now uses
+  `steps.setup-node.outputs.node-version`.
+
 ## [3.0.0] — 2026-08-06
 
 ### Added
