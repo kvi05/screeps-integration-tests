@@ -177,6 +177,11 @@ async function createUiServer(opts = {}) {
     /** @type {{ state: string, tick: number, speed: number, scenario: string }} */
     const serverStatus = { state: 'idle', tick: 0, speed: DEFAULT_VIEWER_SPEED, scenario: '' };
 
+    /** @type {Object|null} Last broadcast frame — re-sent to late-connecting SSE clients */
+    let lastFrame = null;
+    /** @type {Object|null} Last broadcast terrain — re-sent to late-connecting SSE clients */
+    let lastTerrain = null;
+
     /**
      * Reads and parses a JSON request body.
      * @param {http.IncomingMessage} req
@@ -213,9 +218,24 @@ async function createUiServer(opts = {}) {
                 speed: serverStatus.speed,
                 scenario: serverStatus.scenario,
             });
-            // Re-send last start if available (for late-connecting clients in interactive mode)
+            // Re-send last start if available (for late-connecting clients in
+            // interactive mode). Merge in the CURRENT paused state — the
+            // paused flag stored at scenario launch time goes stale once the
+            // server is paused/resumed.
             if (opts.lastStart) {
-                sse.send('start', opts.lastStart);
+                sse.send('start', {
+                    ...opts.lastStart,
+                    paused: serverStatus.state !== 'running',
+                });
+            }
+            // Re-send last terrain and frame so late clients render immediately.
+            // Order matters: `start` resets the client buffer, terrain + frame
+            // repopulate it right after.
+            if (lastTerrain) {
+                sse.send('terrain', lastTerrain);
+            }
+            if (lastFrame) {
+                sse.send('frame', lastFrame);
             }
             return;
         }
@@ -645,6 +665,8 @@ async function createUiServer(opts = {}) {
                  * @param {Object} frame — the snapshot Frame
                  */
                 broadcast(frame) {
+                    // Keep the latest frame for late-connecting SSE clients
+                    lastFrame = frame;
                     // Forward all frame fields to SSE clients (including _sentAt, _size for metrics)
                     for (const client of sseClients) {
                         client.send('frame', frame);
@@ -652,12 +674,18 @@ async function createUiServer(opts = {}) {
                 },
 
                 broadcastStart(scenario, maxTicks, replayBuffer, paused) {
+                    // New scenario — stale frames/terrain must not leak to
+                    // late-connecting clients
+                    lastFrame = null;
+                    lastTerrain = null;
                     for (const client of sseClients) {
                         client.send('start', { scenario, maxTicks, replayBuffer, paused });
                     }
                 },
 
                 broadcastTerrain(terrain) {
+                    // Keep the latest terrain for late-connecting SSE clients
+                    lastTerrain = terrain;
                     for (const client of sseClients) {
                         client.send('terrain', terrain);
                     }

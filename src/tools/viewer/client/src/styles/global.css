@@ -117,6 +117,12 @@
     --z-sidebar: 100;
     --z-modal: 1000;
     --z-tooltip: 2000;
+
+    /* Frosted-glass surfaces (floating overlays over the canvas) */
+    --glass-bg: rgba(30, 30, 30, 0.6);
+    --glass-blur: 10px;
+    --glass-filter: blur(var(--glass-blur)) saturate(160%);
+    --glass-shadow: 3px 2px 10px rgba(0, 0, 0, 0.25);
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────────────── */
@@ -179,6 +185,20 @@ body,
     }
 }
 
+/* ─── Frosted glass panel (floating overlays over the canvas) ──────────────── */
+.glass-panel {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-filter);
+    backdrop-filter: var(--glass-filter);
+    /* box-shadow: var(--glass-shadow); */
+
+    box-shadow:
+        /* Нижний и правый эффект глубины */
+        inset -0.75px -0.5px rgba(255, 255, 255, 0.09),
+        /* Верхний и левый эффект глубины */ inset + 0.75px +0.5px rgba(255, 255, 255, 0.03),
+        /* Эффект тени */ var(--glass-shadow);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYOUT
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -208,32 +228,96 @@ body,
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   TIMELINE BAR (unified Live / Replay / Rewound controls)
+   TRANSPORT — floating frosted-glass time controls (top overlay)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.timeline-bar {
+/* ─── Transport row — one flex container spanning the full width ────────────
+   The three floating groups live inside it, so the center bar can never
+   overlap the side pills: it simply shrinks (slider first) on narrow screens. */
+.transport-row {
+    position: absolute;
+    top: var(--sp-4);
+    left: var(--sp-4);
+    right: var(--sp-4);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--sp-2);
+    z-index: var(--z-toolbar);
+    user-select: none;
+    /* Empty gaps must not block canvas interaction */
+    pointer-events: none;
+}
+.transport-row > * {
+    pointer-events: auto;
+}
+
+/* Shared surface for the three floating groups */
+.transport-back,
+.transport-bar,
+.transport-actions {
     display: flex;
     align-items: center;
-    gap: var(--sp-3);
-    height: var(--toolbar-h);
-    padding: 0 var(--sp-6);
-    background: var(--bg-raised);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-    user-select: none;
-    z-index: var(--z-toolbar);
 }
 
+/* Navigation back to the Scenario Manager (left, fixed) */
+.transport-back {
+    padding: var(--sp-1);
+    border-radius: var(--r-lg);
+}
+
+/* Core transport controls (center, flexible — absorbs the squeeze) */
+.transport-bar {
+    flex: 1 1 auto;
+    min-width: 500px;
+    max-width: 800px;
+    justify-content: center;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-xl);
+}
+
+/* Secondary actions (right, fixed) */
+.transport-actions {
+    gap: var(--sp-2);
+    padding: var(--sp-2);
+    border-radius: var(--r-lg);
+}
+
+/* Subtle divider between logical control groups */
 .timeline-separator {
-    width: 2px;
-    height: 30px;
-    background: var(--border);
-    margin: 0 var(--sp-2);
+    width: 1px;
+    height: 22px;
+    background: var(--border-light);
+    margin: 0 var(--sp-1);
     flex-shrink: 0;
 }
 
-/* ─── Toolbar buttons ────────────────────────────────────────────────────── */
+/* ─── Transport buttons ──────────────────────────────────────────────────── */
 
+/* Icon buttons blend into the glass; surface appears on hover */
+.transport-bar .icon-btn,
+.transport-actions .icon-btn {
+    background: transparent;
+    border-color: transparent;
+}
+.transport-bar .icon-btn:hover:not(:disabled),
+.transport-actions .icon-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: transparent;
+}
+/* Primary (play/pause) keeps its accent fill on glass */
+.transport-bar .icon-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+.transport-bar .icon-btn.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* Back button sits inside its own glass pill */
 .btn-back {
     display: flex;
     align-items: center;
@@ -307,11 +391,6 @@ body,
     display: flex;
     align-items: center;
     gap: var(--sp-2);
-}
-.speed-control label {
-    font-size: var(--fs-sm);
-    color: var(--text-muted);
-    white-space: nowrap;
 }
 .speed-select {
     background: var(--bg-overlay);
@@ -443,12 +522,47 @@ body,
     margin: 0 2px;
 }
 
+/* ─── Live server tick indicator ──────────────────────────────────────────── */
+.server-tick-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+}
+.server-tick-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-full);
+    background: var(--text-muted);
+    flex-shrink: 0;
+}
+.server-tick-dot.running {
+    background: var(--success);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+.server-tick-dot.paused {
+    background: var(--warning);
+}
+.server-tick-dot.stepping {
+    background: var(--info);
+    animation: pulse-dot 0.8s ease-in-out infinite;
+}
+.server-tick-label {
+    color: var(--text-dim);
+}
+.server-tick-value {
+    color: var(--text-secondary);
+    font-weight: var(--fw-semibold);
+}
+
 /* ─── Timeline scrubber ──────────────────────────────────────────────────── */
 .tick-slider {
-    flex: 1;
-    max-width: 360px;
-    min-width: 80px;
-    height: 6px;
+    flex: 1 1 240px;
+    min-width: 90px;
+    max-width: 800px;
+    height: 7px;
     -webkit-appearance: none;
     appearance: none;
     background: var(--bg-overlay);
@@ -458,7 +572,6 @@ body,
 }
 .tick-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    appearance: none;
     width: 14px;
     height: 14px;
     border-radius: var(--r-full);
@@ -482,21 +595,17 @@ body,
     border-radius: var(--r-full);
     background: var(--accent);
     border: 2px solid var(--bg-raised);
+    box-shadow: var(--shadow-sm);
     cursor: grab;
+    transition: transform var(--t-fast);
 }
-
-/* ─── Timeline actions (rewind / save / bookmark) ──────────────────────────── */
-.timeline-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
+.tick-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    background: var(--accent-hover);
 }
-
-/* Timeline scrubber spans the remaining width (overrides .tick-slider cap) */
-.timeline-bar .timeline-slider {
-    flex: 1;
-    max-width: none;
-    min-width: 80px;
+.tick-slider::-moz-range-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.1);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -515,6 +624,8 @@ body,
 }
 
 /* ─── Canvas overlays ─────────────────────────────────────────────────────── */
+/* Floating overlays reuse the shared .glass-panel surface (background,
+   backdrop blur, border and shadow are defined once in that utility). */
 .canvas-overlay {
     position: absolute;
     z-index: var(--z-overlay);
@@ -524,15 +635,13 @@ body,
     pointer-events: auto;
 }
 
-/* Room label overlay (top-left) */
+/* Room label overlay (top-left, below the transport-back pill) */
 .canvas-room-label {
-    top: var(--sp-4);
+    top: 56px;
     left: var(--sp-4);
     display: flex;
     align-items: center;
     gap: var(--sp-2);
-    background: rgba(30, 30, 30, 0.85);
-    border: 1px solid var(--border-light);
     border-radius: var(--r-md);
     padding: var(--sp-2) var(--sp-4);
     font-family: var(--font-mono);
@@ -547,8 +656,6 @@ body,
     display: flex;
     align-items: center;
     gap: var(--sp-2);
-    background: rgba(30, 30, 30, 0.85);
-    border: 1px solid var(--border-light);
     border-radius: var(--r-md);
     padding: var(--sp-2) var(--sp-4);
     font-family: var(--font-mono);
@@ -556,14 +663,12 @@ body,
     color: var(--text-muted);
 }
 
-/* Canvas toolbar (top-right) — grid, heatmap, focus */
+/* Canvas toolbar (top-right, below the transport-actions pill) */
 .canvas-toolbar {
-    top: var(--sp-4);
+    top: 56px;
     right: var(--sp-4);
     display: flex;
     gap: var(--sp-2);
-    background: rgba(30, 30, 30, 0.85);
-    border: 1px solid var(--border-light);
     border-radius: var(--r-lg);
     padding: var(--sp-2);
 }
@@ -1569,16 +1674,14 @@ body,
    MINIMAP
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* Floating glass surface comes from the shared .glass-panel utility */
 .mini-map-container {
     position: absolute;
     bottom: var(--sp-4);
     right: var(--sp-4);
     z-index: var(--z-minimap);
-    border: 1px solid var(--border-light);
     border-radius: var(--r-lg);
-    background: rgba(30, 30, 30, 0.9);
     overflow: hidden;
-    box-shadow: var(--shadow-md);
     transition: all var(--t-normal);
 }
 .mini-map-container:hover {

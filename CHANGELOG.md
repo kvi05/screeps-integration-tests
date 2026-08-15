@@ -38,9 +38,7 @@ PR #44 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/p
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 - **Phase 2 Browser Viewer (MVP):** bidirectional IPC for live server control
-  (pause/resume/step/speed via REST → `child.send()`). Controls are split into
-  Live Server (manages the real server) and Saved Replay (client-side playback
-  of accumulated frames).
+  (pause/resume/step/speed via REST → `child.send()`).
 - **Object Inspector:** click on canvas → list of objects on that tile → detailed
   properties. Selected object highlight on canvas. Type filter and search.
 - **Console Panel:** dockable panel with bot logs (`frame.console`).
@@ -124,17 +122,37 @@ PR #54 [Feat/phase 3](https://github.com/kvi05/screeps-integration-tests/pull/54
 
 PR #55 [Feat/phase 4](https://github.com/kvi05/screeps-integration-tests/pull/55)
 
-- **Seamless unified timeline** — removed the separate Live / Replay control
-  groups and replaced them with a single bottom `Timeline` bar. The scrubber
-  cursor is the single source of truth: at the recorded edge the live server
-  is the time source (play/pause/step drive it), in the past the client plays
-  through buffered frames and pauses the server automatically.
+- **Seamless unified timeline** — a single timeline, no separate Live / Replay
+  modes. The scrubber cursor is the single source of truth: at the recorded
+  edge the live server is the time source (play/pause/step drive it), in the
+  past the client plays through buffered frames and pauses the server
+  automatically.
 - **Post-end local replay.** The viewer is now notified when an interactive
   scenario finishes (`end` SSE event), so the recorded frames remain playable
   after the worker has exited. Server-only actions (rewind/save/step) are
   correctly disabled once the scenario ends — there is no live DB to restore.
 - **`viewerOptions.paused` forwarded in the SSE start handshake** — the viewer
   starts paused when configured.
+
+PR #59 [Feat/viewer timeline redesign](https://github.com/kvi05/screeps-integration-tests/pull/59)
+
+- **Floating frosted-glass transport.** The timeline renders as a floating
+  frosted-glass overlay pinned to the top of the canvas: a single full-width
+  `transport-row` holds three visually separated groups (back-to-scenarios
+  pill, flexible center transport bar, action pills), so the scrubber shrinks
+  first instead of the pills overlapping on narrow screens. A shared
+  `.glass-panel` utility (backdrop blur, inset depth, shadow) styles the
+  transport, the canvas overlays (room label, zoom indicator, toolbar) and the
+  minimap. Transport is always mounted — controls work before the first frame
+  arrives. A live server-tick indicator (running/paused/stepping dot) shows
+  the authoritative time source.
+- **Robust reconnect.** A late-connecting SSE client (e.g. page reload) now gets
+  the last broadcast frame and terrain re-sent right after the `start`
+  handshake, plus a `start` event merged with the _current_ paused state — so a
+  paused server stays paused and the canvas is never blank. `broadcastStart`
+  clears the cached frame/terrain so a new scenario never leaks stale data.
+  The client no longer forces `serverState` to `running` on the first frame;
+  `status`/`start` events are authoritative.
 
 ### Changed
 
