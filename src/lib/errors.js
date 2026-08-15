@@ -162,6 +162,28 @@ const ERROR_CONTEXTS = {
         how: 'Check the file for syntax errors: missing commas, unmatched brackets, invalid statements, etc.',
         docs: 'docs/CONFIG.md',
     },
+    ENGINE_SNAPSHOT_MISMATCH: {
+        title: 'Engine snapshot is incompatible with the current Node.js version',
+        why:
+            'The mock server engine (@screeps/driver) ships a prebuilt V8 snapshot that only works with the exact V8 version it was built with. ' +
+            'After a Node.js upgrade the snapshot stops working, and the framework tried to regenerate it automatically but the regeneration failed.',
+        how:
+            '1. Reinstall dependencies: `npm ci`.\n' +
+            '  2. Make sure the `isolated-vm` native module is rebuilt for this Node.js version: `npm rebuild isolated-vm`.\n' +
+            '  3. If the problem persists, delete the lock file next to the snapshot and run again.',
+        docs: 'docs/GETTING-STARTED.md',
+    },
+    ENGINE_CRASH: {
+        title: 'The mock server engine crashed',
+        why:
+            'The engine child processes started by screeps-server-mockup exited unexpectedly. ' +
+            'This usually means the prebuilt V8 snapshot in @screeps/driver is incompatible with the current Node.js version.',
+        how:
+            '1. The framework regenerates the snapshot automatically — simply run again.\n' +
+            '  2. If the crash persists, reinstall dependencies: `npm ci`.\n' +
+            '  3. Make sure the `isolated-vm` native module is built for this Node.js version: `npm rebuild isolated-vm`.',
+        docs: 'docs/GETTING-STARTED.md',
+    },
 };
 
 // ─── Base error class ───────────────────────────────────────────────────────

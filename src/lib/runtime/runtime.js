@@ -14,6 +14,8 @@ const { TestBot } = require('./testBot');
 const { createDispose } = require('./cleanup');
 const { computeAdjacentBorders } = require('./roomUtils');
 const { getTerrainMatrixClass } = require('./terrain');
+const { ensureEngineSnapshotCompat } = require('./engineSnapshot');
+const { FrameworkError } = require('../errors');
 
 /**
  * @typedef {import('../types').ScreepsServer} ScreepsServer
@@ -41,6 +43,8 @@ const DEFAULT_BOT_GCL = 1;
 const DEFAULT_BOT_ACTIVE = 10000;
 /** @type {string} */
 const DEFAULT_BOT_BRANCH = 'default';
+/** @type {number} Max storage startup attempts before giving up */
+const STORAGE_START_MAX_ATTEMPTS = 3;
 
 /**
  * Creates a mockup server, rooms, and terrain.
@@ -65,17 +69,57 @@ async function prepareServer(opts) {
         throw new Error('prepareServer: opts.rooms is required and must be a non-empty array');
     }
 
+    // Safety net for direct createWorld/createRuntime usage outside the CLI:
+    // regenerate the @screeps/driver engine snapshot when the installed blob
+    // was built by a different Node/V8 version. The CLI runner performs this
+    // check eagerly before forking workers, so here it is normally a no-op
+    // (a single stamp-file read). Must run before the server starts any
+    // engine process (fail loud, fail early).
+    ensureEngineSnapshotCompat();
+
     const cacheDir = opts.cacheDir || path.join(__dirname, '..', '.cache', String(process.pid));
-    const port = opts.port ?? (await getFreePort());
 
     // screeps-server-mockup writes logs to ./server/logs relative to cwd.
     // Create the directory automatically so users don't have to maintain
     // it manually in their repository.
     fs.mkdirSync(path.join(process.cwd(), 'server', 'logs'), { recursive: true });
 
-    const server = new ScreepsServer({ path: cacheDir, port });
-
-    await server.world.reset();
+    // Parallel workers can collide on the same ephemeral port: getFreePort
+    // has a probe→release window before the storage child binds it. Retry
+    // with a fresh port instead of failing the scenario.
+    const maxAttempts = opts.port ? 1 : STORAGE_START_MAX_ATTEMPTS;
+    /** @type {ScreepsServer|null} */
+    let server = null;
+    let engineWatch = null;
+    let lastError = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const port = opts.port ?? (await getFreePort());
+        const candidate = new ScreepsServer({ path: cacheDir, port });
+        const candidateWatch = attachEngineWatch(candidate);
+        try {
+            await candidate.world.reset();
+            server = candidate;
+            engineWatch = candidateWatch;
+            break;
+        } catch (e) {
+            candidateWatch.dispose();
+            try {
+                candidate.stop();
+            } catch {
+                // The server never fully started — nothing to stop.
+            }
+            lastError = e;
+            if (attempt < maxAttempts) {
+                console.error(
+                    `[prepareServer] storage startup failed (attempt ${attempt}/${maxAttempts}): ` +
+                        `${e.message ?? String(e)} — retrying with a new port...`,
+                );
+            }
+        }
+    }
+    if (!server) {
+        throw lastError;
+    }
 
     const adapter = createStorageAdapter(server);
 
@@ -86,7 +130,7 @@ async function prepareServer(opts) {
         await prepareRoom(adapter, roomName, adjacencyMap[roomName]);
     }
 
-    return { server, adapter, dispose: createDispose(server, adapter, cacheDir) };
+    return { server, adapter, dispose: createDispose(server, adapter, cacheDir), engineWatch };
 }
 
 /**
@@ -213,6 +257,10 @@ async function createRuntime(opts) {
             profiling: opts.profiling,
         });
         await prepared.server.start();
+        // Engine processes exist only after start() — activate the
+        // fail-fast watch and route dispose through it (the expected
+        // process shutdown must not be recorded as an engine death).
+        prepared.dispose = prepared.engineWatch.activate(prepared.dispose);
         return { ...prepared, ...added };
     } catch (error) {
         await prepared.dispose();
@@ -275,4 +323,152 @@ function applyBorderWalls(terrain, adjacentBorders) {
     }
 }
 
-module.exports = { createRuntime, prepareServer, addBots, addBot };
+/**
+ * Watches the mockup server's engine child processes and the server's
+ * 'error' events, converting engine deaths into a single `death` promise.
+ *
+ * screeps-server-mockup only emits 'info' (not 'error') when a process is
+ * killed by a signal — which makes `server.tick()` hang forever (the Linux
+ * CI symptom). On Windows an engine crash exits with a non-zero code and the
+ * mockup emits 'error'; without a listener that kills the worker with
+ * ERR_UNHANDLED_ERROR. This watch guarantees a fail-fast, actionable error
+ * when an *engine* process (runner/processor) dies, while non-engine
+ * processes (e.g. storage, which the mockup restarts automatically) produce
+ * warnings only.
+ *
+ * @param {ScreepsServer} server
+ * @returns {import('../types').EngineWatch}
+ */
+function attachEngineWatch(server) {
+    /** @type {string[]} Fatal engine failures (at most one — first wins) */
+    const errors = [];
+    /** @type {string[]} Non-fatal crashes of other processes */
+    const warnings = [];
+    let disposed = false;
+    let settled = false;
+    let rejectDeath = () => {};
+    /** @type {Promise<never>} */
+    const death = new Promise((resolve, reject) => {
+        rejectDeath = reject;
+    });
+    // Pre-attach a no-op handler: `race()` races `death` against tick
+    // promises, and the losing side must never surface as an unhandled
+    // rejection after the race has been resolved.
+    death.catch(() => {});
+
+    const HINT =
+        'The framework regenerates the engine snapshot automatically (V8 snapshots break after ' +
+        'Node.js upgrades). If the crash persists, reinstall dependencies with `npm ci`.';
+
+    /**
+     * Records a non-fatal process event.
+     *
+     * @param {string} message
+     * @returns {void}
+     */
+    function warn(message) {
+        if (disposed) {
+            return;
+        }
+        warnings.push(message);
+        console.error(`[engineWatch] ${message}`);
+    }
+
+    /**
+     * Records the first fatal engine failure and rejects `death`.
+     *
+     * @param {string} message
+     * @returns {void}
+     */
+    function record(message) {
+        if (disposed || settled) {
+            return;
+        }
+        settled = true;
+        errors.push(message);
+        console.error(`[engineWatch] ${message}`);
+        rejectDeath(new FrameworkError('ENGINE_CRASH', '', {}, [message, HINT]));
+    }
+
+    // Intercept mockup 'error' events: without a listener they would kill
+    // the worker with ERR_UNHANDLED_ERROR. The mockup auto-restarts the
+    // crashed process, so these are warnings — the per-child exit listeners
+    // below are responsible for failing fast on engine deaths.
+    server.on('error', (message) => {
+        warn(`mock server error: ${message}`);
+    });
+
+    return {
+        errors,
+        warnings,
+        death,
+        /**
+         * Races a long-running engine promise (a tick, profile export)
+         * against an engine death: a crashed engine rejects with
+         * ENGINE_CRASH instead of hanging forever. The losing promise is
+         * pre-handled so it never surfaces as an unhandled rejection
+         * after the race has settled.
+         *
+         * @template T
+         * @param {Promise<T>} promise
+         * @returns {Promise<T>}
+         */
+        race(promise) {
+            promise.catch(() => {});
+            return Promise.race([promise, death]);
+        },
+        /**
+         * Attaches exit listeners to the engine child processes. Must be
+         * called after `server.start()` — processes are created only then.
+         *
+         * @returns {void}
+         */
+        attachChildren() {
+            const children = Object.entries(server.processes || {});
+            for (const [name, child] of children) {
+                if (!child || typeof child.on !== 'function') {
+                    continue;
+                }
+                child.on('exit', (code, signal) => {
+                    if (disposed) {
+                        return;
+                    }
+                    const message = `[${name}] process exited (code: ${code}, signal: ${signal})`;
+                    if (name === 'engine_runner' || name === 'engine_processor') {
+                        record(message);
+                    } else if (code !== 0 || signal !== null) {
+                        warn(`${message} — the mock server restarts it automatically`);
+                    }
+                });
+            }
+        },
+        /**
+         * Activates the watch for a started server: attaches the child
+         * exit listeners (engine processes exist only after
+         * `server.start()`) and returns a wrapped dispose that stops the
+         * watch first, so the expected process shutdown is not recorded
+         * as an engine death.
+         *
+         * @param {DisposeFn} dispose - server dispose function to wrap
+         * @returns {DisposeFn} wrapped dispose
+         */
+        activate(dispose) {
+            this.attachChildren();
+            return async () => {
+                this.dispose();
+                await dispose();
+            };
+        },
+        /**
+         * Stops recording — used during dispose so that the expected
+         * process shutdown does not reject the `death` promise.
+         *
+         * @returns {void}
+         */
+        dispose() {
+            disposed = true;
+        },
+    };
+}
+
+module.exports = { createRuntime, prepareServer, addBots, addBot, attachEngineWatch };
