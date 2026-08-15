@@ -36,6 +36,18 @@ const { createMemoryHistory } = require('../src/tools/viewer/memoryHistory');
 const SUMMARY_WARNINGS_LIMIT = 6;
 /** @type {number} Maximum lines of error output in summary */
 const SUMMARY_ERROR_LINES = 10;
+/**
+ * Grace period (ms) after a worker exits to wait for its final IPC message.
+ *
+ * The worker flushes its final message to the channel before exiting
+ * (process.send callback), but the parent has no ordering guarantee between
+ * the 'message' and 'exit' events. If 'exit' arrives first, this window lets
+ * the already-flushed message resolve the run instead of reporting
+ * "Worker exited unexpectedly" for a scenario that actually completed.
+ *
+ * @type {number}
+ */
+const WORKER_EXIT_GRACE_MS = 250;
 
 /**
  * @typedef {import('../src/lib/types').WorkerMessage} WorkerMessage
@@ -246,8 +258,22 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
 
         /** @type {WorkerMessage & { time?: number }} */
         const result = await new Promise((resolve, reject) => {
+            let finalReceived = false;
+            /** @type {ReturnType<typeof setTimeout>|null} Timer started when 'exit' beats 'message' */
+            let exitGraceTimer = null;
+
             function onMessage(msg) {
                 if (isFinalMessage(msg)) {
+                    finalReceived = true;
+                    if (exitGraceTimer) {
+                        // The worker exited before its final message was
+                        // processed — the message was still delivered, so
+                        // this is a recovered result, not a failure.
+                        console.warn(
+                            `[runner] ${path.basename(scenarioPath)}: worker exited before its ` +
+                                'final message was processed — recovered the flushed message',
+                        );
+                    }
                     cleanup();
                     resolve(msg);
                     return;
@@ -268,9 +294,18 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
             }
 
             function onExit(code, signal) {
-                cleanup();
+                if (finalReceived) {
+                    return; // already resolved via the final message
+                }
+                // The worker exits right after flushing its final message
+                // (send callback). 'exit' may be processed before 'message'
+                // — give the flushed message a short window to arrive before
+                // declaring the worker dead.
                 const reason = code !== null ? `exit code ${code}` : `signal ${signal}`;
-                reject(new Error(`Worker exited unexpectedly (${reason})`));
+                exitGraceTimer = setTimeout(() => {
+                    cleanup();
+                    reject(new Error(`Worker exited unexpectedly (${reason})`));
+                }, WORKER_EXIT_GRACE_MS);
             }
 
             function onAbort() {
@@ -279,6 +314,7 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
             }
 
             function cleanup() {
+                clearTimeout(exitGraceTimer);
                 child.removeListener('message', onMessage);
                 child.removeListener('error', onError);
                 child.removeListener('exit', onExit);
