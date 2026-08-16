@@ -451,7 +451,9 @@ async function createUiServer(opts = {}) {
             return;
         }
 
-        // POST /api/run-from-snapshot — launch a scenario from a snapshot file
+        // POST /api/run-from-snapshot — launch a scenario from a snapshot.
+        // Accepts either { snapshotFile } (read from the snapshots dir) or
+        // { data } (inline snapshot JSON — launched directly, not persisted).
         if (pathname === '/api/run-from-snapshot' && req.method === 'POST') {
             let body;
             try {
@@ -461,35 +463,61 @@ async function createUiServer(opts = {}) {
                 res.end(JSON.stringify({ error: 'Invalid JSON' }));
                 return;
             }
-            const snapshotFile = body.snapshotFile;
-            if (!snapshotFile) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Missing snapshotFile' }));
-                return;
-            }
-            // Security: use path.basename to strip any path traversal
-            const safeName = path.basename(snapshotFile);
-            if (!safeName || !safeName.endsWith('.json')) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid filename' }));
-                return;
-            }
-            const filePath = path.join(snapshotsDir, safeName);
-            // Security: ensure the resolved path is still inside snapshotsDir
-            if (!filePath.startsWith(snapshotsDir)) {
-                res.writeHead(403, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Forbidden' }));
-                return;
-            }
-            // Read snapshot from disk
+
             let snapshotData;
-            try {
-                snapshotData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-            } catch {
-                res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Snapshot not found or invalid' }));
-                return;
+            if (body.data !== undefined) {
+                // Inline snapshot — launch directly, nothing is written to disk.
+                // Fail early on malformed payloads instead of letting the worker
+                // fail asynchronously after the client already got `ok`.
+                const data = body.data;
+                const isObject = data !== null && typeof data === 'object' && !Array.isArray(data);
+                if (
+                    !isObject ||
+                    !data.db ||
+                    !data.db['rooms.objects'] ||
+                    !data.env ||
+                    data.env.gameTime === undefined
+                ) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(
+                        JSON.stringify({
+                            error: "Invalid snapshot data — expected { db: { 'rooms.objects': [...] }, env: { gameTime: N } }",
+                        }),
+                    );
+                    return;
+                }
+                snapshotData = data;
+            } else {
+                const snapshotFile = body.snapshotFile;
+                if (!snapshotFile) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Missing snapshotFile or data' }));
+                    return;
+                }
+                // Security: use path.basename to strip any path traversal
+                const safeName = path.basename(snapshotFile);
+                if (!safeName || !safeName.endsWith('.json')) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid filename' }));
+                    return;
+                }
+                const filePath = path.join(snapshotsDir, safeName);
+                // Security: ensure the resolved path is still inside snapshotsDir
+                if (!filePath.startsWith(snapshotsDir)) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Forbidden' }));
+                    return;
+                }
+                // Read snapshot from disk
+                try {
+                    snapshotData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+                } catch {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Snapshot not found or invalid' }));
+                    return;
+                }
             }
+
             // Launch: fork worker with restoreSnapshot
             if (opts.onRunFromSnapshot) {
                 opts.onRunFromSnapshot(snapshotData);
