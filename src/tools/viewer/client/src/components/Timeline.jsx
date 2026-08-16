@@ -94,9 +94,9 @@ export default function Timeline({
     // Rewind is only meaningful when the cursor is in the past.
     const rewindDisabled = !canControlServer || !hasFrames || tick >= maxTicks;
 
-    // Save is always available while the server is controllable —
-    // it captures the current world state.
-    const saveDisabled = !canControlServer;
+    // Save captures the LIVE server state, so it only makes sense at the
+    // recorded edge — in the past the scrubber shows buffered replay frames.
+    const saveDisabled = !canControlServer || !atEdge;
 
     // Speed selector is useless without frames or a controllable server.
     const speedDisabled = !hasFrames && !canControlServer;

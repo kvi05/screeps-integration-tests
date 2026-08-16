@@ -168,6 +168,25 @@ body,
     background-clip: content-box;
 }
 
+/* Thin scrollbar utility — shared mechanics for small scrollable panels
+   (snapshot lists and their name rows). Scrollbar overrides live here,
+   not in component CSS. */
+.thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-focus) transparent;
+}
+.thin-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-focus);
+    border-radius: var(--r-full);
+}
+.thin-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 /* ─── Focus visible ──────────────────────────────────────────────────────── */
 :focus-visible {
     outline: 2px solid var(--accent);
@@ -2163,6 +2182,126 @@ body,
     flex-shrink: 0;
 }
 
+/* Detail tabs (Main / Snapshots) */
+.sm-detail-tabs {
+    display: flex;
+    gap: var(--sp-1);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--sp-6);
+}
+.sm-detail-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-medium);
+    padding: var(--sp-3) var(--sp-5);
+    cursor: pointer;
+    transition: all var(--t-fast);
+    margin-bottom: -1px;
+}
+.sm-detail-tab:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+}
+.sm-detail-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: var(--accent-bg);
+}
+
+/* Snapshots tab — vertical cards matching the StatePanel list */
+.sm-snapshots-tab {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+.sm-snapshot-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: var(--sp-3);
+}
+.sm-snapshot-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    transition:
+        border-color var(--t-fast),
+        background var(--t-fast);
+}
+.sm-snapshot-item:hover {
+    border-color: var(--border-focus);
+    background: var(--bg-hover);
+}
+/* Full-width name row — scrolls horizontally instead of ellipsizing */
+.sm-snapshot-name-row {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+.sm-snapshot-name {
+    display: inline-block;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    color: var(--text-primary);
+}
+/* Meta row: tick badge + date + size, wraps gracefully */
+.sm-snapshot-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+}
+.sm-snapshot-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px var(--sp-2);
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--r-md);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.sm-snapshot-sep {
+    color: var(--text-dim);
+    user-select: none;
+}
+.sm-snapshot-meta {
+    white-space: nowrap;
+}
+.sm-snapshot-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    flex-shrink: 0;
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--border);
+}
+.sm-snapshot-footer {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+}
+.sm-snapshot-error {
+    font-size: var(--fs-sm);
+    color: var(--error);
+}
+
 /* Detail meta grid */
 .sm-detail-meta {
     display: grid;
@@ -2505,10 +2644,10 @@ body,
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SAVE/LOAD PANEL (future: SL-1 to SL-5)
+   STATE PANEL (snapshots, rewind range, import)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.save-load-panel {
+.state-panel {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -2516,13 +2655,13 @@ body,
     padding: var(--sp-4);
     gap: var(--sp-3);
 }
-.save-load-section {
+.state-section {
     background: var(--bg-overlay);
     border: 1px solid var(--border-light);
     border-radius: var(--r-lg);
     padding: var(--sp-4);
 }
-.save-load-section h3 {
+.state-section h3 {
     display: flex;
     align-items: center;
     gap: var(--sp-2);
@@ -2531,14 +2670,202 @@ body,
     color: var(--text-primary);
     margin-bottom: var(--sp-3);
 }
-.save-load-section p {
+.state-section p {
     font-size: var(--fs-sm);
     color: var(--text-muted);
     margin-bottom: var(--sp-3);
 }
-.save-load-actions {
+/* Scenario name under the "Saved Snapshots" header */
+.snapshot-scenario {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    color: var(--accent);
+    font-style: italic;
+    margin-top: calc(-1 * var(--sp-1));
+}
+.state-actions {
     display: flex;
     gap: var(--sp-2);
+}
+
+/* Manual rewind control */
+.state-rewind-row {
+    display: flex;
+    align-items: stretch;
+    gap: var(--sp-5);
+    max-width: 250px;
+}
+.state-rewind-input {
+    flex: 1;
+    min-width: 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    padding: var(--sp-2) var(--sp-4);
+    transition:
+        border-color var(--t-fast),
+        box-shadow var(--t-fast);
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+/* Hide native number spinners for a cleaner look */
+.state-rewind-input::-webkit-inner-spin-button,
+.state-rewind-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.state-rewind-input:hover:not(:disabled) {
+    border-color: var(--border-focus);
+}
+.state-rewind-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow);
+}
+.state-rewind-input::placeholder {
+    color: var(--text-dim);
+}
+.state-rewind-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Status / error banners */
+.state-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--r-md);
+    font-size: var(--fs-sm);
+    border: 1px solid transparent;
+}
+.state-status.error {
+    background: var(--error-bg);
+    border-color: rgba(248, 113, 113, 0.3);
+    color: var(--error);
+}
+.state-status .dismiss-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: var(--fs-md);
+    line-height: 1;
+    cursor: pointer;
+    padding: var(--sp-1);
+    border-radius: var(--r-sm);
+}
+.state-status .dismiss-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Rewind range readout */
+.rewind-range {
+    font-family: var(--font-mono);
+    font-size: var(--fs-md) !important;
+    color: var(--accent) !important;
+    margin-bottom: 0 !important;
+}
+
+/* Snapshot list — vertical cards: name gets a full-width scrollable row,
+   meta sits below, actions are pinned to the bottom with a hairline */
+.snapshot-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin-bottom: var(--sp-3);
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: var(--sp-2);
+}
+.snapshot-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-base);
+    border: 1px solid var(--border-light);
+    border-radius: var(--r-md);
+    transition:
+        border-color var(--t-fast),
+        background var(--t-fast);
+}
+.snapshot-item:hover {
+    border-color: var(--border-focus);
+    background: var(--bg-overlay);
+}
+/* Full-width name row — scrolls horizontally instead of ellipsizing */
+.snapshot-name-row {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+.snapshot-name {
+    display: inline-block;
+    white-space: nowrap;
+    padding-bottom: 2px; /* keep descenders clear of the scrollbar */
+    font-size: var(--fs-sm);
+    color: var(--text-primary);
+}
+/* Meta row: tick badge + date + size, wraps gracefully */
+.snapshot-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+}
+.snapshot-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px var(--sp-2);
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--r-md);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.snapshot-sep {
+    color: var(--text-dim);
+    user-select: none;
+}
+.snapshot-meta {
+    white-space: nowrap;
+}
+.snapshot-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    flex-shrink: 0;
+    padding-top: var(--sp-1);
+    border-top: 1px solid var(--border);
+}
+
+.no-snapshots {
+    font-size: var(--fs-sm);
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+/* Small buttons (shared) */
+.btn-small {
+    font-size: var(--fs-xs);
+    padding: var(--sp-1) var(--sp-3);
+    gap: var(--sp-2);
+}
+
+/* Refresh button inside a section header */
+.refresh-btn {
+    margin-left: auto;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
