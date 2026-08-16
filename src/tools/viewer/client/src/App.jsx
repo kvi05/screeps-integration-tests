@@ -7,7 +7,7 @@ import ConsolePanel from './components/ConsolePanel';
 import MetricsPanel from './components/MetricsPanel';
 import MiniMap from './components/MiniMap';
 import ScenarioManager from './components/ScenarioManager';
-import SaveLoadPanel from './components/SaveLoadPanel';
+import StatePanel from './components/StatePanel';
 import {
     connectSSE,
     postDispose,
@@ -48,7 +48,7 @@ import './styles/global.css';
  * - Console panel (logs from frames)
  * - Metrics graphs
  * - MiniMap
- * - Sidebar tabs: Inspector / Metrics / Save-Load / Settings
+ * - Sidebar tabs: Inspector / Metrics / State / Settings
  *
  * @component
  */
@@ -121,7 +121,7 @@ export default function App() {
     // Side panels
     const [showConsole, setShowConsole] = useState(() => loadPrefs().showConsole);
     const [showMiniMap, setShowMiniMap] = useState(() => loadPrefs().showMiniMap);
-    const [sidebarTab, setSidebarTab] = useState('inspector'); // inspector | metrics | saveload | settings
+    const [sidebarTab, setSidebarTab] = useState('inspector'); // inspector | metrics | state | settings
 
     // Sidebar
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -913,9 +913,9 @@ export default function App() {
                             <span>Metrics</span>
                         </button>
                         <button
-                            className={`sidebar-tab ${sidebarTab === 'saveload' ? 'active' : ''}`}
-                            onClick={() => setSidebarTab('saveload')}
-                            title="Save / Load"
+                            className={`sidebar-tab ${sidebarTab === 'state' ? 'active' : ''}`}
+                            onClick={() => setSidebarTab('state')}
+                            title="World State"
                         >
                             <DatabaseIcon size={14} />
                         </button>
@@ -943,11 +943,15 @@ export default function App() {
                             />
                         )}
                         {sidebarTab === 'metrics' && <MetricsPanel frames={recording.frames} />}
-                        {sidebarTab === 'saveload' && (
-                            <SaveLoadPanel
-                                currentTick={serverTick}
+                        {sidebarTab === 'state' && (
+                            <StatePanel
+                                scenario={scenario}
+                                serverTick={serverTick}
                                 connected={connected}
                                 ended={ended}
+                                disabled={isLoading || ended}
+                                atEdge={isAtEdge}
+                                replayBuffer={replayBuffer}
                                 sseError={sseError}
                                 onClearError={() => setSseError(null)}
                             />

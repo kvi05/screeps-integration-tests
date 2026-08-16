@@ -14,6 +14,7 @@
 
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { createUiServer } = require('../src/tools/viewer/server');
 
@@ -514,6 +515,83 @@ describe('UiServer', () => {
         // which falls through to SPA fallback → 200 (serves index.html)
         expect(result.status).toBe(200);
         expect(result.body).toContain('<div id="root">');
+    });
+
+    // ─── Snapshot launch ─────────────────────────────────────────────────
+
+    it('POST /api/run-from-snapshot with inline data launches without writing to disk', async () => {
+        /** @type {Array<Object>} */
+        const launched = [];
+        const snapshotsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sit-launch-'));
+        server = await createUiServer({
+            port: 0,
+            snapshotsDir,
+            onRunFromSnapshot: (snapshot) => launched.push(snapshot),
+        });
+
+        try {
+            const snapshot = { version: '2.0', meta: { tick: 42 }, db: { 'rooms.objects': [] }, env: { gameTime: 42 } };
+            const result = await httpPost(server.port, '/api/run-from-snapshot', { data: snapshot });
+
+            expect(result.status).toBe(200);
+            expect(JSON.parse(result.body)).toEqual({ ok: true });
+            expect(launched).toHaveLength(1);
+            expect(launched[0].meta.tick).toBe(42);
+            // Nothing persisted — the snapshots dir stays empty
+            expect(fs.readdirSync(snapshotsDir)).toHaveLength(0);
+        } finally {
+            fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        }
+    });
+
+    it('POST /api/run-from-snapshot reads from disk when snapshotFile is given', async () => {
+        /** @type {Array<Object>} */
+        const launched = [];
+        const snapshotsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sit-launch-'));
+        fs.writeFileSync(
+            path.join(snapshotsDir, 'saved.json'),
+            JSON.stringify({ meta: { tick: 7 }, db: { 'rooms.objects': [] }, env: { gameTime: 7 } }),
+        );
+        server = await createUiServer({
+            port: 0,
+            snapshotsDir,
+            onRunFromSnapshot: (snapshot) => launched.push(snapshot),
+        });
+
+        try {
+            const result = await httpPost(server.port, '/api/run-from-snapshot', { snapshotFile: 'saved.json' });
+            expect(result.status).toBe(200);
+            expect(launched).toHaveLength(1);
+            expect(launched[0].meta.tick).toBe(7);
+        } finally {
+            fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        }
+    });
+
+    it('POST /api/run-from-snapshot returns 400 without snapshotFile or data', async () => {
+        server = await createUiServer({ port: 0 });
+
+        const result = await httpPost(server.port, '/api/run-from-snapshot', {});
+        expect(result.status).toBe(400);
+    });
+
+    it('POST /api/run-from-snapshot rejects malformed inline data with 400', async () => {
+        /** @type {Array<Object>} */
+        const launched = [];
+        server = await createUiServer({
+            port: 0,
+            onRunFromSnapshot: (snapshot) => launched.push(snapshot),
+        });
+
+        // Missing db['rooms.objects'] / env.gameTime
+        const incomplete = await httpPost(server.port, '/api/run-from-snapshot', { data: { version: '2.0' } });
+        expect(incomplete.status).toBe(400);
+        expect(launched).toHaveLength(0);
+
+        // Arrays are not valid snapshots
+        const arrayData = await httpPost(server.port, '/api/run-from-snapshot', { data: [] });
+        expect(arrayData.status).toBe(400);
+        expect(launched).toHaveLength(0);
     });
 });
 

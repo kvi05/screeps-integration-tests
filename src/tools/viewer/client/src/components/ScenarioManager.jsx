@@ -11,6 +11,7 @@
  * - SM-8: tick/sec
  * - SM-9: Filter/search
  * - SM-10: Group by prefix
+ * - SM-11: Snapshots tab — launch/delete/import world snapshots
  * - BM-6 (future): Flags (--only, --profiling)
  * - BM-8 (future): Stop current run
  * - BM-9: Batch summary
@@ -18,9 +19,10 @@
  * @component
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ScenarioList from './ScenarioList';
-import { getScenarios, postRun } from '../api/client';
+import { getScenarios, postRun, getSnapshots, postRunFromSnapshot, deleteSnapshot } from '../api/client';
+import { formatSize, formatDuration } from '../utils/format';
 import {
     RocketIcon,
     SearchIcon,
@@ -64,6 +66,17 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     const [loading, setLoading] = useState(true);
     const [profiling, setProfiling] = useState(false);
     const [selectedName, setSelectedName] = useState(/** @type {string|null} */ (null));
+    const [detailTab, setDetailTab] = useState(/** @type {'main'|'snapshots'} */ ('main'));
+    /** @type {[Array<{file:string, size:number, modified:string, tick?:number, scenario?:string}>, Function]} */
+    const [snapshots, setSnapshots] = useState([]);
+    const [snapshotError, setSnapshotError] = useState(/** @type {string|null} */ (null));
+    const [snapshotsLoadError, setSnapshotsLoadError] = useState(false);
+    const snapshotInputRef = useRef(/** @type {HTMLInputElement|null} */ (null));
+
+    // Return to Main tab whenever a different scenario is selected
+    useEffect(() => {
+        setDetailTab('main');
+    }, [selectedName]);
 
     useEffect(() => {
         // Restore persisted statuses from sessionStorage
@@ -158,6 +171,87 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                 /* ignore — still navigate */
             }
             onNavigateToViewer();
+        },
+        [onNavigateToViewer],
+    );
+
+    // ─── Snapshots tab ────────────────────────────────────────────────────
+
+    /** Refresh the snapshot list, filtered by the selected scenario */
+    const refreshSnapshots = useCallback(async () => {
+        try {
+            const data = await getSnapshots();
+            // Filter by selected scenario (server normalizes meta.scenario to
+            // basename); snapshots without meta.scenario are hidden.
+            const filtered = (data.snapshots || []).filter((s) => !selectedName || s.scenario === selectedName);
+            setSnapshots(filtered);
+            setSnapshotsLoadError(false);
+        } catch {
+            setSnapshots([]);
+            setSnapshotsLoadError(true);
+        }
+    }, [selectedName]);
+
+    // Refresh when switching to the Snapshots tab or changing the scenario
+    useEffect(() => {
+        if (detailTab === 'snapshots' && selectedName) {
+            refreshSnapshots();
+        }
+    }, [detailTab, selectedName, refreshSnapshots]);
+
+    /** Launch a new interactive run from a saved snapshot file */
+    const handleLaunchFromSnapshot = useCallback(
+        async (snapshotFile) => {
+            setSnapshotError(null);
+            try {
+                await postRunFromSnapshot(snapshotFile);
+                onNavigateToViewer();
+            } catch (err) {
+                setSnapshotError(err.message || 'Failed to launch from snapshot');
+            }
+        },
+        [onNavigateToViewer],
+    );
+
+    /** Delete a saved snapshot file */
+    const handleDeleteSnapshot = useCallback(
+        async (snapshotFile) => {
+            setSnapshotError(null);
+            try {
+                await deleteSnapshot(snapshotFile);
+                // Refresh the snapshot list
+                refreshSnapshots();
+            } catch (err) {
+                setSnapshotError(err.message || 'Failed to delete snapshot');
+            }
+        },
+        [refreshSnapshots],
+    );
+
+    /** Open the file picker to launch directly from a local snapshot JSON */
+    const handleLaunchFromFile = useCallback(() => {
+        snapshotInputRef.current?.click();
+    }, []);
+
+    /** Launch a new interactive run straight from a picked snapshot file
+     *  (the snapshot is NOT persisted — it is passed inline to the server) */
+    const handleSnapshotFilePicked = useCallback(
+        async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+
+            setSnapshotError(null);
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                await postRunFromSnapshot(data);
+                onNavigateToViewer();
+            } catch (err) {
+                setSnapshotError(err.message || 'Failed to launch from snapshot file');
+            } finally {
+                // Reset file input so the same file can be re-selected
+                if (snapshotInputRef.current) snapshotInputRef.current.value = '';
+            }
         },
         [onNavigateToViewer],
     );
@@ -363,68 +457,149 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                                 </div>
                             </div>
 
-                            <div className="sm-detail-meta">
-                                <div className="meta-item">
-                                    <div className="meta-label">Status</div>
-                                    <div className="meta-value">
-                                        {selectedStatusConfig ? (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <SelectedStatusIcon
-                                                    size={14}
-                                                    style={{
-                                                        color:
-                                                            selectedStatus === 'pass'
-                                                                ? 'var(--success)'
-                                                                : selectedStatus === 'fail'
-                                                                  ? 'var(--error)'
-                                                                  : selectedStatus === 'running'
-                                                                    ? 'var(--info)'
-                                                                    : 'var(--text-muted)',
-                                                    }}
-                                                />
-                                                {selectedStatusConfig.label}
-                                            </span>
-                                        ) : (
-                                            <span style={{ color: 'var(--text-dim)' }}>Not run</span>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="meta-item">
-                                    <div className="meta-label">Size</div>
-                                    <div className="meta-value">{formatSize(selectedScenario.size)}</div>
-                                </div>
-                                <div className="meta-item">
-                                    <div className="meta-label">Timing</div>
-                                    <div className="meta-value">
-                                        {selectedTiming.total != null
-                                            ? formatDuration(selectedTiming.total)
-                                            : selectedTiming.elapsed != null
-                                              ? `${formatDuration(selectedTiming.elapsed)}…`
-                                              : '—'}
-                                    </div>
-                                </div>
-                                <div className="meta-item">
-                                    <div className="meta-label">Tick/s</div>
-                                    <div className="meta-value">
-                                        {selectedTiming.tickRate != null ? selectedTiming.tickRate.toFixed(1) : '—'}
-                                    </div>
-                                </div>
+                            <div className="sm-detail-tabs">
+                                <button
+                                    className={`sm-detail-tab ${detailTab === 'main' ? 'active' : ''}`}
+                                    onClick={() => setDetailTab('main')}
+                                >
+                                    Main
+                                </button>
+                                <button
+                                    className={`sm-detail-tab ${detailTab === 'snapshots' ? 'active' : ''}`}
+                                    onClick={() => setDetailTab('snapshots')}
+                                >
+                                    Snapshots
+                                </button>
                             </div>
 
-                            {/* Extension point for future features */}
-                            <div className="sm-detail-section">
-                                <div className="section-title">Metrics & History</div>
-                                <div className="section-placeholder">
-                                    Run the scenario to see performance charts and historical results
+                            {detailTab === 'main' ? (
+                                <>
+                                    <div className="sm-detail-meta">
+                                        <div className="meta-item">
+                                            <div className="meta-label">Status</div>
+                                            <div className="meta-value">
+                                                {selectedStatusConfig ? (
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <SelectedStatusIcon
+                                                            size={14}
+                                                            style={{
+                                                                color:
+                                                                    selectedStatus === 'pass'
+                                                                        ? 'var(--success)'
+                                                                        : selectedStatus === 'fail'
+                                                                          ? 'var(--error)'
+                                                                          : selectedStatus === 'running'
+                                                                            ? 'var(--info)'
+                                                                            : 'var(--text-muted)',
+                                                            }}
+                                                        />
+                                                        {selectedStatusConfig.label}
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-dim)' }}>Not run</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="meta-item">
+                                            <div className="meta-label">Size</div>
+                                            <div className="meta-value">{formatSize(selectedScenario.size)}</div>
+                                        </div>
+                                        <div className="meta-item">
+                                            <div className="meta-label">Timing</div>
+                                            <div className="meta-value">
+                                                {selectedTiming.total != null
+                                                    ? formatDuration(selectedTiming.total)
+                                                    : selectedTiming.elapsed != null
+                                                      ? `${formatDuration(selectedTiming.elapsed)}…`
+                                                      : '—'}
+                                            </div>
+                                        </div>
+                                        <div className="meta-item">
+                                            <div className="meta-label">Tick/s</div>
+                                            <div className="meta-value">
+                                                {selectedTiming.tickRate != null
+                                                    ? selectedTiming.tickRate.toFixed(1)
+                                                    : '—'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Extension point for future features */}
+                                    <div className="sm-detail-section">
+                                        <div className="section-title">Metrics & History</div>
+                                        <div className="section-placeholder">
+                                            Run the scenario to see performance charts and historical results
+                                        </div>
+                                    </div>
+                                    <div className="sm-detail-section">
+                                        <div className="section-title">Description</div>
+                                        <div className="section-placeholder">
+                                            Scenario descriptions coming soon — add a JSDoc @description to your
+                                            .scenario.js file
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="sm-snapshots-tab">
+                                    {snapshots.length === 0 ? (
+                                        <p className="no-snapshots">
+                                            {snapshotsLoadError
+                                                ? 'Failed to load snapshots — refresh to retry.'
+                                                : 'No snapshots for this scenario.'}
+                                        </p>
+                                    ) : (
+                                        <ul className="sm-snapshot-list thin-scroll">
+                                            {snapshots.map((s) => (
+                                                <li key={s.file} className="sm-snapshot-item">
+                                                    <div className="sm-snapshot-name-row thin-scroll">
+                                                        <span className="sm-snapshot-name" title={s.file}>
+                                                            {s.file}
+                                                        </span>
+                                                    </div>
+                                                    <div className="sm-snapshot-meta-row">
+                                                        {s.tick !== undefined && (
+                                                            <span className="sm-snapshot-badge">Tick {s.tick}</span>
+                                                        )}
+                                                        <span className="sm-snapshot-sep">·</span>
+                                                        <span className="sm-snapshot-meta">
+                                                            {new Date(s.modified).toLocaleString()}
+                                                        </span>
+                                                        <span className="sm-snapshot-sep">·</span>
+                                                        <span className="sm-snapshot-meta">{formatSize(s.size)}</span>
+                                                    </div>
+                                                    <div className="sm-snapshot-actions">
+                                                        <button
+                                                            className="btn-primary btn-small"
+                                                            onClick={() => handleLaunchFromSnapshot(s.file)}
+                                                        >
+                                                            Launch
+                                                        </button>
+                                                        <button
+                                                            className="btn-secondary btn-small"
+                                                            onClick={() => handleDeleteSnapshot(s.file)}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    <div className="sm-snapshot-footer">
+                                        <button className="btn-secondary" onClick={handleLaunchFromFile}>
+                                            Launch from file...
+                                        </button>
+                                        <input
+                                            ref={snapshotInputRef}
+                                            type="file"
+                                            accept=".json"
+                                            style={{ display: 'none' }}
+                                            onChange={handleSnapshotFilePicked}
+                                        />
+                                        {snapshotError && <p className="sm-snapshot-error">{snapshotError}</p>}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="sm-detail-section">
-                                <div className="section-title">Description</div>
-                                <div className="section-placeholder">
-                                    Scenario descriptions coming soon — add a JSDoc @description to your .scenario.js
-                                    file
-                                </div>
-                            </div>
+                            )}
                         </>
                     ) : (
                         <div className="sm-detail-empty">
@@ -451,29 +626,4 @@ export default function ScenarioManager({ onNavigateToViewer }) {
             </div>
         </div>
     );
-}
-
-/**
- * Format bytes to human-readable.
- * @param {number} bytes
- * @returns {string}
- */
-function formatSize(bytes) {
-    if (!bytes) return '—';
-    if (bytes < 1024) return `${bytes} B`;
-    return `${(bytes / 1024).toFixed(1)} KB`;
-}
-
-/**
- * Format milliseconds to short duration.
- * @param {number} ms
- * @returns {string}
- */
-function formatDuration(ms) {
-    if (ms == null) return '—';
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    const m = Math.floor(ms / 60000);
-    const s = Math.floor((ms % 60000) / 1000);
-    return `${m}m ${s}s`;
 }
