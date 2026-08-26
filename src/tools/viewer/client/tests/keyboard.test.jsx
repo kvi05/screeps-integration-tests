@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, act } from '@testing-library/react';
 import React from 'react';
 import App from '../src/App';
+import { postRestoreTick, postSaveSnapshot } from '../src/api/client';
 
 // Mock SSE client + server-control API
 vi.mock('../src/api/client', () => ({
@@ -15,6 +16,7 @@ vi.mock('../src/api/client', () => ({
     postDispose: vi.fn(() => Promise.resolve()),
     postRestoreTick: vi.fn(() => Promise.resolve()),
     postSaveSnapshot: vi.fn(() => Promise.resolve()),
+    getSnapshots: vi.fn(() => Promise.resolve({ snapshots: [] })),
 }));
 
 describe('keyboard shortcuts', () => {
@@ -57,9 +59,16 @@ describe('keyboard shortcuts', () => {
         });
     }
 
-    function pressKey(key) {
+    function pressKey(key, modifiers = {}) {
         act(() => {
-            window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+            window.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key,
+                    bubbles: true,
+                    cancelable: true,
+                    ...modifiers,
+                }),
+            );
         });
     }
 
@@ -294,6 +303,69 @@ describe('keyboard shortcuts', () => {
             select.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         });
         expect(getState().playback.tick).toBe(before);
+    });
+
+    // ── B key: bookmark current scrubber tick ──────────────────────
+
+    it('B toggles a bookmark on the current scrubber tick', () => {
+        injectFrames(5); // tick 0
+        expect(getState().ui.bookmarks).toEqual([]);
+        pressKey('b');
+        expect(getState().ui.bookmarks).toEqual([0]);
+        pressKey('b');
+        expect(getState().ui.bookmarks).toEqual([]);
+    });
+
+    it('B bookmarks the tick after stepping with arrows', () => {
+        injectFrames(5);
+        pressKey('ArrowRight');
+        pressKey('ArrowRight');
+        pressKey('b');
+        expect(getState().ui.bookmarks).toEqual([2]);
+    });
+
+    it('B in INPUT does NOT add a bookmark', () => {
+        injectFrames(5);
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true }));
+        });
+        expect(getState().ui.bookmarks).toEqual([]);
+    });
+
+    // ── Ctrl+Z / Ctrl+S: rewind & save ────────────────────────────
+
+    it('Ctrl+Z rewinds the server to the scrubber tick', () => {
+        injectFrames(5); // tick 0, gameTime 0
+        postRestoreTick.mockClear();
+        pressKey('z', { ctrlKey: true });
+        expect(postRestoreTick).toHaveBeenCalledWith(0);
+    });
+
+    it('Ctrl+Z in INPUT does NOT rewind', () => {
+        injectFrames(5);
+        postRestoreTick.mockClear();
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+        });
+        expect(postRestoreTick).not.toHaveBeenCalled();
+    });
+
+    it('plain S and Z (without Ctrl) trigger nothing', () => {
+        injectFrames(5);
+        postRestoreTick.mockClear();
+        postSaveSnapshot.mockClear();
+        pressKey('s');
+        pressKey('z');
+        expect(postSaveSnapshot).not.toHaveBeenCalled();
+        expect(postRestoreTick).not.toHaveBeenCalled();
     });
 
     it('M in INPUT does NOT toggle sidebarTab', () => {

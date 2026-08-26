@@ -28,6 +28,10 @@ function renderTimeline(props = {}) {
         onRewind: vi.fn(),
         onSave: vi.fn(),
         onBackToScenarios: vi.fn(),
+        bookmarks: [],
+        onToggleBookmark: vi.fn(),
+        snapshotTicks: [],
+        rewindAvailableFrom: null,
     };
     const merged = { ...defaults, ...props };
     const utils = render(React.createElement(Timeline, merged));
@@ -47,6 +51,11 @@ function rewindBtn(utils) {
 /** @param {Object} utils @returns {HTMLButtonElement} */
 function saveBtn(utils) {
     return utils.getByLabelText('Save snapshot');
+}
+
+/** @param {Object} utils @returns {HTMLButtonElement} */
+function bookmarkBtn(utils) {
+    return utils.getByLabelText('Bookmark tick');
 }
 
 describe('Timeline', () => {
@@ -164,6 +173,77 @@ describe('Timeline', () => {
     it('save is disabled when the server is not controllable', () => {
         const utils = renderTimeline({ ended: true });
         expect(saveBtn(utils)).toBeDisabled();
+    });
+
+    // ── Bookmark ──────────────────────────────────────────────────
+
+    it('bookmark button toggles a bookmark on the current scrubber tick', () => {
+        const utils = renderTimeline({ tick: 25, maxTicks: 50 });
+        fireEvent.click(bookmarkBtn(utils));
+        expect(utils.onToggleBookmark).toHaveBeenCalledWith(25);
+    });
+
+    it('bookmark button is disabled without frames', () => {
+        const utils = renderTimeline({ connected: false, maxTicks: -1 });
+        expect(bookmarkBtn(utils)).toBeDisabled();
+    });
+
+    it('bookmark button is active when the current tick is bookmarked', () => {
+        const utils = renderTimeline({ tick: 25, maxTicks: 50, bookmarks: [25] });
+        expect(bookmarkBtn(utils).className).toContain('active');
+        utils.rerender(React.createElement(Timeline, { ...utils.props, bookmarks: [] }));
+        expect(bookmarkBtn(utils).className).not.toContain('active');
+    });
+
+    // ── Timeline marks ─────────────────────────────────────────────
+
+    it('renders bookmark marks on their ticks', () => {
+        const utils = renderTimeline({ maxTicks: 50, bookmarks: [10, 30] });
+        const marks = [...utils.container.querySelectorAll('[data-mark="bookmark"]')];
+        expect(marks.map((m) => Number(m.dataset.tick))).toEqual([10, 30]);
+    });
+
+    it('renders snapshot marks on their ticks', () => {
+        const utils = renderTimeline({ maxTicks: 50, snapshotTicks: [5, 45] });
+        const marks = [...utils.container.querySelectorAll('[data-mark="snapshot"]')];
+        expect(marks.map((m) => Number(m.dataset.tick))).toEqual([5, 45]);
+        expect(marks[0].textContent).toContain('💾');
+    });
+
+    it('drops marks outside the timeline range', () => {
+        const utils = renderTimeline({
+            maxTicks: 20,
+            bookmarks: [5, 99],
+            snapshotTicks: [-1, 20],
+        });
+        const bm = [...utils.container.querySelectorAll('[data-mark="bookmark"]')].map((m) => Number(m.dataset.tick));
+        const sm = [...utils.container.querySelectorAll('[data-mark="snapshot"]')].map((m) => Number(m.dataset.tick));
+        expect(bm).toEqual([5]);
+        expect(sm).toEqual([20]);
+    });
+
+    // ── Ring-buffer zone ───────────────────────────────────────────
+
+    it('paints the green rewind zone from the oldest ring-buffer tick', () => {
+        const utils = renderTimeline({ maxTicks: 50, rewindAvailableFrom: 25 });
+        const zone = utils.container.querySelector('.timeline-slider-zone');
+        expect(zone).not.toBeNull();
+        expect(zone.style.background).toContain('var(--success)');
+        expect(zone.style.background).toContain('50%');
+    });
+
+    it('paints the full track gray when the zone is unknown', () => {
+        const utils = renderTimeline({ maxTicks: 50, rewindAvailableFrom: null });
+        const zone = utils.container.querySelector('.timeline-slider-zone');
+        expect(zone).not.toBeNull();
+        expect(zone.style.background).not.toContain('var(--success)');
+    });
+
+    it('disables rewind outside the ring-buffer zone', () => {
+        const utils = renderTimeline({ tick: 10, maxTicks: 50, rewindAvailableFrom: 25 });
+        expect(rewindBtn(utils)).toBeDisabled();
+        utils.rerender(React.createElement(Timeline, { ...utils.props, tick: 30 }));
+        expect(rewindBtn(utils)).not.toBeDisabled();
     });
 
     // ── Speed ─────────────────────────────────────────────────────

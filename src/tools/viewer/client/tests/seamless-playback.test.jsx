@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, act } from '@testing-library/react';
 import React from 'react';
 import App from '../src/App';
-import { postPause, postResume, postStep } from '../src/api/client';
+import { postPause, postResume, postRestoreTick, postSaveSnapshot, postStep } from '../src/api/client';
 
 // Captured SSE callback — lets tests drive server events (frame/start/status).
 const mocks = vi.hoisted(() => ({ sseHandler: null }));
@@ -19,6 +19,7 @@ vi.mock('../src/api/client', () => ({
     postDispose: vi.fn(() => Promise.resolve()),
     postRestoreTick: vi.fn(() => Promise.resolve()),
     postSaveSnapshot: vi.fn(() => Promise.resolve()),
+    getSnapshots: vi.fn(() => Promise.resolve({ snapshots: [] })),
 }));
 
 describe('seamless playback (no modes)', () => {
@@ -28,9 +29,16 @@ describe('seamless playback (no modes)', () => {
         return window.__viewerTest.getState();
     }
 
-    function pressKey(key) {
+    function pressKey(key, modifiers = {}) {
         act(() => {
-            window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+            window.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key,
+                    bubbles: true,
+                    cancelable: true,
+                    ...modifiers,
+                }),
+            );
         });
     }
 
@@ -75,6 +83,8 @@ describe('seamless playback (no modes)', () => {
         postPause.mockClear();
         postResume.mockClear();
         postStep.mockClear();
+        postRestoreTick.mockClear();
+        postSaveSnapshot.mockClear();
     });
 
     afterEach(() => {
@@ -97,6 +107,45 @@ describe('seamless playback (no modes)', () => {
         pressKey('ArrowLeft');
         expect(getState().playback.tick).toBe(3);
         expect(postPause).toHaveBeenCalledTimes(1);
+    });
+
+    it('Ctrl+S saves a snapshot while connected to a live server', () => {
+        goLive(5);
+        pressKey('s', { ctrlKey: true });
+        expect(postSaveSnapshot).toHaveBeenCalledTimes(1);
+    });
+
+    it('Ctrl+Z rewinds the server to the scrubber tick', () => {
+        goLive(5);
+        act(() => {
+            api.seekTick(2);
+        });
+        pressKey('z', { ctrlKey: true });
+        expect(postRestoreTick).toHaveBeenCalledWith(2);
+    });
+
+    it('Ctrl+S in an input does NOT save', () => {
+        goLive(5);
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true }));
+        });
+        expect(postSaveSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+Z in an input does NOT rewind', () => {
+        goLive(5);
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+        });
+        expect(postRestoreTick).not.toHaveBeenCalled();
     });
 
     it('pausing stops the live server', () => {
