@@ -9,7 +9,13 @@
  * - `transport-back` (left): navigation back to the Scenario Manager
  * - `transport-bar` (center, flexible): transport — play/pause, step back/forward,
  *   unified speed, scrubber, tick display, live server-tick indicator, rewind
- * - `transport-actions` (right): save snapshot, bookmark (coming soon)
+ * - `transport-actions` (right): save snapshot, bookmark
+ *
+ * The scrubber carries the time indicators:
+ *
+ * - Color zone: green — ticks in the server ring buffer (rewind available),
+ *   gray — ticks outside the ring buffer.
+ * - Marks: bookmark dots and saved-snapshot marks (💾) on their ticks.
  *
  * The scrubber cursor remains the single source of truth:
  *
@@ -53,6 +59,13 @@ const SPEEDS = [1, 5, 10, 20, 50, 1000];
  * @param {() => void} props.onRewind — rewind server to current scrubber tick
  * @param {() => void} props.onSave — save snapshot of the current server state
  * @param {() => void} props.onBackToScenarios
+ * @param {number[]} [props.bookmarks] — scrubber ticks with a bookmark
+ * @param {(tick:number) => void} [props.onToggleBookmark] — toggle a bookmark
+ *   on the current scrubber tick
+ * @param {number[]} [props.snapshotTicks] — scrubber ticks with a saved
+ *   snapshot (💾 marks)
+ * @param {number|null} [props.rewindAvailableFrom] — first scrubber index
+ *   still inside the server ring buffer (green zone starts here); null = unknown
  */
 export default function Timeline({
     connected,
@@ -71,6 +84,10 @@ export default function Timeline({
     onRewind,
     onSave,
     onBackToScenarios,
+    bookmarks = [],
+    onToggleBookmark = null,
+    snapshotTicks = [],
+    rewindAvailableFrom = null,
 }) {
     const hasFrames = maxTicks >= 0;
     const canControlServer = connected && !ended && serverState !== 'idle';
@@ -91,8 +108,13 @@ export default function Timeline({
     // Step back moves the cursor; from the edge it also detaches from live.
     const stepBackDisabled = tick <= 0;
 
-    // Rewind is only meaningful when the cursor is in the past.
-    const rewindDisabled = !canControlServer || !hasFrames || tick >= maxTicks;
+    // Rewind is only meaningful when the cursor is in the past and inside
+    // the server ring buffer (when the zone is known).
+    const rewindDisabled =
+        !canControlServer ||
+        !hasFrames ||
+        tick >= maxTicks ||
+        (rewindAvailableFrom != null && tick < rewindAvailableFrom);
 
     // Save captures the LIVE server state, so it only makes sense at the
     // recorded edge — in the past the scrubber shows buffered replay frames.
@@ -104,6 +126,37 @@ export default function Timeline({
     // Scrubber value clamped into the valid range
     const sliderMax = Math.max(0, maxTicks);
     const sliderValue = Math.max(0, Math.min(tick, sliderMax));
+
+    // ─── Timeline indicators ─────────────────────────────────────────────
+
+    // Bookmark: toggled on the current scrubber tick; possible whenever
+    // there is a timeline to bookmark on.
+    const bookmarkDisabled = !hasFrames;
+    const isBookmarked = bookmarks.includes(sliderValue);
+    const bookmarkTitle = isBookmarked ? `Remove bookmark at tick ${sliderValue}` : `Bookmark tick ${sliderValue}`;
+
+    // Ring-buffer zone: green from the oldest rewindable scrubber index to
+    // the end, gray before it. Unknown zone → fully gray.
+    let zonePct = 100;
+    if (rewindAvailableFrom != null && sliderMax > 0) {
+        zonePct = Math.max(0, Math.min(100, (rewindAvailableFrom / sliderMax) * 100));
+    }
+    const zoneBackground =
+        zonePct >= 100
+            ? 'var(--bg-overlay)'
+            : `linear-gradient(to right, ` +
+              `var(--bg-overlay) 0%, var(--bg-overlay) ${zonePct}%, ` +
+              `var(--success) ${zonePct}%, var(--success) 100%)`;
+
+    // Marks: bookmark dots + snapshot glyphs, positioned by scrubber index
+    const marks = [
+        ...bookmarks.map((b) => ({ tick: b, type: 'bookmark', key: `bm-${b}` })),
+        ...snapshotTicks.map((s) => ({ tick: s, type: 'snapshot', key: `snap-${s}` })),
+    ]
+        .filter((m) => Number.isFinite(m.tick) && m.tick >= 0 && m.tick <= sliderMax)
+        .sort((a, b) => a.tick - b.tick);
+
+    const markPct = (markTick) => (sliderMax > 0 ? (markTick / sliderMax) * 100 : 0);
 
     const stepSpeed = (delta) => {
         const idx = SPEEDS.indexOf(speed);
@@ -203,16 +256,41 @@ export default function Timeline({
                         </button>
                     </div>
 
-                    <input
-                        type="range"
-                        min={0}
-                        max={sliderMax}
-                        value={sliderValue}
-                        onChange={handleScrub}
-                        className="tick-slider timeline-slider"
-                        title={`Scrub timeline (server tick ${serverTick})`}
-                        aria-label="Scrub timeline"
-                    />
+                    <div className="timeline-slider-wrap">
+                        <div
+                            className="timeline-slider-zone"
+                            style={{ background: zoneBackground }}
+                            aria-hidden="true"
+                        />
+                        <div className="timeline-slider-marks" aria-hidden="true">
+                            {marks.map((m) => (
+                                <span
+                                    key={m.key}
+                                    className={`timeline-mark ${m.type}`}
+                                    style={{ left: `${markPct(m.tick)}%` }}
+                                    data-mark={m.type}
+                                    data-tick={m.tick}
+                                    title={
+                                        m.type === 'bookmark'
+                                            ? `Bookmark at tick ${m.tick}`
+                                            : `Saved snapshot at tick ${m.tick}`
+                                    }
+                                >
+                                    {m.type === 'snapshot' ? '💾' : null}
+                                </span>
+                            ))}
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={sliderMax}
+                            value={sliderValue}
+                            onChange={handleScrub}
+                            className="tick-slider timeline-slider"
+                            title={`Scrub timeline (server tick ${serverTick})`}
+                            aria-label="Scrub timeline"
+                        />
+                    </div>
 
                     <span className="tick-display">
                         <span className="tick-current">{tick}</span>
@@ -252,9 +330,10 @@ export default function Timeline({
                         <DownloadIcon size={16} />
                     </button>
                     <button
-                        className="icon-btn"
-                        disabled
-                        title="Bookmark tick (coming soon)"
+                        className={`icon-btn ${isBookmarked ? 'active' : ''}`}
+                        onClick={() => onToggleBookmark?.(sliderValue)}
+                        disabled={bookmarkDisabled}
+                        title={bookmarkTitle}
                         aria-label="Bookmark tick"
                     >
                         <BookmarkIcon size={16} />
