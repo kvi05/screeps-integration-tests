@@ -10,6 +10,7 @@ import ScenarioManager from './components/ScenarioManager';
 import StatePanel from './components/StatePanel';
 import {
     connectSSE,
+    getSnapshots,
     postDispose,
     postPause,
     postRestoreTick,
@@ -118,6 +119,12 @@ export default function App() {
     const [sub, setSub] = useState(null);
     const [speed, setSpeed] = useState(() => loadPrefs().speed);
 
+    // Timeline polish: bookmark ticks + saved snapshot list (for 💾 marks)
+    /** @type {[number[], Function]} */
+    const [bookmarks, setBookmarks] = useState([]);
+    /** @type {[Array<{file:string, tick?:number, scenario?:string}>, Function]} */
+    const [snapshotList, setSnapshotList] = useState([]);
+
     // Side panels
     const [showConsole, setShowConsole] = useState(() => loadPrefs().showConsole);
     const [showMiniMap, setShowMiniMap] = useState(() => loadPrefs().showMiniMap);
@@ -221,6 +228,8 @@ export default function App() {
                     setRecording({ terrain: {}, frames: [] });
                     setClickedTile(null);
                     setSelectedId(null);
+                    setBookmarks([]);
+                    setSnapshotList([]);
                     if (data.replayBuffer) setReplayBuffer(data.replayBuffer);
                     firstFrame = true;
                     try {
@@ -376,6 +385,52 @@ export default function App() {
     // Cursor at the recorded edge → ready to hand over to the live server.
     const isAtEdge = recording.frames.length === 0 || tick >= recording.frames.length - 1;
 
+    // ─── Timeline indicators (polish) ───────────────────────────────────
+
+    // Scenario basename — same normalization the snapshot list API uses.
+    const scenarioBase = useMemo(
+        () =>
+            (scenario || '')
+                .split(/[/\\]/)
+                .pop()
+                .replace(/\.scenario\.js$/, ''),
+        [scenario],
+    );
+
+    // Oldest scrubber index still covered by the server ring buffer —
+    // the green rewind zone on the timeline starts there.
+    const rewindAvailableFrom = useMemo(() => {
+        if (replayBuffer <= 0 || recording.frames.length === 0) return null;
+        const oldest = serverTick - replayBuffer + 1;
+        const first = recording.frames[0].gameTime;
+        return Math.max(0, Math.min(recording.frames.length - 1, oldest - first));
+    }, [replayBuffer, serverTick, recording.frames]);
+
+    // Saved snapshots of the current scenario, mapped to scrubber indices.
+    const snapshotMarks = useMemo(() => {
+        if (recording.frames.length === 0 || snapshotList.length === 0) return [];
+        const first = recording.frames[0].gameTime;
+        const last = recording.frames[recording.frames.length - 1].gameTime;
+        return snapshotList
+            .filter((s) => typeof s.tick === 'number' && s.tick >= first && s.tick <= last)
+            .map((s) => s.tick - first);
+    }, [recording.frames, snapshotList]);
+
+    // Load saved snapshots of the current scenario (💾 marks on the timeline)
+    const loadSnapshotMarks = useCallback(async () => {
+        try {
+            const data = await getSnapshots();
+            const all = data.snapshots || [];
+            setSnapshotList(scenarioBase ? all.filter((s) => s.scenario === scenarioBase) : all);
+        } catch {
+            setSnapshotList([]);
+        }
+    }, [scenarioBase]);
+
+    useEffect(() => {
+        if (scenarioBase) loadSnapshotMarks();
+    }, [scenarioBase, loadSnapshotMarks]);
+
     // ─── Reconciliation: keep the server in sync with the cursor ────────
     // Invariant: the server ticks ⟺ playing && cursor at the edge.
     // This single effect replaces all manual pause/resume calls — scrubbing
@@ -501,15 +556,26 @@ export default function App() {
         });
     }, []);
 
+    // Toggle a bookmark on the scrubber tick (timeline 📌 button / B key)
+    const toggleBookmark = useCallback((t) => {
+        setBookmarks((prev) => (prev.includes(t) ? prev.filter((b) => b !== t) : [...prev, t].sort((a, b) => a - b)));
+    }, []);
+
     // Save a snapshot of the current server state to disk
     const handleSaveSnapshot = useCallback(() => {
         const controllable = connectedRef.current && !endedRef.current && serverStateRef.current !== 'idle';
         if (!controllable) return;
 
-        postSaveSnapshot().catch(() => {
-            /* SSE error event carries the message */
-        });
-    }, []);
+        postSaveSnapshot()
+            .then(() => {
+                // The worker writes the file asynchronously — refresh the
+                // timeline 💾 marks shortly after the file lands on disk.
+                setTimeout(loadSnapshotMarks, 1000);
+            })
+            .catch(() => {
+                /* SSE error event carries the message */
+            });
+    }, [loadSnapshotMarks]);
 
     // ─── Canvas click → Object Inspector ────────────────────────────────────
     const handleCanvasClick = useCallback(
@@ -564,18 +630,21 @@ export default function App() {
                 if (!isTimelineSlider || e.key !== ' ') return;
             }
 
-            switch (e.key) {
+            // Normalize so Shift does not change hotkey behavior
+            const key = e.key.toLowerCase();
+
+            switch (key) {
                 case ' ':
                     e.preventDefault();
                     // Single play/pause — reconciliation routes it to the
                     // server or the client timer based on cursor position.
                     handleTogglePlay(!playingRef.current);
                     break;
-                case 'ArrowRight':
+                case 'arrowright':
                     e.preventDefault();
                     handleStepForward();
                     break;
-                case 'ArrowLeft':
+                case 'arrowleft':
                     e.preventDefault();
                     handleStepBack();
                     break;
@@ -599,6 +668,25 @@ export default function App() {
                         }
                     }
                     break;
+                case 's':
+                    if (e.ctrlKey || e.metaKey) {
+                        // Save snapshot (overrides the browser save dialog)
+                        e.preventDefault();
+                        handleSaveSnapshot();
+                    }
+                    break;
+                case 'z':
+                    if (e.ctrlKey || e.metaKey) {
+                        // Rewind the server to the scrubber tick
+                        // (overrides the browser undo)
+                        e.preventDefault();
+                        handleRewind();
+                    }
+                    break;
+                case 'b':
+                    // Bookmark the current scrubber tick
+                    toggleBookmark(tickRef.current);
+                    break;
                 case 'm':
                     setSidebarTab((prev) => (prev === 'metrics' ? 'inspector' : 'metrics'));
                     break;
@@ -609,7 +697,16 @@ export default function App() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleTogglePlay, handleStepForward, handleStepBack, handleSetSpeed, serverState]);
+    }, [
+        handleTogglePlay,
+        handleStepForward,
+        handleStepBack,
+        handleSetSpeed,
+        handleSaveSnapshot,
+        handleRewind,
+        toggleBookmark,
+        serverState,
+    ]);
 
     // ─── Test API ───────────────────────────────────────────────────────────
     if (import.meta.env.DEV) {
@@ -647,6 +744,7 @@ export default function App() {
                         sidebarTab,
                         sidebarCollapsed,
                         selectedId,
+                        bookmarks,
                     },
                 };
             },
@@ -684,6 +782,9 @@ export default function App() {
             seekTick(t) {
                 setPlaying(false);
                 setTick(Math.max(0, Math.min(t, recordingRef.current.frames.length - 1)));
+            },
+            toggleBookmark(t) {
+                toggleBookmark(t);
             },
             getCamera() {
                 return cameraRef.current;
@@ -780,6 +881,10 @@ export default function App() {
                         onRewind={handleRewind}
                         onSave={handleSaveSnapshot}
                         onBackToScenarios={handleBackToScenarios}
+                        bookmarks={bookmarks}
+                        onToggleBookmark={toggleBookmark}
+                        snapshotTicks={snapshotMarks}
+                        rewindAvailableFrom={rewindAvailableFrom}
                     />
 
                     {/* Canvas overlays */}
@@ -1026,6 +1131,17 @@ export default function App() {
                         <span>
                             <kbd>[</kbd>
                             <kbd>]</kbd>live speed
+                        </span>
+                        <span>
+                            <kbd>Ctrl</kbd>
+                            <kbd>S</kbd>save
+                        </span>
+                        <span>
+                            <kbd>Ctrl</kbd>
+                            <kbd>Z</kbd>rewind
+                        </span>
+                        <span>
+                            <kbd>B</kbd>bookmark
                         </span>
                         <span>
                             <kbd>0</kbd>
