@@ -6,8 +6,9 @@ import {
     getSnapshots,
     getSnapshotFile,
     deleteSnapshot,
+    openSnapshotsFolder,
 } from '../api/client';
-import { DownloadIcon, DatabaseIcon, FilmIcon, RefreshCwIcon, RewindIcon, XIcon } from './Icons';
+import { DownloadIcon, DatabaseIcon, FilmIcon, RefreshCwIcon, FolderOpenIcon, RewindIcon, XIcon } from './Icons';
 import { formatSize } from '../utils/format';
 
 /**
@@ -218,6 +219,16 @@ export default function StatePanel({
         }
     }, [rewindTick, serverTick, replayBuffer, firstRewindTick, lastRewindTick]);
 
+    /** Open the snapshots directory in the OS file manager (server-side) */
+    const handleOpenFolder = useCallback(async () => {
+        setError(null);
+        try {
+            await openSnapshotsFolder();
+        } catch (err) {
+            setError(err.message || 'Failed to open snapshots folder');
+        }
+    }, []);
+
     // ─── Render ──────────────────────────────────────────────────────────
 
     return (
@@ -314,6 +325,9 @@ export default function StatePanel({
                         title="Refresh list"
                     >
                         <RefreshCwIcon size={12} />
+                    </button>
+                    <button className="icon-btn" onClick={handleOpenFolder} title="Open snapshots folder">
+                        <FolderOpenIcon size={12} />
                     </button>
                 </h3>
                 {scenarioName && <p className="snapshot-scenario">{scenarioName}</p>}
