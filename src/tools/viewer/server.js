@@ -19,6 +19,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const cp = require('child_process');
 const { getFreePort } = require('../../lib/runtime/port');
 
 // ─── SSE helpers ────────────────────────────────────────────────────────────
@@ -94,6 +95,21 @@ const MIME_TYPES = {
     '.png': 'image/png',
     '.ico': 'image/x-icon',
 };
+
+/**
+ * Returns the OS-specific command that opens a folder in the system file
+ * manager. Pure function (no process.platform access) so all platform
+ * branches can be unit-tested on any OS.
+ *
+ * @param {string} platform — a Node.js `process.platform` value
+ * @returns {string} command name to spawn
+ */
+function getOpenCommand(platform) {
+    if (platform === 'win32') return 'explorer';
+    if (platform === 'darwin') return 'open';
+    // Everything else (linux, freebsd, openbsd…) — freedesktop standard
+    return 'xdg-open';
+}
 
 /**
  * Serves a static file with the correct MIME type using streaming I/O.
@@ -598,6 +614,43 @@ async function createUiServer(opts = {}) {
             return;
         }
 
+        // POST /api/open-snapshots-folder — open the snapshots directory in
+        // the OS file manager (Explorer/Finder/xdg-open). The viewer is a
+        // localhost tool, so the folder lives on the machine running the
+        // server — the browser cannot open it directly.
+        if (pathname === '/api/open-snapshots-folder' && req.method === 'POST') {
+            // Create the directory if it doesn't exist yet — opening a
+            // non-existent folder fails silently in most file managers.
+            fs.mkdirSync(snapshotsDir, { recursive: true });
+            const command = getOpenCommand(process.platform);
+            try {
+                const child = cp.spawn(command, [snapshotsDir], { detached: true, stdio: 'ignore' });
+                child.unref();
+                // Spawn failures (e.g. ENOENT on headless Linux without
+                // xdg-utils) are reported asynchronously via the 'error'
+                // event, which Node emits on process.nextTick — before the
+                // setImmediate below runs. So the client gets an honest 500
+                // instead of a silent ok when no file manager is available.
+                let settled = false;
+                child.on('error', (err) => {
+                    if (settled) return;
+                    settled = true;
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: `Failed to open folder: ${err.message}` }));
+                });
+                setImmediate(() => {
+                    if (settled) return;
+                    settled = true;
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: true, path: snapshotsDir }));
+                });
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: `Failed to open folder: ${err.message}` }));
+            }
+            return;
+        }
+
         // GET /snapshots/:filename — serve a saved snapshot file
         if (pathname.startsWith('/snapshots/') && req.method === 'GET') {
             const requestedFile = path.basename(pathname); // strip path traversal
@@ -773,4 +826,4 @@ async function createUiServer(opts = {}) {
     });
 }
 
-module.exports = { createUiServer };
+module.exports = { createUiServer, getOpenCommand };

@@ -16,7 +16,8 @@ const http = require('http');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { createUiServer } = require('../src/tools/viewer/server');
+const cp = require('child_process');
+const { createUiServer, getOpenCommand } = require('../src/tools/viewer/server');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -592,6 +593,73 @@ describe('UiServer', () => {
         const arrayData = await httpPost(server.port, '/api/run-from-snapshot', { data: [] });
         expect(arrayData.status).toBe(400);
         expect(launched).toHaveLength(0);
+    });
+
+    // ─── Open snapshots folder ───────────────────────────────────────────
+
+    it('getOpenCommand maps every platform to the right file manager command', () => {
+        expect(getOpenCommand('win32')).toBe('explorer');
+        expect(getOpenCommand('darwin')).toBe('open');
+        // Everything non-win32/darwin falls back to the freedesktop standard
+        expect(getOpenCommand('linux')).toBe('xdg-open');
+        expect(getOpenCommand('freebsd')).toBe('xdg-open');
+        expect(getOpenCommand('openbsd')).toBe('xdg-open');
+    });
+
+    it('POST /api/open-snapshots-folder spawns the OS file manager and creates the dir', async () => {
+        const snapshotsDir = path.join(os.tmpdir(), `sit-open-folder-${Date.now()}`);
+        fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        server = await createUiServer({ port: 0, snapshotsDir });
+
+        const spawnSpy = jest
+            .spyOn(cp, 'spawn')
+            .mockReturnValue(/** @type {any} */ ({ on: jest.fn(), unref: jest.fn() }));
+
+        try {
+            const result = await httpPost(server.port, '/api/open-snapshots-folder');
+            expect(result.status).toBe(200);
+            const parsed = JSON.parse(result.body);
+            expect(parsed.ok).toBe(true);
+            expect(parsed.path).toBe(snapshotsDir);
+
+            // The command matches the platform the test runs on; all three
+            // branches are covered by the pure getOpenCommand test above.
+            expect(spawnSpy).toHaveBeenCalledWith(getOpenCommand(process.platform), [snapshotsDir], expect.any(Object));
+
+            // Directory was created on demand
+            expect(fs.existsSync(snapshotsDir)).toBe(true);
+        } finally {
+            spawnSpy.mockRestore();
+            fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        }
+    });
+
+    it('POST /api/open-snapshots-folder returns 500 when the file manager cannot be spawned', async () => {
+        const snapshotsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sit-open-folder-err-'));
+        server = await createUiServer({ port: 0, snapshotsDir });
+
+        // Simulate an async spawn failure (e.g. ENOENT on headless Linux
+        // without xdg-utils): the mock invokes the 'error' handler right
+        // after registration — before the success setImmediate fires, which
+        // mirrors the real process.nextTick ordering of spawn errors.
+        const spawnSpy = jest.spyOn(cp, 'spawn').mockReturnValue(
+            /** @type {any} */ ({
+                on: (event, handler) => {
+                    if (event === 'error') handler(new Error('spawn xdg-open ENOENT'));
+                },
+                unref: jest.fn(),
+            }),
+        );
+
+        try {
+            const result = await httpPost(server.port, '/api/open-snapshots-folder');
+            expect(result.status).toBe(500);
+            const parsed = JSON.parse(result.body);
+            expect(parsed.error).toContain('ENOENT');
+        } finally {
+            spawnSpy.mockRestore();
+            fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        }
     });
 });
 
