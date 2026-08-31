@@ -200,6 +200,11 @@ export function deleteSnapshot(fileName) {
     });
 }
 
+/** Open the snapshots directory in the OS file manager (server-side) */
+export function openSnapshotsFolder() {
+    return postJSON('/api/open-snapshots-folder');
+}
+
 /** Stop the current interactive scenario */
 export function postDispose() {
     return postJSON('/api/dispose');

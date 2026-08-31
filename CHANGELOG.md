@@ -154,6 +154,15 @@ PR #59 [Feat/viewer timeline redesign](https://github.com/kvi05/screeps-integrat
   The client no longer forces `serverState` to `running` on the first frame;
   `status`/`start` events are authoritative.
 
+PR #63 [feat(viewer): open snapshots folder from the UI](https://github.com/kvi05/screeps-integration-tests/pull/63)
+
+- **Open snapshots folder.** New `POST /api/open-snapshots-folder` endpoint
+  opens the snapshots directory in the OS file manager (Explorer / Finder /
+  `xdg-open`), creating it on demand. Buttons added in the viewer UI: an icon
+  button next to the refresh control in the StatePanel "Saved Snapshots"
+  section, and an "Open folder" button in the Scenario Manager Snapshots tab
+  footer.
+
 ### Changed
 
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)

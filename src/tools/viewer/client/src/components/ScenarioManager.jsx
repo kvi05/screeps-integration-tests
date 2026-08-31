@@ -21,7 +21,14 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ScenarioList from './ScenarioList';
-import { getScenarios, postRun, getSnapshots, postRunFromSnapshot, deleteSnapshot } from '../api/client';
+import {
+    getScenarios,
+    postRun,
+    getSnapshots,
+    postRunFromSnapshot,
+    deleteSnapshot,
+    openSnapshotsFolder,
+} from '../api/client';
 import { formatSize, formatDuration } from '../utils/format';
 import {
     RocketIcon,
@@ -36,6 +43,7 @@ import {
     CircleIcon,
     LayersIcon,
     CopyIcon,
+    FolderOpenIcon,
 } from './Icons';
 
 /** Mirrors ScenarioList.STATUS_CONFIG for detail panel use */
@@ -227,6 +235,16 @@ export default function ScenarioManager({ onNavigateToViewer }) {
         },
         [refreshSnapshots],
     );
+
+    /** Open the snapshots directory in the OS file manager (server-side) */
+    const handleOpenFolder = useCallback(async () => {
+        setSnapshotError(null);
+        try {
+            await openSnapshotsFolder();
+        } catch (err) {
+            setSnapshotError(err.message || 'Failed to open snapshots folder');
+        }
+    }, []);
 
     /** Open the file picker to launch directly from a local snapshot JSON */
     const handleLaunchFromFile = useCallback(() => {
@@ -588,6 +606,10 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                                     <div className="sm-snapshot-footer">
                                         <button className="btn-secondary" onClick={handleLaunchFromFile}>
                                             Launch from file...
+                                        </button>
+                                        <button className="btn-secondary" onClick={handleOpenFolder}>
+                                            <FolderOpenIcon size={14} />
+                                            Open folder
                                         </button>
                                         <input
                                             ref={snapshotInputRef}
