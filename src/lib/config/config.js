@@ -44,6 +44,7 @@ const { safeRequire, safeReadFile, ConfigError, MissingFileError } = require('..
  * @property {string[]} require         — Module paths to pre-load before any scenario
  * @property {Object<string,string>} env — Environment variables passed to worker processes
  * @property {boolean} [viewer]         — Start browser viewer UI (Scenario Manager). If --only is specified, auto-launches that scenario; otherwise opens the Scenario Manager screen.
+ * @property {number|null} [viewerPort] — Fixed port for the viewer UI server; null = pick a free port automatically. Useful with the client dev server (SIT_VIEWER_PORT).
  * @property {Object} [viewerOptions]   — Fine-tuning for viewer mode:
  *   - {boolean} paused           — Start paused (default false)
  *   - {number}  speed            — Ticks per second; 1000 = ~max (default 1000)
@@ -67,6 +68,7 @@ const DEFAULTS = {
     require: [],
     env: {},
     viewer: false,
+    viewerPort: null,
     viewerOptions: {
         paused: false,
         speed: 1000,
@@ -77,29 +79,52 @@ const DEFAULTS = {
 
 const CLI_SCHEMA = {
     title: 'screeps-integration-tests',
-    usage: 'screeps-integration-tests [options]',
+    usage: 'screeps-integration-tests [options]   # or: npx sit [options]',
     options: {
-        config: { type: 'string', description: 'Path to screeps-integration.config.js' },
-        scenariosDir: { type: 'string', description: 'Scenarios directory (*.scenario.js)' },
-        snapshotsDir: { type: 'string', description: 'Snapshots directory (saved world states)' },
-        distDir: { type: 'string', description: 'Bot dist/ directory (compiled modules)' },
-        memoryFixturesDir: { type: 'string', description: 'Memory fixtures directory (*.memory.json)' },
-        roomFixturesDir: { type: 'string', description: 'Room fixtures directory (*.room.js)' },
-        profilesDir: { type: 'string', description: 'Callgrind profiles output directory' },
-        cacheDir: { type: 'string', description: 'Mockup server cache base directory' },
-        only: { type: 'string', description: 'Run only the specified scenario' },
-        profiling: { type: 'bool', description: 'Enable profiling (callgrind output)' },
-        bail: { type: 'bool', description: 'Stop on first failure' },
-        timeout: { type: 'int', min: 1, description: 'Per-scenario timeout (ms)' },
-        jobs: { type: 'int', min: 1, description: 'Number of parallel scenario workers' },
-        build: { type: 'bool', description: 'Run buildCommand before scenarios' },
+        config: { type: 'string', group: 'General', description: 'Path to screeps-integration.config.js' },
+        version: { type: 'bool', group: 'General', description: 'Print the framework version' },
+
+        scenariosDir: { type: 'string', group: 'Paths', description: 'Scenarios directory (*.scenario.js)' },
+        snapshotsDir: { type: 'string', group: 'Paths', description: 'Snapshots directory (saved world states)' },
+        distDir: { type: 'string', group: 'Paths', description: 'Bot dist/ directory (compiled flat modules)' },
+        memoryFixturesDir: {
+            type: 'string',
+            group: 'Paths',
+            description: 'Memory fixtures directory (*.memory.json)',
+        },
+        roomFixturesDir: { type: 'string', group: 'Paths', description: 'Room fixtures directory (*.room.js)' },
+        profilesDir: { type: 'string', group: 'Paths', description: 'Callgrind profiles output directory' },
+        cacheDir: { type: 'string', group: 'Paths', description: 'Mockup server cache base directory' },
+
+        only: { type: 'string', group: 'Run', description: 'Run only the specified scenario' },
+        jobs: {
+            type: 'int',
+            group: 'Run',
+            min: 1,
+            description: 'Parallel scenario workers (default: min(4, CPU cores))',
+        },
+        bail: { type: 'bool', group: 'Run', description: 'Stop on first failure' },
+        timeout: {
+            type: 'int',
+            group: 'Run',
+            min: 1,
+            description: 'Per-scenario timeout in ms (default: 1800000 = 30 min)',
+        },
+        build: { type: 'bool', group: 'Run', description: 'Run buildCommand from the config before scenarios' },
+        profiling: { type: 'bool', group: 'Run', description: 'Enable profiling (callgrind output)' },
+
         viewer: {
             type: 'bool',
+            group: 'Viewer',
             description: 'Start browser viewer UI (Scenario Manager). Use --only to auto-launch a scenario.',
         },
-        // Only affects the `--help` output: `--version` is intercepted by
-        // parseArgs() before any parsing happens, so this option is never set.
-        version: { type: 'bool', description: 'Print the framework version' },
+        viewerPort: {
+            type: 'int',
+            group: 'Viewer',
+            min: 1,
+            max: 65535,
+            description: 'Fixed port for the viewer UI server (default: auto-pick a free port)',
+        },
     },
 };
 
@@ -292,6 +317,17 @@ function resolveConfig(argv = process.argv.slice(2), cwd = process.cwd(), overri
 
     // 4. explicit overrides (for unit tests and self-test mode)
     Object.assign(cfg, overrides);
+
+    // Fail loud, fail early: the CLI path validates --viewerPort (int, min/max),
+    // but config-file and override values reach this point unchecked. A bad
+    // value would otherwise surface as a cryptic server.listen() error deep in
+    // the viewer startup.
+    const viewerPort = cfg.viewerPort;
+    if (viewerPort !== null && viewerPort !== undefined) {
+        if (!Number.isInteger(viewerPort) || viewerPort < 1 || viewerPort > 65535) {
+            throw new ConfigError('INVALID_VIEWER_PORT', configPath);
+        }
+    }
 
     return {
         config: resolvePaths(cfg, configDir),

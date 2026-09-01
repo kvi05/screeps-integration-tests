@@ -410,6 +410,13 @@ function printSummary(results) {
  * @returns {Promise<void>}
  */
 async function runViewerMode(config) {
+    // Fail loud, fail early: the viewer UI is a prebuilt bundle. Without it
+    // the HTTP server would start fine but the browser would only get 404s.
+    const viewerDistIndex = path.join(__dirname, '..', 'src', 'tools', 'viewer', 'dist', 'index.html');
+    if (!fs.existsSync(viewerDistIndex)) {
+        throw new FrameworkError('VIEWER_NOT_BUILT', path.dirname(viewerDistIndex));
+    }
+
     /** @type {boolean} */
     let terrainSent = false;
     /** @type {{scenario:string, maxTicks:number, replayBuffer:number}} */
@@ -678,6 +685,7 @@ async function runViewerMode(config) {
 
     try {
         uiServer = await createUiServer({
+            port: config.viewerPort ?? undefined,
             scenariosDir: config.scenariosDir,
             snapshotsDir: config.snapshotsDir,
             lastStart,
@@ -795,7 +803,16 @@ async function main() {
     // When --viewer is active, delegate to the viewer runner which owns
     // its own IPC routing, queue management, and SSE broadcasting.
     if (config.viewer) {
-        await runViewerMode(config);
+        try {
+            await runViewerMode(config);
+        } catch (err) {
+            if (err instanceof FrameworkError) {
+                console.error(`\n${err.toString()}`);
+            } else {
+                console.error('[runner] Viewer error:', err.message);
+            }
+            process.exit(1);
+        }
         // runViewerMode blocks indefinitely (await new Promise(() => {}))
         return;
     }

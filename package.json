@@ -31,20 +31,22 @@
         "!**/dist"
     ],
     "scripts": {
+        "help": "node src/tools/help.js",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "check": "npm run lint && npm run format:check && npm run build:viewer && npm test && npm run test:integration && npm run test:viewer",
-        "test:integration": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js",
-        "test:viewer": "npm --prefix src/tools/viewer/client test",
-        "test:integration:profiling": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --profiling",
-        "test:integration:smoke": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js --only smoke-empty",
-        "test:integration:clean": "node src/tools/clean-cache.js --cacheDir examples/.cache",
-        "test:integration:capture": "node src/tools/capture-fixture.js",
         "test": "jest --config jest.config.js",
-        "prepare": "husky",
-        "build:viewer": "cd src/tools/viewer/client && npm install && npm run build"
+        "check": "npm run lint && npm run format:check && npm run viewer:build && npm test && npm run test:integration && npm run viewer:test",
+        "test:integration": "node bin/screeps-integration-tests.js --config examples/screeps-integration.config.js",
+        "test:integration:smoke": "npm run test:integration -- --only smoke-empty",
+        "test:integration:profiling": "npm run test:integration -- --profiling",
+        "viewer": "npm run test:integration -- --viewer",
+        "viewer:build": "npm --prefix src/tools/viewer/client install --no-audit --no-fund && npm --prefix src/tools/viewer/client run build",
+        "viewer:test": "npm --prefix src/tools/viewer/client test",
+        "viewer:dev": "npm --prefix src/tools/viewer/client run dev",
+        "fixture:capture": "node src/tools/capture-fixture.js",
+        "prepare": "husky"
     },
     "lint-staged": {
         "*.js": [

@@ -54,21 +54,44 @@ For a deep dive into the architecture, see
 The `npm run check` command runs the full pipeline:
 
 ```
-lint → format:check → unit tests → integration tests
+lint → format:check → viewer build → unit tests → integration tests → viewer tests
 ```
 
-| Command                              | What it does                           |
-| ------------------------------------ | -------------------------------------- |
-| `npm run lint`                       | ESLint across all JS files             |
-| `npm run lint:fix`                   | ESLint with auto-fixes                 |
-| `npm run format`                     | Prettier — write                       |
-| `npm run format:check`               | Prettier — check only                  |
-| `npm test`                           | Jest unit tests (`tests/**/*.test.js`) |
-| `npm run test:integration`           | All integration scenarios              |
-| `npm run test:integration:smoke`     | Smoke test only (`--only smoke-empty`) |
-| `npm run test:integration:profiling` | Scenarios with callgrind profiling     |
-| `npm run test:integration:capture`   | Capture fixture                        |
-| `npm run check`                      | Full CI pipeline                       |
+Scripts are grouped by prefix — run `npm run help` for the annotated catalog.
+
+### Unified — daily drivers
+
+| Command                          | What it does                           |
+| -------------------------------- | -------------------------------------- |
+| `npm run check`                  | Full CI pipeline                       |
+| `npm test`                       | Jest unit tests (`tests/**/*.test.js`) |
+| `npm run test:integration`       | All integration scenarios              |
+| `npm run test:integration:smoke` | Smoke test only (`--only smoke-empty`) |
+| `npm run viewer`                 | Browser viewer UI (Scenario Manager)   |
+
+### Quality
+
+| Command                | What it does               |
+| ---------------------- | -------------------------- |
+| `npm run lint`         | ESLint across all JS files |
+| `npm run lint:fix`     | ESLint with auto-fixes     |
+| `npm run format`       | Prettier — write           |
+| `npm run format:check` | Prettier — check only      |
+
+### Viewer client
+
+| Command                | What it does                                    |
+| ---------------------- | ----------------------------------------------- |
+| `npm run viewer:build` | Install + build the client (Vite → viewer/dist) |
+| `npm run viewer:test`  | Vitest tests for the viewer client              |
+| `npm run viewer:dev`   | Vite dev server with HMR (see docs/VIEWER.md)   |
+
+### Precise — tools & variants
+
+| Command                              | What it does                       |
+| ------------------------------------ | ---------------------------------- |
+| `npm run test:integration:profiling` | Scenarios with callgrind profiling |
+| `npm run fixture:capture`            | Capture a memory fixture           |
 
 ## Code conventions
 

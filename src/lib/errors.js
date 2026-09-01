@@ -51,6 +51,13 @@ const ERROR_CONTEXTS = {
             '  4. Or use --build to run the build command automatically before tests.',
         docs: 'docs/GETTING-STARTED.md',
     },
+    VIEWER_NOT_BUILT: {
+        title: 'Viewer UI is not built',
+        why: 'The browser viewer (--viewer) serves a prebuilt bundle from src/tools/viewer/dist/. The bundle is not published to npm — it is built on the user side. Without it the UI server would start, but the browser would only get 404s.',
+        how:
+            '1. In a repo checkout: npm run viewer:build.\n' +
+            '  2. From the npm package: cd node_modules/screeps-integration-tests/src/tools/viewer/client && npm install && npm run build.\n',
+    },
     MISSING_FIXTURES_DIR: {
         title: 'Fixtures directory not found',
         why: 'Memory fixtures (*.memory.json) provide pre-built bot Memory snapshots for scenarios. They are loaded from the fixtures directory.',
@@ -77,6 +84,14 @@ const ERROR_CONTEXTS = {
             "  module.exports = { scenariosDir: './tests/scenarios', distDir: './dist' };\n" +
             'Or as a function:\n' +
             '  module.exports = () => ({ ... });',
+        docs: 'docs/CONFIG.md',
+    },
+    INVALID_VIEWER_PORT: {
+        title: 'Invalid viewerPort value',
+        why: 'viewerPort must be an integer between 1 and 65535, or null to pick a free port automatically. The configured value is passed to the UI server as-is and would otherwise fail with a cryptic listen error.',
+        how:
+            '1. Set viewerPort to a valid port number, e.g. 3100.\n' +
+            '  2. Or remove it / set it to null to pick a free port automatically.',
         docs: 'docs/CONFIG.md',
     },
     MISSING_SCENARIO: {

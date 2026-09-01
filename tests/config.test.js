@@ -209,6 +209,11 @@ describe('config DEFAULTS', () => {
         expect(DEFAULTS.viewer).toBe(false);
     });
 
+    it('viewerPort default is null (auto-pick a free port)', () => {
+        const { DEFAULTS } = require('../src/lib/config/config');
+        expect(DEFAULTS.viewerPort).toBeNull();
+    });
+
     it('viewerOptions is a plain object (not shared reference across configs)', () => {
         const { DEFAULTS } = require('../src/lib/config/config');
         // Sanity: the default itself is an object
@@ -329,6 +334,26 @@ describe('config viewer + viewerOptions interaction', () => {
         expect(config.viewer).toBe(true);
         // viewerOptions from config file, merged with defaults
         expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, paused: true, speed: 500 });
+    });
+
+    it('viewerPort from config file: valid value passes through', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerPort: 3100 };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerPort).toBe(3100);
+    });
+
+    it('viewerPort from config file: out-of-range value fails loud and early', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerPort: 70000 };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        expect(() => resolveConfig([], tmpDir, {})).toThrow(/viewerPort/);
+    });
+
+    it('viewerPort override: non-integer value is rejected', () => {
+        const { resolveConfig } = require('../src/lib/config/config');
+        expect(() => resolveConfig([], tmpDir, { viewerPort: 'abc' })).toThrow(/viewerPort/);
     });
 
     it('explicit overrides viewerOptions replaces entirely (highest priority)', () => {
