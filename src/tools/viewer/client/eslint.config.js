@@ -12,6 +12,17 @@ export default [
     js.configs.recommended,
     react.configs.flat.recommended,
     {
+        // Root-level config files (vite.config.js, vitest.config.js,
+        // eslint.config.js) run in Node — they need Node globals, which the
+        // browser-oriented blocks below do not provide.
+        files: ['*.config.js'],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+            },
+        },
+    },
+    {
         files: ['src/**/*.{js,jsx}', 'tests/**/*.{js,jsx}'],
         plugins: {
             'react-hooks': reactHooks,
