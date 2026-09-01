@@ -163,7 +163,7 @@ PR #63 [feat(viewer): open snapshots folder from the UI](https://github.com/kvi0
   section, and an "Open folder" button in the Scenario Manager Snapshots tab
   footer.
 
-PR feat/time-management
+PR #64 [Feat/viewer dx](https://github.com/kvi05/screeps-integration-tests/pull/64)
 
 - **`npm run help` — annotated npm-scripts catalog.** `package.json` cannot
   carry comments, so the grouped catalog (daily drivers / quality / viewer /
