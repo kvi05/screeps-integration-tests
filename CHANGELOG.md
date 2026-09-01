@@ -22,11 +22,11 @@ PR #44 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/p
   - **Client:** React 18 + Vite SPA with Canvas 2D renderer (adapted from
     screeps-dojo). Multi-room layout engine, sprite prewarming, camera
     (drag/zoom/reset), playback controls (play/pause/seek/speed), SSE
-    connection lifecycle, sessionStorage persistence. `npm run build:viewer`
+    connection lifecycle, sessionStorage persistence. `npm run viewer:build`
     script.
   - **Test infrastructure (vitest + jsdom):** comprehensive Canvas 2D mock
     with pixel-buffer tracking, transform stack, and path bounding-box
-    support. `npm run test:viewer` script.
+    support. `npm run viewer:test` script.
   - **Unit tests:** `zoomToward` (extracted to pure `canvas/math.js`),
     `roomNameToXY` / `computeStageLayout`, all five drawing primitives.
   - **Component tests:** full `App` mount — canvas rendering with/without
@@ -162,6 +162,30 @@ PR #63 [feat(viewer): open snapshots folder from the UI](https://github.com/kvi0
   button next to the refresh control in the StatePanel "Saved Snapshots"
   section, and an "Open folder" button in the Scenario Manager Snapshots tab
   footer.
+
+PR feat/time-management
+
+- **`npm run help` — annotated npm-scripts catalog.** `package.json` cannot
+  carry comments, so the grouped catalog (daily drivers / quality / viewer /
+  tools) lives in `src/tools/help.js`; `tests/scriptsHelp.test.js` fails when
+  the catalog and the `scripts` section drift apart.
+- **npm scripts regrouped and renamed** for consistency: `build:viewer` →
+  `viewer:build`, `test:viewer` → `viewer:test`; new `viewer` (launch the UI),
+  `viewer:dev` (Vite dev server with HMR), `fixture:capture`; `smoke` /
+  `profiling` variants now delegate to `test:integration` via `--`.
+- **`viewerPort` config/CLI option.** Pin the viewer UI server port
+  (`--viewerPort 3100` or `viewerPort` in the config) instead of auto-picking
+  a free port — required for the Vite dev-server proxy (`SIT_VIEWER_PORT`).
+  Invalid values from the config file are rejected early with an actionable
+  `INVALID_VIEWER_PORT` error.
+- **`VIEWER_NOT_BUILT` fail-fast error.** `--viewer` now checks for the
+  prebuilt client bundle at startup and explains how to build it, instead of
+  serving 404s to the browser.
+- **Grouped `--help` output.** CLI flags render as titled sections
+  (General / Paths / Run / Viewer) instead of one flat list.
+- **Docs:** new `docs/VIEWER.md` (launch, panels, replay/snapshots, dev mode,
+  troubleshooting); README / CONTRIBUTING / CONFIG.md synced with the new
+  scripts and flags.
 
 ### Changed
 
