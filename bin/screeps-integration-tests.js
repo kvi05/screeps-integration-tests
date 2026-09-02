@@ -354,9 +354,18 @@ function printSummary(results) {
     let failed = 0;
     let skipped = 0;
 
-    for (const { name, status, error, time, result } of results) {
+    for (const { name, status, error, time, result, totalTicks, totalWorlds } of results) {
         const icon = status === 'pass' ? 'PASS' : status === 'skip' ? 'SKIP' : 'FAIL';
-        const timeStr = time !== undefined ? ` (${Math.round(time / 1000)}s)` : '';
+        // Cross-world aggregates come from the worker (world.report is
+        // per-world) — shown only for multi-world scenarios.
+        const parts = [];
+        if (time !== undefined) {
+            parts.push(`${Math.round(time / 1000)}s`);
+        }
+        if (totalWorlds > 1) {
+            parts.push(`${totalWorlds} worlds`, `${totalTicks} ticks`);
+        }
+        const timeStr = parts.length > 0 ? ` (${parts.join(', ')})` : '';
         console.log(`  ${icon} ${name}${timeStr}`);
         if (error) {
             // Show the first meaningful lines of the error (up to 10).
@@ -633,7 +642,9 @@ async function runViewerMode(config) {
                     // Tell the viewer the scenario has finished so the client
                     // switches to local replay of the recorded frames.
                     if (interactive && uiServer) {
-                        uiServer.broadcastEnd(result.status, result.result?.ticksRun || 0);
+                        // totalTicks is summed across all worlds by the worker;
+                        // the scenario result holds only the last world's report.
+                        uiServer.broadcastEnd(result.status, result.totalTicks || 0);
                     }
                     if (result.status === 'fail' || result.status === 'timeout') {
                         console.error(`[viewer] ${scenarioName} failed: ${result.error || result.status}`);
