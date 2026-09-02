@@ -115,7 +115,12 @@ export class SpriteCache {
         const counts = countBodyParts(o.body);
         const inner = o.user === this.botUserId ? '#5577ff' : '#ff5555';
         const S = CREEP_SIZE_TILES;
-        const innerSvg = generateCreepSvg(S / 2, S / 2, S, counts, o.store, 1, inner, o.storeCapacity);
+        // Body-part arcs (the sprite's visual "front") are generated pointing
+        // north; bake a +90° rotation so the front points east (+X). This
+        // matches the atan2(dy, dx) convention of creepFacing() (layout.js) —
+        // drawSprite then rotates by `facing` directly. The invader sprite
+        // already points east natively, so it needs no offset.
+        const innerSvg = generateCreepSvg(S / 2, S / 2, S, counts, o.store, 1, inner, o.storeCapacity, 90);
         const svg =
             '<svg xmlns="http://www.w3.org/2000/svg" width="' +
             SPRITE_PX +

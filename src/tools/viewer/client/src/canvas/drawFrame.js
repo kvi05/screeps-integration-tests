@@ -159,7 +159,7 @@ export function drawFrame(ctx, recording, tick, sub, opts) {
         ctx.restore();
     }
 
-    // 3) Creeps (interpolated) + HP + direction indicator
+    // 3) Creeps (interpolated) + HP
     for (const obj of base.objects) {
         if (obj.type !== 'creep') continue;
         if (obj.spawning) {
@@ -191,21 +191,6 @@ export function drawFrame(ctx, recording, tick, sub, opts) {
         const facing = creepFacing(frames, i, obj._id, layout);
         const sprite = sprites.isNpc(obj) ? sprites.invaderSprite() : sprites.creepSprite(obj);
         if (sprite) drawSprite(ctx, sprite, p.wx, p.wy, facing, opacity, sprites.isNpc(obj));
-        // Direction indicator
-        if (facing !== 0 && !obj.spawning) {
-            ctx.save();
-            ctx.globalAlpha = opacity * 0.6;
-            ctx.fillStyle = '#ffffff';
-            ctx.translate(p.wx, p.wy);
-            ctx.rotate((facing * Math.PI) / 180);
-            ctx.beginPath();
-            ctx.moveTo(0.9, 0);
-            ctx.lineTo(0.4, -0.2);
-            ctx.lineTo(0.4, 0.2);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
-        }
         drawHpBar(ctx, obj, p.wx, p.wy, opacity);
         drawEffects(ctx, actionSrc, p.wx, p.wy, sub, off, room);
     }
