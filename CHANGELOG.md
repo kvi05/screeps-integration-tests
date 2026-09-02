@@ -187,6 +187,25 @@ PR #64 [Feat/viewer dx](https://github.com/kvi05/screeps-integration-tests/pull/
   troubleshooting); README / CONTRIBUTING / CONFIG.md synced with the new
   scripts and flags.
 
+PR #66 [Feat/cross world totals](https://github.com/kvi05/screeps-integration-tests/pull/66)
+
+- **Scenario Manager: total ticks per run.** The worker now aggregates
+  `ticksRun` across **all** worlds created by a scenario (a scenario may call
+  `createWorld()` several times) and sends the sum as `totalTicks` in the
+  `viewer:scenario-result` IPC/SSE event instead of the last world's tick
+  count. The scenario detail panel shows the aggregated total and uses it for
+  the tick-rate calculation.
+- **Cross-world totals in the final worker message.** `WorkerMessage` now
+  carries `totalTicks` / `totalWorlds` on both the pass and the fail path, so
+  multi-world scenarios are not misrepresented by the last world's report
+  (`world.report` remains strictly per-world). Only additive counters are
+  aggregated — per-world data (`errors`, `metrics`, `finalMemory`, ...) is
+  intentionally never merged. The CLI summary shows `N worlds, M ticks` for
+  multi-world scenarios, and the viewer `broadcastEnd` now uses the same
+  aggregate. Worlds are tracked in the new `orchestration/worldReports.js`
+  registry: `dispose()` freezes the world's final `ticksRun` and releases its
+  report, so long-lived processes do not accumulate disposed worlds' reports.
+
 ### Changed
 
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)

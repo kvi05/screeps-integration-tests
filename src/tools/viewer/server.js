@@ -158,7 +158,7 @@ function serveStatic(res, filePath) {
  * @property {(scenario:string, maxTicks:number, replayBuffer?:number, paused?:boolean) => void} broadcastStart — send start event to all SSE clients
  * @property {(frame: Object) => void} broadcast — send a frame to all SSE clients
  * @property {(terrain: Object) => void} broadcastTerrain — send terrain data to all SSE clients
- * @property {(result: {scenario:string, status:string, time:number, ticks:number}) => void} broadcastScenarioResult — send scenario result to all SSE clients
+ * @property {(result: {scenario:string, status:string, time:number, totalTicks:number}) => void} broadcastScenarioResult — send scenario result to all SSE clients
  * @property {(status: {state?:string, tick?:number, speed?:number, scenario?:string}) => void} updateStatus — update cached status and broadcast to SSE
  * @property {() => Promise<void>} close — stop the server
  */
@@ -802,7 +802,7 @@ async function createUiServer(opts = {}) {
 
                 /**
                  * Broadcast scenario result to all SSE clients.
-                 * @param {{scenario:string, status:string, time:number, ticks:number}} result
+                 * @param {{scenario:string, status:string, time:number, totalTicks:number}} result
                  */
                 broadcastScenarioResult(result) {
                     for (const client of sseClients) {

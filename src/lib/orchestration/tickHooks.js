@@ -9,6 +9,10 @@
  *   `runScenario.js` (writer) import from this module — no layer boundary
  *   is crossed.
  *
+ *   Cross-world aggregation lives in the sibling `worldReports.js` module:
+ *   `world.js` registers/freezes world reports there, `runScenario.js`
+ *   reads the totals for the final worker message.
+ *
  * This replaces the old `viewerState.js` singleton, but is tool-agnostic:
  *   any tool (viewer, profiler, debugger) can set the interceptor.
  *

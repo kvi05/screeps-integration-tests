@@ -267,7 +267,9 @@ async function run(opts = {}) {
     }
 
     console.log('PASS: terrain-custom — all sub-tests passed');
-    return { ticksRun: ticks, ok: true };
+    // Cross-world tick totals are computed by the worker (totalTicks in the
+    // final message) — no need to fabricate them in the return value.
+    return {};
 }
 
 module.exports = { run };

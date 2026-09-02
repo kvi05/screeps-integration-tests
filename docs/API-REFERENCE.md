@@ -838,6 +838,14 @@ for (const line of world.report.errors) {
 > `errors`/`warnings`/`logs` are raw strings without tick binding. If you need
 > per-tick information — use `report.events` or `onTick`.
 
+> **`report` is strictly per-world.** A scenario may call `createWorld()`
+> several times — each world gets its own report, and the object returned
+> from `run()` is just the last world's one. Do not merge per-world data
+> (errors, metrics, `finalMemory`) by hand: room names and tick numbers
+> collide across worlds. Headline counters are aggregated automatically: the
+> runner summary shows `N worlds, M ticks` (`totalTicks` / `totalWorlds` in
+> the worker's final message) summed across all worlds of the scenario.
+
 ## 12. Profiling
 
 ```javascript

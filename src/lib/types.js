@@ -915,10 +915,19 @@
 /**
  * Message sent by the worker via `process.send`.
  *
+ * `result` is scenario-owned (usually the last world's report) and is never
+ * rewritten. The aggregate counters `totalTicks` / `totalWorlds` are attached
+ * separately by the worker: they cover ALL worlds the scenario created, so
+ * multi-world scenarios are not misrepresented by the last world's report.
+ * Only additive counters are aggregated — per-world data (errors, metrics,
+ * finalMemory, ...) is intentionally never merged.
+ *
  * @typedef {Object} WorkerMessage
  * @property {'pass'|'skip'|'fail'|'timeout'} status
  * @property {ScenarioOutput} [result]
  * @property {string} [error]
+ * @property {number} [totalTicks]  — ticksRun summed across all worlds
+ * @property {number} [totalWorlds] — number of worlds the scenario created
  */
 
 // ─── CLI ──────────────────────────────────────────────────────────────────
@@ -941,6 +950,8 @@
  * @property {'pass'|'skip'|'fail'|'timeout'} status
  * @property {string} [error]
  * @property {number} [time]
+ * @property {number} [totalTicks]  — ticksRun summed across all worlds
+ * @property {number} [totalWorlds] — number of worlds the scenario created
  */
 
 module.exports = {};

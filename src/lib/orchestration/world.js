@@ -33,6 +33,7 @@ const { applyTerrainSpec, getTerrainMatrixClass } = require('../runtime/terrain'
 const { INVADER_USER_ID, SOURCE_KEEPER_USER_ID } = require('../../constants/screepsConstants');
 const { FixtureError, BotError, FrameworkError } = require('../errors');
 const { getTickInterceptor } = require('./tickHooks');
+const { trackWorldReport, freezeWorldReport } = require('./worldReports');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
 
@@ -450,6 +451,11 @@ async function createWorld(opts) {
     runtime.dispose = engineWatch.activate(runtime.dispose);
 
     const report = createEmptyReport();
+    // Register the live report so the worker can aggregate ticksRun across
+    // ALL worlds of a scenario (a scenario may createWorld() several times —
+    // the report it returns is just the last world's one). dispose() freezes
+    // the world's contribution and releases the report (see worldReports.js).
+    trackWorldReport(report);
 
     const globalLogLevel = opts.logLevel || DEFAULT_LOG_LEVEL;
     const maxConsoleLines = opts.maxConsoleLines || DEFAULT_MAX_CONSOLE_LINES;
@@ -702,9 +708,16 @@ async function createWorld(opts) {
         // stopping the server. `helpers` is initialized below, before any
         // caller can invoke dispose().
         helpers.disposeEvalInBot();
-        // runtime.dispose is wrapped by engineWatch.activate(): the watch is
-        // stopped first so the expected shutdown is not an engine death.
-        await runtime.dispose();
+        try {
+            // runtime.dispose is wrapped by engineWatch.activate(): the watch is
+            // stopped first so the expected shutdown is not an engine death.
+            await runtime.dispose();
+        } finally {
+            // Freeze this world's contribution to the cross-world registry:
+            // snapshot the final ticksRun and release the report, so disposed
+            // worlds do not accumulate in long-lived processes.
+            freezeWorldReport(report);
+        }
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────

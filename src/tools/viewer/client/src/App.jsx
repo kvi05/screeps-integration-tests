@@ -309,7 +309,7 @@ export default function App() {
                                     scenario: data.scenario,
                                     status: data.status,
                                     time: data.time,
-                                    ticks: data.ticks,
+                                    totalTicks: data.totalTicks,
                                 },
                             }),
                         );

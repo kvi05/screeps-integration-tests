@@ -2,6 +2,7 @@
 
 const { once } = require('events');
 const { setTickInterceptor, clearTickInterceptor } = require('./lib/orchestration/tickHooks');
+const { collectTotalWorldTicks, collectWorldCount, clearWorldReports } = require('./lib/orchestration/worldReports');
 
 /**
  * @typedef {import('./lib/types').ScenarioOutput} ScenarioOutput
@@ -78,6 +79,33 @@ function sendFinalMessage(message) {
 }
 
 /**
+ * Cross-world aggregate counters for the final worker message.
+ *
+ * `result` is scenario-owned (usually the last world's report) and is never
+ * rewritten — instead the worker attaches `totalTicks` / `totalWorlds`
+ * summed across ALL worlds the scenario created. A scenario may call
+ * `createWorld()` several times, and the report it returns is just the last
+ * world's one, so its `ticksRun` alone misrepresents multi-world scenarios.
+ *
+ * Only additive counters are aggregated. Per-world data (errors, warnings,
+ * metrics, finalMemory, ...) is intentionally NOT merged: room names and
+ * tick numbers collide across worlds, so a merge would produce garbage.
+ *
+ * On the pass path `result.ticksRun` is kept as a fallback for scenarios
+ * that do not use `createWorld()` but claim their own tick count — the same
+ * fallback as in the `viewer:scenario-result` event.
+ *
+ * @param {ScenarioOutput|null} result — scenario result (null on failure)
+ * @returns {{totalTicks: number, totalWorlds: number}}
+ */
+function buildWorldTotals(result) {
+    return {
+        totalTicks: collectTotalWorldTicks() || result?.ticksRun || 0,
+        totalWorlds: collectWorldCount(),
+    };
+}
+
+/**
  * Installs last-resort process guards so a crash inside the worker never
  * leaves the parent with a bare "Worker exited unexpectedly (exit code 1)".
  *
@@ -113,6 +141,8 @@ function installGlobalGuards() {
             sendFinalMessage({
                 status: 'fail',
                 error: `Uncaught ${kind} in the worker process:\n${detail}`,
+                // Worlds may have run before the crash — keep the totals.
+                ...buildWorldTotals(null),
             });
         } catch {
             process.exit(1);
@@ -233,7 +263,9 @@ function installGlobalGuards() {
                     ),
                     status: result?.skipped ? 'skip' : 'pass',
                     time: result?.wallClockMs || 0,
-                    ticks: result?.ticksRun || 0,
+                    // Sum across ALL worlds the scenario created — the world
+                    // whose report it returned is just the last one.
+                    totalTicks: collectTotalWorldTicks() || result?.ticksRun || 0,
                 });
             } catch {
                 /* non-critical */
@@ -241,7 +273,13 @@ function installGlobalGuards() {
         }
 
         /** @type {WorkerMessage} */
-        const message = result?.skipped ? { status: 'skip', result } : { status: 'pass', result };
+        const message = {
+            status: result?.skipped ? 'skip' : 'pass',
+            result,
+            // Cross-world aggregates — the scenario result holds only the
+            // last world's report.
+            ...buildWorldTotals(result),
+        };
 
         sendFinalMessage(message);
     } catch (e) {
@@ -255,10 +293,14 @@ function installGlobalGuards() {
         const message = {
             status: 'fail',
             error: formatted ? `${formatted}\n\n${e.stack || ''}` : e.stack || String(e),
+            // Worlds may have run (or been created) before the failure —
+            // the totals tell how far the scenario got.
+            ...buildWorldTotals(null),
         };
         sendFinalMessage(message);
     } finally {
         clearTickInterceptor();
+        clearWorldReports();
         // The worker terminates itself inside sendFinalMessage() once the
         // final message is flushed to the IPC channel.
     }
