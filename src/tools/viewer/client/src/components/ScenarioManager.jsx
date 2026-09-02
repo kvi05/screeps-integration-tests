@@ -67,7 +67,7 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     const [scenarios, setScenarios] = useState([]);
     const [statuses, setStatuses] = useState(/** @type {Object<string, string>} */ ({}));
     const [timings, setTimings] = useState(
-        /** @type {Object<string, {elapsed?:number, total?:number, tickRate?:number}>} */ ({}),
+        /** @type {Object<string, {elapsed?:number, total?:number, tickRate?:number, totalTicks?:number}>} */ ({}),
     );
     const [filter, setFilter] = useState('');
     const [groupPrefix, setGroupPrefix] = useState('');
@@ -114,7 +114,7 @@ export default function ScenarioManager({ onNavigateToViewer }) {
 
         // Listen for scenario-result SSE events forwarded via window
         const handleResult = (e) => {
-            const { scenario, status, time, ticks } = e.detail || {};
+            const { scenario, status, time, totalTicks } = e.detail || {};
             if (scenario) {
                 const name = scenario.replace(/^.*[/\\]/, '').replace('.scenario.js', '');
                 setStatuses((prev) => {
@@ -129,11 +129,15 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                     }
                     return next;
                 });
-                // Record timing
+                // Record timing (totalTicks is summed across ALL worlds of the scenario)
                 if (time != null) {
                     setTimings((prev) => ({
                         ...prev,
-                        [name]: { total: time, tickRate: ticks && time ? (ticks / time) * 1000 : undefined },
+                        [name]: {
+                            total: time,
+                            tickRate: totalTicks && time ? (totalTicks / time) * 1000 : undefined,
+                            totalTicks,
+                        },
                     }));
                 }
             }
@@ -519,10 +523,6 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                                             </div>
                                         </div>
                                         <div className="meta-item">
-                                            <div className="meta-label">Size</div>
-                                            <div className="meta-value">{formatSize(selectedScenario.size)}</div>
-                                        </div>
-                                        <div className="meta-item">
                                             <div className="meta-label">Timing</div>
                                             <div className="meta-value">
                                                 {selectedTiming.total != null
@@ -539,6 +539,18 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                                                     ? selectedTiming.tickRate.toFixed(1)
                                                     : '—'}
                                             </div>
+                                        </div>
+                                        <div className="meta-item">
+                                            <div className="meta-label">Ticks</div>
+                                            <div className="meta-value">
+                                                {selectedTiming.totalTicks != null
+                                                    ? selectedTiming.totalTicks.toLocaleString('en-US')
+                                                    : '—'}
+                                            </div>
+                                        </div>
+                                        <div className="meta-item">
+                                            <div className="meta-label">Size</div>
+                                            <div className="meta-value">{formatSize(selectedScenario.size)}</div>
                                         </div>
                                     </div>
 

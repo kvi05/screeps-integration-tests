@@ -2305,7 +2305,7 @@ body,
 /* Detail meta grid */
 .sm-detail-meta {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: var(--sp-3);
     margin-bottom: var(--sp-6);
 }

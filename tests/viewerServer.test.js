@@ -353,11 +353,11 @@ describe('UiServer', () => {
         server = await createUiServer({ port: 0 });
         const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
-        server.broadcastScenarioResult({ scenario: 'test', status: 'pass', time: 100, ticks: 30 });
+        server.broadcastScenarioResult({ scenario: 'test', status: 'pass', time: 100, totalTicks: 30 });
         const { events } = await ssePromise;
         const resultEvent = events.find((e) => e.type === 'scenario-result');
         expect(resultEvent).toBeDefined();
-        expect(resultEvent.data).toEqual({ scenario: 'test', status: 'pass', time: 100, ticks: 30 });
+        expect(resultEvent.data).toEqual({ scenario: 'test', status: 'pass', time: 100, totalTicks: 30 });
     });
 
     it('updateStatus broadcasts SSE status event', async () => {

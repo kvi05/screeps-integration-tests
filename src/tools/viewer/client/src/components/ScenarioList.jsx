@@ -29,7 +29,7 @@ const STATUS_CONFIG = {
  * @param {Object} props
  * @param {Array<{name:string, file:string, size:number, modified:string}>} props.scenarios
  * @param {Object<string,string>} props.statuses — name → 'pending'|'running'|'passed'|'failed'|'skipped'
- * @param {Object<string,{elapsed?:number, total?:number, tickRate?:number}>} [props.timings]
+ * @param {Object<string,{elapsed?:number, total?:number, tickRate?:number, totalTicks?:number}>} [props.timings]
  * @param {string|null} props.selected — currently selected scenario name
  * @param {(name:string) => void} props.onSelect — row click callback
  * @param {(name:string) => void} props.onRun
