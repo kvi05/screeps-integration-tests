@@ -47,6 +47,12 @@ export const PauseIcon = (p) => (
     </Icon>
 );
 
+export const SquareIcon = (p) => (
+    <Icon {...p}>
+        <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />
+    </Icon>
+);
+
 export const StepForwardIcon = (p) => (
     <Icon {...p}>
         <polygon points="5 4 15 12 5 20 5 4" fill="currentColor" stroke="none" />

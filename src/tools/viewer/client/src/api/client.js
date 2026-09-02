@@ -158,6 +158,16 @@ export function postRun(scenario, interactive = false) {
     return postJSON('/api/run', { scenario, interactive });
 }
 
+/** Run all scenarios — the server first stops everything running (atomically), then queues the full set */
+export function postRunAll() {
+    return postJSON('/api/run-all');
+}
+
+/** Stop all running scenarios and clear the queue */
+export function postStopAll() {
+    return postJSON('/api/stop-all');
+}
+
 /** Save current snapshot */
 export function postSaveSnapshot() {
     return postJSON('/api/save-snapshot');
