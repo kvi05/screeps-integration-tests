@@ -205,6 +205,26 @@ PR #66 [Feat/cross world totals](https://github.com/kvi05/screeps-integration-te
   aggregate. Worlds are tracked in the new `orchestration/worldReports.js`
   registry: `dispose()` freezes the world's final `ticksRun` and releases its
   report, so long-lived processes do not accumulate disposed worlds' reports.
+- **Viewer — Run All / Stop All lifecycle.**
+  - **Stop All:** new `POST /api/stop-all` endpoint and Scenario Manager
+    toolbar button — stops every running scenario (interactive and headless)
+    and clears the pending queue. Enabled only while something is
+    pending/running.
+  - **Atomic Run All:** new `POST /api/run-all` — one request stops
+    everything, clears the queue and re-queues the whole suite. Repeated
+    clicks while the restart is in flight can no longer duplicate entries.
+  - **Interactive takeover:** launching a scenario interactively ("Live",
+    run-from-snapshot) now stops all running scenarios — including headless
+    ones — and drops the pending queue, instead of only stopping the running
+    interactive one.
+  - **Graceful dispose for headless workers** via a minimal dispose-only tick
+    interceptor (`createDisposeInterceptor`), with a 4 s hard-kill fallback
+    for workers stuck outside the tick loop.
+  - **Stopped runs are reported as `skip`** (also when the scenario throws
+    after the stop), and late results of stopping runs are not broadcast
+    while a Run All restart is in flight.
+  - The viewer status now flips to `running`/`paused` when a worker actually
+    starts, not when a run is merely queued.
 
 ### Changed
 
@@ -298,6 +318,10 @@ PR #56 [Fix/engine snapshot node24](https://github.com/kvi05/screeps-integration
   under `24.x` were reused across Node patch upgrades with a different V8,
   masking the snapshot mismatch; the cache key now uses
   `steps.setup-node.outputs.node-version`.
+- **Run All no longer re-queues the whole suite on every click.** Each click
+  used to push another full set of scenarios into the runner queue, so the
+  suite was executed multiple times while earlier runs kept going. Run All is
+  now a single atomic restart request (see Added).
 
 ## [3.0.0] — 2026-08-06
 
