@@ -108,6 +108,132 @@ function runWorkerCollectingScenarioResult(scenarioPath) {
     });
 }
 
+/**
+ * Forks the worker for a batch (non-viewer) scenario, waits until the
+ * scenario signals it is inside the tick loop (the scenario sends a
+ * `test:ticking` message from its onTick hook), then sends a `dispose`
+ * command. Resolves with the final message and the collected
+ * `viewer:scenario-result`.
+ *
+ * @param {string} scenarioPath
+ * @returns {Promise<{resultMessage: Object, scenarioResult: Object|null}>}
+ */
+function runWorkerDisposedMidRun(scenarioPath) {
+    return new Promise((resolve, reject) => {
+        const child = fork(RUNNER, [], { silent: true });
+        let scenarioResult = null;
+        let disposed = false;
+        let settled = false;
+
+        const finish = (fn, value) => {
+            if (settled) return;
+            settled = true;
+            fn(value);
+        };
+
+        child.on('message', (msg) => {
+            if (msg && msg.type === 'viewer:scenario-result') {
+                scenarioResult = msg;
+                return;
+            }
+            if (msg && msg.type === 'test:ticking' && !disposed) {
+                disposed = true;
+                child.send({ type: 'viewer:cmd', action: 'dispose' });
+                return;
+            }
+            if (msg && !msg.type && (msg.status === 'pass' || msg.status === 'fail' || msg.status === 'skip')) {
+                finish(resolve, { resultMessage: msg, scenarioResult });
+            }
+        });
+        child.on('exit', (code, signal) => {
+            finish(reject, new Error(`worker exited (code: ${code}, signal: ${signal}) without a final message`));
+        });
+        child.on('error', (err) => finish(reject, err));
+
+        child.send({ scenarioPath, opts: {} });
+    });
+}
+
+/**
+ * Builds a batch scenario source that runs a real world and signals the
+ * parent on the first tick. Used by the dispose tests.
+ *
+ * @param {string} [afterRun] — code executed once run() returns (e.g. a throw
+ *   or a stray rejection); defaults to returning the report
+ * @param {number} [maxTicks=500] — tick ceiling for the world
+ * @returns {string} absolute path to the written scenario
+ */
+function writeTickingScenario(afterRun = '') {
+    const indexPath = path.join(__dirname, '..', 'src', 'index.js');
+    const code = `
+        'use strict';
+        const fs = require('fs');
+        const os = require('os');
+        const path = require('path');
+        const { createWorld } = require(${JSON.stringify(indexPath)});
+        const distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sit-bot-dist-'));
+        fs.writeFileSync(path.join(distDir, 'main.js'), 'module.exports = { loop: function () {} };');
+        module.exports = {
+            async run() {
+                const world = await createWorld({
+                    rooms: [{ name: 'W0N1' }],
+                    bots: [{ username: 'bot', rooms: ['W0N1'] }],
+                    until: { maxTicks: 500 },
+                    distDir,
+                    onTick: (w, tick) => {
+                        if (tick === 0 && process.send) {
+                            process.send({ type: 'test:ticking' });
+                        }
+                    },
+                });
+                try {
+                    const report = await world.run();
+                    ${afterRun || 'return report;'}
+                } finally {
+                    await world.dispose();
+                    fs.rmSync(distDir, { recursive: true, force: true });
+                }
+            },
+        };
+    `;
+    return writeScenario(code);
+}
+
+/**
+ * Forks the worker and sends the run configuration followed IMMEDIATELY by a
+ * dispose command — simulating Stop All racing the spawn, where the parent
+ * writes both messages back-to-back and the worker reads them in one burst
+ * before any interceptor exists.
+ *
+ * @param {string} scenarioPath
+ * @returns {Promise<{resultMessage: Object}>} the final worker message
+ */
+function runWorkerWithImmediateDispose(scenarioPath) {
+    return new Promise((resolve, reject) => {
+        const child = fork(RUNNER, [], { silent: true });
+        let settled = false;
+
+        const finish = (fn, value) => {
+            if (settled) return;
+            settled = true;
+            fn(value);
+        };
+
+        child.on('message', (msg) => {
+            if (msg && !msg.type && (msg.status === 'pass' || msg.status === 'fail' || msg.status === 'skip')) {
+                finish(resolve, { resultMessage: msg });
+            }
+        });
+        child.on('exit', (code, signal) => {
+            finish(reject, new Error(`worker exited (code: ${code}, signal: ${signal}) without a final message`));
+        });
+        child.on('error', (err) => finish(reject, err));
+
+        child.send({ scenarioPath, opts: {} });
+        child.send({ type: 'viewer:cmd', action: 'dispose' });
+    });
+}
+
 afterAll(() => {
     // Best-effort cleanup of temp scenario dirs.
     const tmp = os.tmpdir();
@@ -306,5 +432,57 @@ describe('runScenario viewer scenario-result message', () => {
         expect(msg.status).toBe('pass');
         expect(msg.totalWorlds).toBe(1);
         expect(msg.totalTicks).toBe(2);
+    });
+});
+
+describe('runScenario batch dispose (parent-initiated stop)', () => {
+    test('dispose command stops a batch scenario mid-run and it is reported as skip', async () => {
+        const { resultMessage, scenarioResult } = await runWorkerDisposedMidRun(writeTickingScenario());
+
+        expect(resultMessage.status).toBe('skip');
+        // The run was stopped before maxTicks — the tick loop exited early.
+        expect(resultMessage.totalTicks).toBeLessThan(500);
+        // The Scenario Manager event carries the same user-stop status.
+        expect(scenarioResult).not.toBeNull();
+        expect(scenarioResult.status).toBe('skip');
+    });
+
+    test('a disposed run that throws afterwards is still reported as skip, not fail', async () => {
+        // Scenario-side assertions on partial data are an artifact of the
+        // stop, not a real regression — the user asked to stop the run.
+        const { resultMessage, scenarioResult } = await runWorkerDisposedMidRun(
+            writeTickingScenario("throw new Error('assert-after-dispose-boom');"),
+        );
+
+        expect(resultMessage.status).toBe('skip');
+        expect(resultMessage.error).toContain('assert-after-dispose-boom');
+        expect(scenarioResult.status).toBe('skip');
+    });
+
+    test('a disposed run crashing in the global guards is still reported as skip', async () => {
+        // A stray async failure racing the teardown fires the crash guard
+        // (unhandledRejection) while the run is already disposed — the user
+        // stop must win over the crash. The scenario never returns: the guard
+        // sends the only final message the worker produces.
+        const afterRun = `
+            setImmediate(() => { Promise.reject(new Error('teardown-rejection-boom')); });
+            await new Promise(() => {}); // never resolves — the guard exits the worker
+        `;
+        const { resultMessage, scenarioResult } = await runWorkerDisposedMidRun(writeTickingScenario(afterRun));
+
+        expect(resultMessage.status).toBe('skip');
+        expect(resultMessage.error).toContain('teardown-rejection-boom');
+        expect(scenarioResult.status).toBe('skip');
+    });
+
+    test('a stop racing the worker boot is still honored (dispose seeded at startup)', async () => {
+        // Stop All can fire while the worker is still forking: the parent
+        // queues the run config and the dispose back-to-back, so the worker
+        // reads both in one burst before any interceptor exists. The
+        // module-level pre-armed dispose flag must preserve the stop.
+        const { resultMessage } = await runWorkerWithImmediateDispose(writeTickingScenario());
+
+        expect(resultMessage.status).toBe('skip');
+        expect(resultMessage.totalTicks).toBeLessThan(500);
     });
 });
