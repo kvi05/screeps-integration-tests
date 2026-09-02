@@ -7,6 +7,13 @@ import CanvasStage from '../src/components/CanvasStage';
 // Mock SSE client
 vi.mock('../src/api/client', () => ({
     connectSSE: vi.fn(() => ({ close: vi.fn() })),
+    postResume: vi.fn(() => Promise.resolve()),
+    postPause: vi.fn(() => Promise.resolve()),
+    postStep: vi.fn(() => Promise.resolve()),
+    postSpeed: vi.fn(() => Promise.resolve()),
+    postDispose: vi.fn(() => Promise.resolve()),
+    postRestoreTick: vi.fn(() => Promise.resolve()),
+    postSaveSnapshot: vi.fn(() => Promise.resolve()),
 }));
 
 describe('canvas rendering', () => {

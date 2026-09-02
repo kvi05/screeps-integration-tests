@@ -6,6 +6,17 @@ const os = require('os');
 
 const ORIGINAL_BOT_DIST_DIR = process.env.BOT_DIST_DIR;
 
+/**
+ * Baseline viewerOptions expected across tests.
+ * Variations are expressed as `{ ...DEFAULT_VIEWER_OPTIONS, key: value }`.
+ */
+const DEFAULT_VIEWER_OPTIONS = {
+    paused: false,
+    speed: 1000,
+    keyframeInterval: 100,
+    replayBuffer: 3000,
+};
+
 describe('config resolveConfig', () => {
     let tmpDir;
 
@@ -119,6 +130,19 @@ describe('config resolveConfig', () => {
             expect(config.cacheDir).toBe(path.join(tmpDir, '.cache'));
         });
 
+        it('resolves snapshotsDir default relative to configDir', () => {
+            const { resolveConfig } = require('../src/lib/config/config');
+            const { config } = resolveConfig([], tmpDir, {});
+            expect(config.snapshotsDir).toBe(path.resolve(tmpDir, 'snapshots'));
+        });
+
+        it('resolves snapshotsDir from config file relative to configDir', () => {
+            createConfigFile('module.exports = { snapshotsDir: "./custom-snapshots" };');
+            const { resolveConfig } = require('../src/lib/config/config');
+            const { config } = resolveConfig([], tmpDir, {});
+            expect(config.snapshotsDir).toBe(path.join(tmpDir, 'custom-snapshots'));
+        });
+
         it('does not resolve absolute paths relative to configDir', () => {
             const absPath = path.resolve('/absolute-cache');
             createConfigFile(`module.exports = { cacheDir: "${absPath.replace(/\\/g, '\\\\')}" };`);
@@ -177,17 +201,17 @@ describe('config DEFAULTS', () => {
 
     it('viewerOptions has all keys with correct defaults', () => {
         const { DEFAULTS } = require('../src/lib/config/config');
-        expect(DEFAULTS.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 3000,
-        });
+        expect(DEFAULTS.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('viewer default is false', () => {
         const { DEFAULTS } = require('../src/lib/config/config');
         expect(DEFAULTS.viewer).toBe(false);
+    });
+
+    it('viewerPort default is null (auto-pick a free port)', () => {
+        const { DEFAULTS } = require('../src/lib/config/config');
+        expect(DEFAULTS.viewerPort).toBeNull();
     });
 
     it('viewerOptions is a plain object (not shared reference across configs)', () => {
@@ -217,12 +241,7 @@ describe('config viewerOptions partial override', () => {
         fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { speed: 2000 } };', 'utf8');
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 2000,
-            keyframeInterval: 100,
-            replayBuffer: 3000,
-        });
+        expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, speed: 2000 });
     });
 
     it('merges viewerOptions toggles correctly', () => {
@@ -230,12 +249,7 @@ describe('config viewerOptions partial override', () => {
         fs.writeFileSync(filePath, 'module.exports = { viewerOptions: { paused: true, replayBuffer: 5000 } };', 'utf8');
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: true,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 5000,
-        });
+        expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, paused: true, replayBuffer: 5000 });
     });
 
     it('full viewerOptions override works', () => {
@@ -260,12 +274,7 @@ describe('config viewerOptions partial override', () => {
         fs.writeFileSync(filePath, 'module.exports = { viewerOptions: {} };', 'utf8');
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 3000,
-        });
+        expect(config.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('config without viewerOptions key keeps defaults intact', () => {
@@ -273,23 +282,13 @@ describe('config viewerOptions partial override', () => {
         fs.writeFileSync(filePath, 'module.exports = { distDir: "./bot-dist" };', 'utf8');
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 3000,
-        });
+        expect(config.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('no config file → viewerOptions is defaults', () => {
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 3000,
-        });
+        expect(config.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('viewerOptions includes unknown keys from user config (forward-compat)', () => {
@@ -301,13 +300,7 @@ describe('config viewerOptions partial override', () => {
         );
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig([], tmpDir, {});
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 2000,
-            keyframeInterval: 100,
-            replayBuffer: 3000,
-            customFutureKey: 'hello',
-        });
+        expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, speed: 2000, customFutureKey: 'hello' });
     });
 });
 
@@ -329,12 +322,7 @@ describe('config viewer + viewerOptions interaction', () => {
         const { resolveConfig } = require('../src/lib/config/config');
         const { config } = resolveConfig(['--viewer'], tmpDir, {});
         expect(config.viewer).toBe(true);
-        expect(config.viewerOptions).toEqual({
-            paused: false,
-            speed: 1000,
-            keyframeInterval: 100,
-            replayBuffer: 3000,
-        });
+        expect(config.viewerOptions).toEqual(DEFAULT_VIEWER_OPTIONS);
     });
 
     it('--viewer + config file with viewerOptions merges correctly', () => {
@@ -345,12 +333,27 @@ describe('config viewer + viewerOptions interaction', () => {
         // CLI --viewer sets viewer=true (overwrites config file's viewer if any)
         expect(config.viewer).toBe(true);
         // viewerOptions from config file, merged with defaults
-        expect(config.viewerOptions).toEqual({
-            paused: true,
-            speed: 500,
-            keyframeInterval: 100,
-            replayBuffer: 3000,
-        });
+        expect(config.viewerOptions).toEqual({ ...DEFAULT_VIEWER_OPTIONS, paused: true, speed: 500 });
+    });
+
+    it('viewerPort from config file: valid value passes through', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerPort: 3100 };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        const { config } = resolveConfig([], tmpDir, {});
+        expect(config.viewerPort).toBe(3100);
+    });
+
+    it('viewerPort from config file: out-of-range value fails loud and early', () => {
+        const filePath = path.join(tmpDir, 'screeps-integration.config.js');
+        fs.writeFileSync(filePath, 'module.exports = { viewerPort: 70000 };', 'utf8');
+        const { resolveConfig } = require('../src/lib/config/config');
+        expect(() => resolveConfig([], tmpDir, {})).toThrow(/viewerPort/);
+    });
+
+    it('viewerPort override: non-integer value is rejected', () => {
+        const { resolveConfig } = require('../src/lib/config/config');
+        expect(() => resolveConfig([], tmpDir, { viewerPort: 'abc' })).toThrow(/viewerPort/);
     });
 
     it('explicit overrides viewerOptions replaces entirely (highest priority)', () => {

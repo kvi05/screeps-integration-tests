@@ -43,6 +43,7 @@ regression), callgrind profiling, and a parallel worker pool.
 | **Metrics**           | Time-series collection, query helpers, CSV export, and regression comparison against a baseline.                                                                           |
 | **Profiling**         | Built-in callgrind via [screeps-profiler](https://github.com/screepers/screeps-profiler) — find CPU bottlenecks (`--profiling`).                                           |
 | **CLI & parallelism** | `npx screeps-integration-tests` runs scenarios; `--jobs N` parallelises them across cores in a worker pool.                                                                |
+| **Browser viewer**    | `--viewer` opens a live UI: Canvas 2D room rendering, pause/step/speed, Memory inspector, snapshots, local replay, and a Scenario Manager.                                 |
 | **Worker isolation**  | Each scenario gets its own server, port, and cache directory — no leaks between tests. The mockup storage leak is handled via `process.exit(0)` in forked workers.         |
 
 ## Examples
@@ -104,17 +105,20 @@ see [GETTING-STARTED.md](./docs/GETTING-STARTED.md).
 npx screeps-integration-tests [options]   # or: npx sit [options]
 ```
 
-| Flag              | Description                                    | Default             |
-| ----------------- | ---------------------------------------------- | ------------------- |
-| `--only <name>`   | Run a single scenario (without `.scenario.js`) | —                   |
-| `--jobs <n>`      | Parallel scenario workers                      | `min(4, CPU cores)` |
-| `--bail`          | Stop on first failure                          | off                 |
-| `--timeout <ms>`  | Per-scenario timeout                           | `1800000` (30 min)  |
-| `--profiling`     | Enable callgrind profiling                     | off                 |
-| `--build`         | Run `buildCommand` before scenarios            | off                 |
-| `--distDir <dir>` | Bot build directory                            | `./dist`            |
+| Flag               | Description                                    | Default             |
+| ------------------ | ---------------------------------------------- | ------------------- |
+| `--only <name>`    | Run a single scenario (without `.scenario.js`) | —                   |
+| `--jobs <n>`       | Parallel scenario workers                      | `min(4, CPU cores)` |
+| `--bail`           | Stop on first failure                          | off                 |
+| `--timeout <ms>`   | Per-scenario timeout                           | `1800000` (30 min)  |
+| `--profiling`      | Enable callgrind profiling                     | off                 |
+| `--build`          | Run `buildCommand` before scenarios            | off                 |
+| `--distDir <dir>`  | Bot build directory                            | `./dist`            |
+| `--viewer`         | Browser viewer UI (Scenario Manager)           | off                 |
+| `--viewerPort <n>` | Fixed port for the viewer UI server            | auto (free port)    |
 
 Full flag list and config file schema — see [CONFIG.md](./docs/CONFIG.md).
+The viewer has its own guide: [VIEWER.md](./docs/VIEWER.md).
 
 ## Where to go next
 
@@ -126,6 +130,7 @@ Full flag list and config file schema — see [CONFIG.md](./docs/CONFIG.md).
 | [FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md)       | Room and memory fixtures, overrides, when to use which               |
 | [EXAMPLES.md](./docs/EXAMPLES.md)                   | Ready-made recipes: smoke, defense, metrics, multi-world             |
 | [MULTI-ROOM-GUIDE.md](./docs/MULTI-ROOM-GUIDE.md)   | Multiple rooms and bots in one scenario                              |
+| [VIEWER.md](./docs/VIEWER.md)                       | Browser viewer: live controls, replay, snapshots, Memory inspection  |
 | [INTEGRATION-TESTS.md](./docs/INTEGRATION-TESTS.md) | Internal architecture (for contributors)                             |
 
 ## Acknowledgments
@@ -147,11 +152,6 @@ layout engine, drawing primitives, structure shells, and creep sprites.
   await world.exec();
   await world.tick(1);
   ```
-- **`Storage connection lost`:** when many worlds run back-to-back in one
-  scenario, you may see `Storage connection lost` in stderr. This is a known
-  race in `@screeps/common`'s singleton storage; the framework filters it and
-  it does not affect results. \
-  Details — [CONTRIBUTING.md Known issues](./CONTRIBUTING.md#known-issues).
 - **Harvest without CARRY / full store — energy is lost:** on the official
   Screeps server, when a creep calls `.harvest()` but cannot hold the energy
   (no `CARRY` body part or full store), the energy automatically drops to the

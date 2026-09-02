@@ -117,6 +117,12 @@
     --z-sidebar: 100;
     --z-modal: 1000;
     --z-tooltip: 2000;
+
+    /* Frosted-glass surfaces (floating overlays over the canvas) */
+    --glass-bg: rgba(30, 30, 30, 0.6);
+    --glass-blur: 10px;
+    --glass-filter: blur(var(--glass-blur)) saturate(160%);
+    --glass-shadow: 3px 2px 10px rgba(0, 0, 0, 0.25);
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────────────── */
@@ -162,6 +168,25 @@ body,
     background-clip: content-box;
 }
 
+/* Thin scrollbar utility — shared mechanics for small scrollable panels
+   (snapshot lists and their name rows). Scrollbar overrides live here,
+   not in component CSS. */
+.thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-focus) transparent;
+}
+.thin-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-focus);
+    border-radius: var(--r-full);
+}
+.thin-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 /* ─── Focus visible ──────────────────────────────────────────────────────── */
 :focus-visible {
     outline: 2px solid var(--accent);
@@ -177,6 +202,20 @@ body,
         animation-duration: 0.01ms !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* ─── Frosted glass panel (floating overlays over the canvas) ──────────────── */
+.glass-panel {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-filter);
+    backdrop-filter: var(--glass-filter);
+    /* box-shadow: var(--glass-shadow); */
+
+    box-shadow:
+        /* Нижний и правый эффект глубины */
+        inset -0.75px -0.5px rgba(255, 255, 255, 0.09),
+        /* Верхний и левый эффект глубины */ inset + 0.75px +0.5px rgba(255, 255, 255, 0.03),
+        /* Эффект тени */ var(--glass-shadow);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -208,24 +247,96 @@ body,
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   TOOLBAR
+   TRANSPORT — floating frosted-glass time controls (top overlay)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.viewer-toolbar {
+/* ─── Transport row — one flex container spanning the full width ────────────
+   The three floating groups live inside it, so the center bar can never
+   overlap the side pills: it simply shrinks (slider first) on narrow screens. */
+.transport-row {
+    position: absolute;
+    top: var(--sp-4);
+    left: var(--sp-4);
+    right: var(--sp-4);
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 0;
-    height: var(--toolbar-h);
-    padding: 0 var(--sp-6);
-    background: var(--bg-raised);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    user-select: none;
+    gap: var(--sp-2);
     z-index: var(--z-toolbar);
+    user-select: none;
+    /* Empty gaps must not block canvas interaction */
+    pointer-events: none;
+}
+.transport-row > * {
+    pointer-events: auto;
 }
 
-/* ─── Toolbar buttons ────────────────────────────────────────────────────── */
+/* Shared surface for the three floating groups */
+.transport-back,
+.transport-bar,
+.transport-actions {
+    display: flex;
+    align-items: center;
+}
 
+/* Navigation back to the Scenario Manager (left, fixed) */
+.transport-back {
+    padding: var(--sp-1);
+    border-radius: var(--r-lg);
+}
+
+/* Core transport controls (center, flexible — absorbs the squeeze) */
+.transport-bar {
+    flex: 1 1 auto;
+    min-width: 500px;
+    max-width: 800px;
+    justify-content: center;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-xl);
+}
+
+/* Secondary actions (right, fixed) */
+.transport-actions {
+    gap: var(--sp-2);
+    padding: var(--sp-2);
+    border-radius: var(--r-lg);
+}
+
+/* Subtle divider between logical control groups */
+.timeline-separator {
+    width: 1px;
+    height: 22px;
+    background: var(--border-light);
+    margin: 0 var(--sp-1);
+    flex-shrink: 0;
+}
+
+/* ─── Transport buttons ──────────────────────────────────────────────────── */
+
+/* Icon buttons blend into the glass; surface appears on hover */
+.transport-bar .icon-btn,
+.transport-actions .icon-btn {
+    background: transparent;
+    border-color: transparent;
+}
+.transport-bar .icon-btn:hover:not(:disabled),
+.transport-actions .icon-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: transparent;
+}
+/* Primary (play/pause) keeps its accent fill on glass */
+.transport-bar .icon-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+.transport-bar .icon-btn.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* Back button sits inside its own glass pill */
 .btn-back {
     display: flex;
     align-items: center;
@@ -248,48 +359,6 @@ body,
 }
 .btn-back svg {
     opacity: 0.7;
-}
-
-/* ─── Toolbar separator ───────────────────────────────────────────────────── */
-.toolbar-separator {
-    width: 2px;
-    height: 30px;
-    background: var(--border);
-    margin: 0 var(--sp-5);
-    flex-shrink: 0;
-}
-
-/* ─── Control groups ─────────────────────────────────────────────────────── */
-.live-controls,
-.replay-controls {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-}
-
-.control-group-label {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    font-size: var(--fs-xs);
-    font-weight: var(--fw-semibold);
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-}
-.control-group-label .label-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: var(--r-full);
-    flex-shrink: 0;
-}
-.control-group-label.live .label-dot {
-    background: var(--success);
-    box-shadow: 0 0 6px var(--success);
-}
-.control-group-label.replay .label-dot {
-    background: var(--accent);
 }
 
 /* ─── Icon buttons ───────────────────────────────────────────────────────── */
@@ -341,11 +410,6 @@ body,
     display: flex;
     align-items: center;
     gap: var(--sp-2);
-}
-.speed-control label {
-    font-size: var(--fs-sm);
-    color: var(--text-muted);
-    white-space: nowrap;
 }
 .speed-select {
     background: var(--bg-overlay);
@@ -477,12 +541,47 @@ body,
     margin: 0 2px;
 }
 
+/* ─── Live server tick indicator ──────────────────────────────────────────── */
+.server-tick-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+}
+.server-tick-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-full);
+    background: var(--text-muted);
+    flex-shrink: 0;
+}
+.server-tick-dot.running {
+    background: var(--success);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+.server-tick-dot.paused {
+    background: var(--warning);
+}
+.server-tick-dot.stepping {
+    background: var(--info);
+    animation: pulse-dot 0.8s ease-in-out infinite;
+}
+.server-tick-label {
+    color: var(--text-dim);
+}
+.server-tick-value {
+    color: var(--text-secondary);
+    font-weight: var(--fw-semibold);
+}
+
 /* ─── Timeline scrubber ──────────────────────────────────────────────────── */
 .tick-slider {
-    flex: 1;
-    max-width: 360px;
-    min-width: 80px;
-    height: 6px;
+    flex: 1 1 240px;
+    min-width: 90px;
+    max-width: 800px;
+    height: 7px;
     -webkit-appearance: none;
     appearance: none;
     background: var(--bg-overlay);
@@ -492,7 +591,6 @@ body,
 }
 .tick-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    appearance: none;
     width: 14px;
     height: 14px;
     border-radius: var(--r-full);
@@ -516,15 +614,17 @@ body,
     border-radius: var(--r-full);
     background: var(--accent);
     border: 2px solid var(--bg-raised);
+    box-shadow: var(--shadow-sm);
     cursor: grab;
+    transition: transform var(--t-fast);
 }
-
-/* ─── Toolbar action buttons (save/load, hot-reload, etc.) ────────────────── */
-.toolbar-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    margin-left: auto;
+.tick-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    background: var(--accent-hover);
+}
+.tick-slider::-moz-range-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.1);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -543,6 +643,8 @@ body,
 }
 
 /* ─── Canvas overlays ─────────────────────────────────────────────────────── */
+/* Floating overlays reuse the shared .glass-panel surface (background,
+   backdrop blur, border and shadow are defined once in that utility). */
 .canvas-overlay {
     position: absolute;
     z-index: var(--z-overlay);
@@ -552,15 +654,13 @@ body,
     pointer-events: auto;
 }
 
-/* Room label overlay (top-left) */
+/* Room label overlay (top-left, below the transport-back pill) */
 .canvas-room-label {
-    top: var(--sp-4);
+    top: 56px;
     left: var(--sp-4);
     display: flex;
     align-items: center;
     gap: var(--sp-2);
-    background: rgba(30, 30, 30, 0.85);
-    border: 1px solid var(--border-light);
     border-radius: var(--r-md);
     padding: var(--sp-2) var(--sp-4);
     font-family: var(--font-mono);
@@ -575,8 +675,6 @@ body,
     display: flex;
     align-items: center;
     gap: var(--sp-2);
-    background: rgba(30, 30, 30, 0.85);
-    border: 1px solid var(--border-light);
     border-radius: var(--r-md);
     padding: var(--sp-2) var(--sp-4);
     font-family: var(--font-mono);
@@ -584,14 +682,12 @@ body,
     color: var(--text-muted);
 }
 
-/* Canvas toolbar (top-right) — grid, heatmap, focus */
+/* Canvas toolbar (top-right, below the transport-actions pill) */
 .canvas-toolbar {
-    top: var(--sp-4);
+    top: 56px;
     right: var(--sp-4);
     display: flex;
     gap: var(--sp-2);
-    background: rgba(30, 30, 30, 0.85);
-    border: 1px solid var(--border-light);
     border-radius: var(--r-lg);
     padding: var(--sp-2);
 }
@@ -1597,16 +1693,14 @@ body,
    MINIMAP
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* Floating glass surface comes from the shared .glass-panel utility */
 .mini-map-container {
     position: absolute;
     bottom: var(--sp-4);
     right: var(--sp-4);
     z-index: var(--z-minimap);
-    border: 1px solid var(--border-light);
     border-radius: var(--r-lg);
-    background: rgba(30, 30, 30, 0.9);
     overflow: hidden;
-    box-shadow: var(--shadow-md);
     transition: all var(--t-normal);
 }
 .mini-map-container:hover {
@@ -2088,6 +2182,126 @@ body,
     flex-shrink: 0;
 }
 
+/* Detail tabs (Main / Snapshots) */
+.sm-detail-tabs {
+    display: flex;
+    gap: var(--sp-1);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--sp-6);
+}
+.sm-detail-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-medium);
+    padding: var(--sp-3) var(--sp-5);
+    cursor: pointer;
+    transition: all var(--t-fast);
+    margin-bottom: -1px;
+}
+.sm-detail-tab:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+}
+.sm-detail-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: var(--accent-bg);
+}
+
+/* Snapshots tab — vertical cards matching the StatePanel list */
+.sm-snapshots-tab {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+.sm-snapshot-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: var(--sp-3);
+}
+.sm-snapshot-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    transition:
+        border-color var(--t-fast),
+        background var(--t-fast);
+}
+.sm-snapshot-item:hover {
+    border-color: var(--border-focus);
+    background: var(--bg-hover);
+}
+/* Full-width name row — scrolls horizontally instead of ellipsizing */
+.sm-snapshot-name-row {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+.sm-snapshot-name {
+    display: inline-block;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    color: var(--text-primary);
+}
+/* Meta row: tick badge + date + size, wraps gracefully */
+.sm-snapshot-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+}
+.sm-snapshot-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px var(--sp-2);
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--r-md);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.sm-snapshot-sep {
+    color: var(--text-dim);
+    user-select: none;
+}
+.sm-snapshot-meta {
+    white-space: nowrap;
+}
+.sm-snapshot-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    flex-shrink: 0;
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--border);
+}
+.sm-snapshot-footer {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+}
+.sm-snapshot-error {
+    font-size: var(--fs-sm);
+    color: var(--error);
+}
+
 /* Detail meta grid */
 .sm-detail-meta {
     display: grid;
@@ -2430,10 +2644,10 @@ body,
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SAVE/LOAD PANEL (future: SL-1 to SL-5)
+   STATE PANEL (snapshots, rewind range, import)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.save-load-panel {
+.state-panel {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -2441,13 +2655,13 @@ body,
     padding: var(--sp-4);
     gap: var(--sp-3);
 }
-.save-load-section {
+.state-section {
     background: var(--bg-overlay);
     border: 1px solid var(--border-light);
     border-radius: var(--r-lg);
     padding: var(--sp-4);
 }
-.save-load-section h3 {
+.state-section h3 {
     display: flex;
     align-items: center;
     gap: var(--sp-2);
@@ -2456,14 +2670,202 @@ body,
     color: var(--text-primary);
     margin-bottom: var(--sp-3);
 }
-.save-load-section p {
+.state-section p {
     font-size: var(--fs-sm);
     color: var(--text-muted);
     margin-bottom: var(--sp-3);
 }
-.save-load-actions {
+/* Scenario name under the "Saved Snapshots" header */
+.snapshot-scenario {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    color: var(--accent);
+    font-style: italic;
+    margin-top: calc(-1 * var(--sp-1));
+}
+.state-actions {
     display: flex;
     gap: var(--sp-2);
+}
+
+/* Manual rewind control */
+.state-rewind-row {
+    display: flex;
+    align-items: stretch;
+    gap: var(--sp-5);
+    max-width: 250px;
+}
+.state-rewind-input {
+    flex: 1;
+    min-width: 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    padding: var(--sp-2) var(--sp-4);
+    transition:
+        border-color var(--t-fast),
+        box-shadow var(--t-fast);
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+/* Hide native number spinners for a cleaner look */
+.state-rewind-input::-webkit-inner-spin-button,
+.state-rewind-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.state-rewind-input:hover:not(:disabled) {
+    border-color: var(--border-focus);
+}
+.state-rewind-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow);
+}
+.state-rewind-input::placeholder {
+    color: var(--text-dim);
+}
+.state-rewind-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Status / error banners */
+.state-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--r-md);
+    font-size: var(--fs-sm);
+    border: 1px solid transparent;
+}
+.state-status.error {
+    background: var(--error-bg);
+    border-color: rgba(248, 113, 113, 0.3);
+    color: var(--error);
+}
+.state-status .dismiss-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: var(--fs-md);
+    line-height: 1;
+    cursor: pointer;
+    padding: var(--sp-1);
+    border-radius: var(--r-sm);
+}
+.state-status .dismiss-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Rewind range readout */
+.rewind-range {
+    font-family: var(--font-mono);
+    font-size: var(--fs-md) !important;
+    color: var(--accent) !important;
+    margin-bottom: 0 !important;
+}
+
+/* Snapshot list — vertical cards: name gets a full-width scrollable row,
+   meta sits below, actions are pinned to the bottom with a hairline */
+.snapshot-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin-bottom: var(--sp-3);
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: var(--sp-2);
+}
+.snapshot-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-base);
+    border: 1px solid var(--border-light);
+    border-radius: var(--r-md);
+    transition:
+        border-color var(--t-fast),
+        background var(--t-fast);
+}
+.snapshot-item:hover {
+    border-color: var(--border-focus);
+    background: var(--bg-overlay);
+}
+/* Full-width name row — scrolls horizontally instead of ellipsizing */
+.snapshot-name-row {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+.snapshot-name {
+    display: inline-block;
+    white-space: nowrap;
+    padding-bottom: 2px; /* keep descenders clear of the scrollbar */
+    font-size: var(--fs-sm);
+    color: var(--text-primary);
+}
+/* Meta row: tick badge + date + size, wraps gracefully */
+.snapshot-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+}
+.snapshot-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px var(--sp-2);
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--r-md);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.snapshot-sep {
+    color: var(--text-dim);
+    user-select: none;
+}
+.snapshot-meta {
+    white-space: nowrap;
+}
+.snapshot-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    flex-shrink: 0;
+    padding-top: var(--sp-1);
+    border-top: 1px solid var(--border);
+}
+
+.no-snapshots {
+    font-size: var(--fs-sm);
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+/* Small buttons (shared) */
+.btn-small {
+    font-size: var(--fs-xs);
+    padding: var(--sp-1) var(--sp-3);
+    gap: var(--sp-2);
+}
+
+/* Refresh button inside a section header */
+.refresh-btn {
+    margin-left: auto;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2679,9 +3081,6 @@ body,
 
 @media (max-width: 768px) {
     .viewer-sidebar {
-        display: none;
-    }
-    .control-group-label {
         display: none;
     }
 }

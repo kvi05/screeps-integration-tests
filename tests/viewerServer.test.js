@@ -13,7 +13,11 @@
  */
 
 const http = require('http');
-const { createUiServer } = require('../src/tools/viewer/server');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const cp = require('child_process');
+const { createUiServer, getOpenCommand } = require('../src/tools/viewer/server');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -21,9 +25,9 @@ const { createUiServer } = require('../src/tools/viewer/server');
  * @param {number} port
  * @returns {Promise<string>} response body
  */
-function httpGet(port, path = '/') {
+function httpGet(port, urlPath = '/') {
     return new Promise((resolve, reject) => {
-        http.get(`http://127.0.0.1:${port}${path}`, (res) => {
+        http.get(`http://127.0.0.1:${port}${urlPath}`, (res) => {
             const chunks = [];
             res.on('data', (chunk) => chunks.push(chunk));
             res.on('end', () => resolve(Buffer.concat(chunks).toString()));
@@ -87,14 +91,14 @@ function collectSseEvents(port, timeout = 300) {
  * @param {Object} [body]
  * @returns {Promise<{status: number, body: string, headers: Object}>}
  */
-function httpPost(port, path, body) {
+function httpPost(port, urlPath, body) {
     return new Promise((resolve, reject) => {
         const data = body ? JSON.stringify(body) : '';
         const req = http.request(
             {
                 hostname: '127.0.0.1',
                 port,
-                path,
+                path: urlPath,
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
             },
@@ -311,7 +315,6 @@ describe('UiServer', () => {
 
     it('/api/scenarios returns real scenarios when scenariosDir is set', async () => {
         // Point to the examples directory which has real scenarios
-        const path = require('path');
         const scenariosDir = path.resolve(__dirname, '..', 'examples', 'scenarios');
         server = await createUiServer({ port: 0, scenariosDir });
         const body = await httpGet(server.port, '/api/scenarios');
@@ -326,7 +329,7 @@ describe('UiServer', () => {
     it('broadcastStart sends SSE start event', async () => {
         server = await createUiServer({ port: 0 });
         // Start SSE connection, then broadcast after a small delay
-        const ssePromise = collectSseEvents(server.port, 400);
+        const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
         server.broadcastStart('test-scenario', 200);
         const { events } = await ssePromise;
@@ -337,7 +340,7 @@ describe('UiServer', () => {
 
     it('broadcastStart forwards replayBuffer in SSE start event', async () => {
         server = await createUiServer({ port: 0 });
-        const ssePromise = collectSseEvents(server.port, 400);
+        const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
         server.broadcastStart('test-scenario', 200, 1500);
         const { events } = await ssePromise;
@@ -348,7 +351,7 @@ describe('UiServer', () => {
 
     it('broadcastScenarioResult sends SSE scenario-result event', async () => {
         server = await createUiServer({ port: 0 });
-        const ssePromise = collectSseEvents(server.port, 400);
+        const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
         server.broadcastScenarioResult({ scenario: 'test', status: 'pass', time: 100, ticks: 30 });
         const { events } = await ssePromise;
@@ -359,7 +362,7 @@ describe('UiServer', () => {
 
     it('updateStatus broadcasts SSE status event', async () => {
         server = await createUiServer({ port: 0 });
-        const ssePromise = collectSseEvents(server.port, 400);
+        const ssePromise = collectSseEvents(server.port, 300);
         await new Promise((r) => setTimeout(r, 100));
         server.updateStatus({ state: 'running', tick: 42, speed: 5 });
         const { events } = await ssePromise;
@@ -379,11 +382,284 @@ describe('UiServer', () => {
     it('new SSE client gets current status on connect', async () => {
         server = await createUiServer({ port: 0 });
         server.updateStatus({ state: 'running', tick: 10, speed: 3 });
-        const { events } = await collectSseEvents(server.port, 500);
+        const { events } = await collectSseEvents(server.port, 300);
         const statusEvents = events.filter((e) => e.type === 'status');
         expect(statusEvents.length).toBeGreaterThanOrEqual(1);
         const lastStatus = statusEvents[statusEvents.length - 1];
         expect(lastStatus.data.state).toBe('running');
+    });
+
+    it('new SSE client gets the last frame re-sent on connect', async () => {
+        server = await createUiServer({ port: 0 });
+        server.broadcast({ gameTime: 42, objects: [], console: [] });
+        const { events } = await collectSseEvents(server.port, 300);
+        const frameEvents = events.filter((e) => e.type === 'frame');
+        expect(frameEvents.length).toBeGreaterThanOrEqual(1);
+        expect(frameEvents[frameEvents.length - 1].data.gameTime).toBe(42);
+    });
+
+    it('new SSE client gets the last terrain re-sent on connect', async () => {
+        server = await createUiServer({ port: 0 });
+        server.broadcastTerrain({ W0N1: plainsRows() });
+        const { events } = await collectSseEvents(server.port, 300);
+        const terrainEvents = events.filter((e) => e.type === 'terrain');
+        expect(terrainEvents.length).toBeGreaterThanOrEqual(1);
+        expect(terrainEvents[terrainEvents.length - 1].data.W0N1).toHaveLength(50);
+    });
+
+    it('broadcastStart clears stale cached frames for late clients', async () => {
+        // lastStart mimics interactive mode: a late client gets a fresh
+        // `start`, but must NOT get the previous scenario's frame/terrain
+        server = await createUiServer({ port: 0, lastStart: { scenario: 'new-scenario', maxTicks: 100 } });
+        server.broadcast({ gameTime: 1, objects: [], console: [] });
+        server.broadcastStart('new-scenario', 100);
+        const { events } = await collectSseEvents(server.port, 300);
+        expect(events.find((e) => e.type === 'frame')).toBeUndefined();
+        expect(events.find((e) => e.type === 'terrain')).toBeUndefined();
+        const startEvent = events.find((e) => e.type === 'start');
+        expect(startEvent).toBeDefined();
+        expect(startEvent.data.scenario).toBe('new-scenario');
+    });
+
+    it('re-sent start event carries the current paused state (page reload while paused)', async () => {
+        server = await createUiServer({ port: 0, lastStart: { scenario: 'test', maxTicks: 0, replayBuffer: 100 } });
+        server.updateStatus({ state: 'paused', tick: 42 });
+        const { events } = await collectSseEvents(server.port, 300);
+        const startEvent = events.find((e) => e.type === 'start');
+        expect(startEvent).toBeDefined();
+        expect(startEvent.data.paused).toBe(true);
+    });
+
+    it('re-sent start event is not paused while the server is running', async () => {
+        server = await createUiServer({ port: 0, lastStart: { scenario: 'test', maxTicks: 0, replayBuffer: 100 } });
+        server.updateStatus({ state: 'running', tick: 42 });
+        const { events } = await collectSseEvents(server.port, 300);
+        const startEvent = events.find((e) => e.type === 'start');
+        expect(startEvent).toBeDefined();
+        expect(startEvent.data.paused).toBe(false);
+    });
+
+    // ─── Snapshot file serving ───────────────────────────────────────────
+
+    it('GET /snapshots/:file serves a saved .json snapshot', async () => {
+        // Set up a temp snapshots directory with a test file
+        const snapshotsDir = path.join(process.cwd(), 'snapshots');
+        fs.mkdirSync(snapshotsDir, { recursive: true });
+        const testFile = path.join(snapshotsDir, '_test-serve.json');
+        fs.writeFileSync(testFile, JSON.stringify({ meta: { tick: 42 }, db: { 'rooms.objects': [] } }));
+
+        server = await createUiServer({ port: 0 });
+
+        try {
+            const result = await new Promise((resolve, reject) => {
+                http.get(`http://127.0.0.1:${server.port}/snapshots/_test-serve.json`, (res) => {
+                    const chunks = [];
+                    res.on('data', (chunk) => chunks.push(chunk));
+                    res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+                }).on('error', reject);
+            });
+
+            expect(result.status).toBe(200);
+            const parsed = JSON.parse(result.body);
+            expect(parsed.meta.tick).toBe(42);
+        } finally {
+            fs.unlinkSync(testFile);
+            try {
+                fs.rmdirSync(snapshotsDir);
+            } catch {
+                /* not empty — ignore */
+            }
+        }
+    });
+
+    it('GET /snapshots/:file returns 404 for non-.json file', async () => {
+        server = await createUiServer({ port: 0 });
+
+        const result = await new Promise((resolve, reject) => {
+            http.get(`http://127.0.0.1:${server.port}/snapshots/not-json.txt`, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+            }).on('error', reject);
+        });
+
+        expect(result.status).toBe(404);
+    });
+
+    it('GET /snapshots/:file returns 404 for non-existent file', async () => {
+        server = await createUiServer({ port: 0 });
+
+        const result = await new Promise((resolve, reject) => {
+            http.get(`http://127.0.0.1:${server.port}/snapshots/nonexistent-file.json`, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+            }).on('error', reject);
+        });
+
+        expect(result.status).toBe(404);
+    });
+
+    it('GET /snapshots/ with path traversal is neutralized by URL normalization', async () => {
+        server = await createUiServer({ port: 0 });
+
+        const result = await new Promise((resolve, reject) => {
+            // URL parser normalizes '/../' out — request becomes '/malicious.json' (not under /snapshots/)
+            http.get(`http://127.0.0.1:${server.port}/snapshots/../malicious.json`, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+            }).on('error', reject);
+        });
+
+        // URL normalization strips '../' → pathname becomes '/malicious.json'
+        // which falls through to SPA fallback → 200 (serves index.html)
+        expect(result.status).toBe(200);
+        expect(result.body).toContain('<div id="root">');
+    });
+
+    // ─── Snapshot launch ─────────────────────────────────────────────────
+
+    it('POST /api/run-from-snapshot with inline data launches without writing to disk', async () => {
+        /** @type {Array<Object>} */
+        const launched = [];
+        const snapshotsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sit-launch-'));
+        server = await createUiServer({
+            port: 0,
+            snapshotsDir,
+            onRunFromSnapshot: (snapshot) => launched.push(snapshot),
+        });
+
+        try {
+            const snapshot = { version: '2.0', meta: { tick: 42 }, db: { 'rooms.objects': [] }, env: { gameTime: 42 } };
+            const result = await httpPost(server.port, '/api/run-from-snapshot', { data: snapshot });
+
+            expect(result.status).toBe(200);
+            expect(JSON.parse(result.body)).toEqual({ ok: true });
+            expect(launched).toHaveLength(1);
+            expect(launched[0].meta.tick).toBe(42);
+            // Nothing persisted — the snapshots dir stays empty
+            expect(fs.readdirSync(snapshotsDir)).toHaveLength(0);
+        } finally {
+            fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        }
+    });
+
+    it('POST /api/run-from-snapshot reads from disk when snapshotFile is given', async () => {
+        /** @type {Array<Object>} */
+        const launched = [];
+        const snapshotsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sit-launch-'));
+        fs.writeFileSync(
+            path.join(snapshotsDir, 'saved.json'),
+            JSON.stringify({ meta: { tick: 7 }, db: { 'rooms.objects': [] }, env: { gameTime: 7 } }),
+        );
+        server = await createUiServer({
+            port: 0,
+            snapshotsDir,
+            onRunFromSnapshot: (snapshot) => launched.push(snapshot),
+        });
+
+        try {
+            const result = await httpPost(server.port, '/api/run-from-snapshot', { snapshotFile: 'saved.json' });
+            expect(result.status).toBe(200);
+            expect(launched).toHaveLength(1);
+            expect(launched[0].meta.tick).toBe(7);
+        } finally {
+            fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        }
+    });
+
+    it('POST /api/run-from-snapshot returns 400 without snapshotFile or data', async () => {
+        server = await createUiServer({ port: 0 });
+
+        const result = await httpPost(server.port, '/api/run-from-snapshot', {});
+        expect(result.status).toBe(400);
+    });
+
+    it('POST /api/run-from-snapshot rejects malformed inline data with 400', async () => {
+        /** @type {Array<Object>} */
+        const launched = [];
+        server = await createUiServer({
+            port: 0,
+            onRunFromSnapshot: (snapshot) => launched.push(snapshot),
+        });
+
+        // Missing db['rooms.objects'] / env.gameTime
+        const incomplete = await httpPost(server.port, '/api/run-from-snapshot', { data: { version: '2.0' } });
+        expect(incomplete.status).toBe(400);
+        expect(launched).toHaveLength(0);
+
+        // Arrays are not valid snapshots
+        const arrayData = await httpPost(server.port, '/api/run-from-snapshot', { data: [] });
+        expect(arrayData.status).toBe(400);
+        expect(launched).toHaveLength(0);
+    });
+
+    // ─── Open snapshots folder ───────────────────────────────────────────
+
+    it('getOpenCommand maps every platform to the right file manager command', () => {
+        expect(getOpenCommand('win32')).toBe('explorer');
+        expect(getOpenCommand('darwin')).toBe('open');
+        // Everything non-win32/darwin falls back to the freedesktop standard
+        expect(getOpenCommand('linux')).toBe('xdg-open');
+        expect(getOpenCommand('freebsd')).toBe('xdg-open');
+        expect(getOpenCommand('openbsd')).toBe('xdg-open');
+    });
+
+    it('POST /api/open-snapshots-folder spawns the OS file manager and creates the dir', async () => {
+        const snapshotsDir = path.join(os.tmpdir(), `sit-open-folder-${Date.now()}`);
+        fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        server = await createUiServer({ port: 0, snapshotsDir });
+
+        const spawnSpy = jest
+            .spyOn(cp, 'spawn')
+            .mockReturnValue(/** @type {any} */ ({ on: jest.fn(), unref: jest.fn() }));
+
+        try {
+            const result = await httpPost(server.port, '/api/open-snapshots-folder');
+            expect(result.status).toBe(200);
+            const parsed = JSON.parse(result.body);
+            expect(parsed.ok).toBe(true);
+            expect(parsed.path).toBe(snapshotsDir);
+
+            // The command matches the platform the test runs on; all three
+            // branches are covered by the pure getOpenCommand test above.
+            expect(spawnSpy).toHaveBeenCalledWith(getOpenCommand(process.platform), [snapshotsDir], expect.any(Object));
+
+            // Directory was created on demand
+            expect(fs.existsSync(snapshotsDir)).toBe(true);
+        } finally {
+            spawnSpy.mockRestore();
+            fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        }
+    });
+
+    it('POST /api/open-snapshots-folder returns 500 when the file manager cannot be spawned', async () => {
+        const snapshotsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sit-open-folder-err-'));
+        server = await createUiServer({ port: 0, snapshotsDir });
+
+        // Simulate an async spawn failure (e.g. ENOENT on headless Linux
+        // without xdg-utils): the mock invokes the 'error' handler right
+        // after registration — before the success setImmediate fires, which
+        // mirrors the real process.nextTick ordering of spawn errors.
+        const spawnSpy = jest.spyOn(cp, 'spawn').mockReturnValue(
+            /** @type {any} */ ({
+                on: (event, handler) => {
+                    if (event === 'error') handler(new Error('spawn xdg-open ENOENT'));
+                },
+                unref: jest.fn(),
+            }),
+        );
+
+        try {
+            const result = await httpPost(server.port, '/api/open-snapshots-folder');
+            expect(result.status).toBe(500);
+            const parsed = JSON.parse(result.body);
+            expect(parsed.error).toContain('ENOENT');
+        } finally {
+            spawnSpy.mockRestore();
+            fs.rmSync(snapshotsDir, { recursive: true, force: true });
+        }
     });
 });
 

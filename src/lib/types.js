@@ -310,6 +310,12 @@
  * @property {number} [ticks=100]                                  — tick limit (unless `until.maxTicks` is set)
  * @property {boolean} [profiling=false]                           — enable profiling (screeps-profiler + callgrind)
  *
+ * @property {string|Object} [snapshot]                            — path to a snapshot JSON file, or a
+ *   snapshot object. When set, room and bot specs are built from `snapshot.meta`
+ *   (unless explicitly overridden by `rooms`/`bots`), and the world state is restored
+ *   from the snapshot after materialization — `report.ticksRun` starts at
+ *   `snapshot.env.gameTime`. See `screeps-integration-tests/snapshot`.
+ *
  * @property {'all'|'error'|'warn'} [logLevel='all']             — log threshold for world.report.logs
  * @property {number} [maxConsoleLines=10000]
  * @property {MetricsOpts} [metrics]                               — metrics collection settings
@@ -814,12 +820,40 @@
  */
 
 /**
+ * Races a long-running engine promise (tick, profile export) against an
+ * engine death; the losing promise is pre-handled.
+ *
+ * @typedef {<T>(promise: Promise<T>) => Promise<T>} EngineRaceFn
+ */
+
+/**
+ * Wraps a dispose function so the engine watch is stopped first.
+ *
+ * @typedef {(dispose: DisposeFn) => DisposeFn} EngineActivateFn
+ */
+
+/**
+ * Fail-fast watch over the mock server's engine child processes
+ * (`attachEngineWatch` in `lib/runtime/runtime.js`).
+ *
+ * @typedef {Object} EngineWatch
+ * @property {string[]} errors        — fatal engine failures (first wins)
+ * @property {string[]} warnings      — non-fatal crashes of other processes
+ * @property {Promise<never>} death   — rejects with ENGINE_CRASH on engine death
+ * @property {EngineRaceFn} race      — race a tick/profile promise against `death`
+ * @property {() => void} attachChildren — attach exit listeners (after server.start())
+ * @property {EngineActivateFn} activate — attachChildren + dispose wrapping
+ * @property {() => void} dispose     — stop recording (expected shutdown)
+ */
+
+/**
  * Result of `prepareServer`.
  *
  * @typedef {Object} PreparedServer
  * @property {ScreepsServer} server
  * @property {StorageAdapter} adapter
  * @property {DisposeFn} dispose
+ * @property {EngineWatch} engineWatch
  */
 
 /**

@@ -1,17 +1,25 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import CanvasStage from './components/CanvasStage';
-import LiveControls from './components/LiveControls';
-import ReplayControls from './components/ReplayControls';
+import Timeline from './components/Timeline';
 import ObjectInspector from './components/ObjectInspector';
 import ConsolePanel from './components/ConsolePanel';
 import MetricsPanel from './components/MetricsPanel';
 import MiniMap from './components/MiniMap';
 import ScenarioManager from './components/ScenarioManager';
-import { connectSSE, postDispose, postPause, postResume, postSpeed } from './api/client';
+import StatePanel from './components/StatePanel';
+import {
+    connectSSE,
+    postDispose,
+    postPause,
+    postRestoreTick,
+    postResume,
+    postSaveSnapshot,
+    postSpeed,
+    postStep,
+} from './api/client';
 import { loadPrefs, savePrefs } from './state/prefs';
 import {
-    ArrowLeftIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
     MousePointerIcon,
@@ -24,8 +32,6 @@ import {
     WifiIcon,
     WifiOffIcon,
     FilmIcon,
-    DownloadIcon,
-    RefreshCwIcon,
 } from './components/Icons';
 import './styles/global.css';
 
@@ -36,12 +42,13 @@ import './styles/global.css';
  * - SSE connection lifecycle
  * - Frame accumulation (ring buffer, sessionStorage)
  * - Playback state (playing/paused, tick, speed, sub-frame)
- * - Live server control (via REST → IPC)
+ * - Seamless unified timeline — cursor-driven playback with automatic
+ *   server pause/resume (no explicit live/replay modes)
  * - Object inspector (click on canvas)
  * - Console panel (logs from frames)
  * - Metrics graphs
  * - MiniMap
- * - Sidebar tabs: Inspector / Metrics / Save-Load / Settings
+ * - Sidebar tabs: Inspector / Metrics / State / Settings
  *
  * @component
  */
@@ -82,6 +89,8 @@ export default function App() {
     const [serverState, setServerState] = useState('idle');
     const [serverTick, setServerTick] = useState(0);
     const [serverSpeed, setServerSpeed] = useState(1);
+    /** @type {[{code:string, message:string}|null, Function]} SSE error forwarded from server */
+    const [sseError, setSseError] = useState(/** @type {{code:string, message:string}|null} */ (null));
 
     // Ring buffer size — received from server via SSE `start`, fallback to compile-time default
     const [replayBuffer, setReplayBuffer] = useState(REPLAY_BUFFER_FALLBACK);
@@ -112,7 +121,7 @@ export default function App() {
     // Side panels
     const [showConsole, setShowConsole] = useState(() => loadPrefs().showConsole);
     const [showMiniMap, setShowMiniMap] = useState(() => loadPrefs().showMiniMap);
-    const [sidebarTab, setSidebarTab] = useState('inspector'); // inspector | metrics | saveload | settings
+    const [sidebarTab, setSidebarTab] = useState('inspector'); // inspector | metrics | state | settings
 
     // Sidebar
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -135,6 +144,10 @@ export default function App() {
     cameraRef.current = cameraForMiniMap;
 
     const sseRef = useRef(null);
+    const connectedRef = useRef(connected);
+    connectedRef.current = connected;
+    const serverStateRef = useRef(serverState);
+    serverStateRef.current = serverState;
     const playingRef = useRef(playing);
     playingRef.current = playing;
     const speedRef = useRef(speed);
@@ -199,9 +212,10 @@ export default function App() {
                 case 'start':
                     setScenario(data.scenario || '');
                     setConnected(true);
-                    setServerState('running');
+                    // Respect viewerOptions.paused: start paused if the server did
+                    setServerState(data.paused ? 'paused' : 'running');
                     setEnded(false);
-                    setPlaying(true);
+                    setPlaying(!data.paused);
                     setTick(0);
                     setSub(null);
                     setRecording({ terrain: {}, frames: [] });
@@ -232,7 +246,9 @@ export default function App() {
                     if (firstFrame) {
                         firstFrame = false;
                         setConnected(true);
-                        setServerState('running');
+                        // Do NOT set serverState here — status/start events are
+                        // authoritative. Cached frames re-sent on connect would
+                        // otherwise flip a paused server to 'running'.
                         if (data.terrain && Object.keys(data.terrain).length > 0) {
                             setRecording((prev) => ({
                                 ...prev,
@@ -262,6 +278,15 @@ export default function App() {
                     setPlaying(false);
                     setServerState('idle');
                     break;
+                case 'restored': {
+                    // Server was rewound to a past tick — reset local frame buffer
+                    setRecording({ terrain: recording.terrain, frames: [] });
+                    setTick(0);
+                    setSub(null);
+                    setServerTick(data.tick || 0);
+                    setPlaying(false);
+                    break;
+                }
                 case 'status': {
                     if (data.state) setServerState(data.state);
                     if (data.tick !== undefined) setServerTick(data.tick);
@@ -289,6 +314,14 @@ export default function App() {
                             }),
                         );
                     }
+                    break;
+                }
+                case 'error': {
+                    // Server-side error forwarded via SSE (e.g. restore/save failure)
+                    setSseError({
+                        code: data.code || 'unknown',
+                        message: data.message || 'Unknown server error',
+                    });
                     break;
                 }
                 case 'disconnect':
@@ -337,38 +370,66 @@ export default function App() {
         console.groupEnd();
     }, [ended]);
 
-    // ─── Playback: track mode (live vs replay) ──────────────────────────
-    const [liveMode, setLiveMode] = useState(true);
+    // ─── Derived playback state ─────────────────────────────────────────
+    // The server is the time source while running/stepping.
+    const serverAdvancing = serverState === 'running' || serverState === 'stepping';
+    // Cursor at the recorded edge → ready to hand over to the live server.
+    const isAtEdge = recording.frames.length === 0 || tick >= recording.frames.length - 1;
 
+    // ─── Reconciliation: keep the server in sync with the cursor ────────
+    // Invariant: the server ticks ⟺ playing && cursor at the edge.
+    // This single effect replaces all manual pause/resume calls — scrubbing
+    // back pauses the server, and playing at the edge resumes it.
     useEffect(() => {
-        if (connected && !ended) {
-            setLiveMode(true);
-            setPlaying(true);
+        if (!connected || ended) return;
+        if (serverState === 'idle' || serverState === 'stepping') return;
+        const running = serverState === 'running';
+        if (playing && isAtEdge && !running) {
+            postResume().catch(() => {});
+        } else if (!playing && running) {
+            postPause().catch(() => {});
         }
-    }, [connected, ended]);
+    }, [playing, isAtEdge, serverState, connected, ended]);
 
-    // ─── Live mode: chase latest frame ──────────────────────────────────
+    // ─── Auto-stop local replay at the edge after the scenario ended ────
+    // Once the client has played through the buffered frames and there is no
+    // live server left to hand over to, reset the play state so the button
+    // shows "Play" again instead of staying stuck in "Pause".
     useEffect(() => {
-        if (!playing || ended || !liveMode) return;
+        if (ended && playing && isAtEdge) {
+            setPlaying(false);
+        }
+    }, [ended, playing, isAtEdge]);
+
+    // ─── Chase: follow new frames while the SERVER is the time source ───
+    // Runs only when the server is actually advancing (running/stepping).
+    // During client playback (server paused) the cursor is driven by the
+    // timer below — chasing here would jump the cursor straight to the
+    // latest frame the moment play is pressed in the past.
+    useEffect(() => {
+        if (ended || !serverAdvancing) return;
         const latest = recording.frames.length - 1;
         if (latest >= 0 && tickRef.current !== latest) {
             tickRef.current = latest;
             setTick(latest);
             setSub(null);
         }
-    }, [playing, recording.frames.length, ended, liveMode]);
+    }, [serverAdvancing, recording.frames.length, ended]);
 
-    // ─── Replay mode: timer-based playback ──────────────────────────────
+    // ─── Client timer: play through buffered frames ─────────────────────
+    // Runs only while the server is NOT advancing. When the cursor reaches
+    // the edge, isAtEdge flips and the reconciliation effect resumes the
+    // live server — seamless handover.
     useEffect(() => {
-        if (!playing || ended || liveMode) return;
-        if (recording.frames.length === 0) return;
-        const latest = recording.frames.length - 1;
-        const interval = Math.max(33, 1000 / speed);
+        if (!playing || serverAdvancing || isAtEdge) return;
+        const interval = Math.max(9, 1000 / speed);
 
         const timer = setInterval(() => {
+            const latest = recordingRef.current.frames.length - 1;
             const cur = tickRef.current;
             if (cur >= latest) {
-                setPlaying(false);
+                // No live server to hand over to — stop the timer
+                if (endedRef.current || !connectedRef.current) setPlaying(false);
                 return;
             }
             const next = Math.min(cur + 1, latest);
@@ -378,74 +439,76 @@ export default function App() {
         }, interval);
 
         return () => clearInterval(timer);
-    }, [playing, speed, recording.frames.length, ended, liveMode]);
+    }, [playing, speed, recording.frames.length, serverAdvancing, isAtEdge]);
 
     // ─── Controls callbacks ─────────────────────────────────────────────────
 
-    const handleTogglePlay = useCallback(
-        (play) => {
-            setPlaying(play);
-            if (!play) {
-                setSub(null);
-                return;
-            }
-            // Mutual exclusion: playing replay ⇒ pause live server
-            if (play && !liveMode) {
-                // Replay is playing → pause live if connected
-                if (connected && !ended) {
-                    postPause().catch(() => {});
-                }
-            }
-            if (play && liveMode && connected && !ended) {
-                // Live is already playing — nothing extra needed
-                return;
-            }
-            if (play && !liveMode === false && connected && !ended) {
-                setLiveMode(true);
-            }
-        },
-        [connected, ended, liveMode],
-    );
-
-    // Toggle live server play/pause (called by space key + LiveControls)
-    const handleToggleLivePlay = useCallback((play) => {
-        if (play) {
-            // Resume live → auto-pause replay
-            setPlaying(false);
-            setSub(null);
-            postResume().catch(() => {});
-            setLiveMode(true);
-            setPlaying(true);
-        } else {
-            postPause().catch(() => {});
-            setPlaying(false);
+    // Play/pause — reconciliation decides whether the server or the
+    // client timer is the time source.
+    const handleTogglePlay = useCallback((play) => {
+        setPlaying(play);
+        if (!play) {
             setSub(null);
         }
     }, []);
 
     const handleSeekTick = useCallback((t) => {
-        setLiveMode(false);
-        const max = recordingRef.current.frames.length - 1;
-        setTick(Math.max(0, Math.min(t, max)));
-        setSub(null);
-    }, []);
-
-    const handleStepForward = useCallback(() => {
-        setLiveMode(false);
         setPlaying(false);
         setSub(null);
-        setTick((prev) => Math.min(prev + 1, recordingRef.current.frames.length - 1));
+        const max = recordingRef.current.frames.length - 1;
+        setTick(Math.max(0, Math.min(t, max)));
+    }, []);
+
+    // In the past → cursor move. At the recorded edge → step the live server.
+    const handleStepForward = useCallback(() => {
+        setPlaying(false);
+        setSub(null);
+        const latest = recordingRef.current.frames.length - 1;
+        if (tickRef.current >= latest) {
+            const st = serverStateRef.current;
+            if (connectedRef.current && !endedRef.current && st !== 'running' && st !== 'stepping') {
+                postStep(1).catch(() => {});
+            }
+            return;
+        }
+        setTick((prev) => Math.min(prev + 1, latest));
     }, []);
 
     const handleStepBack = useCallback(() => {
-        setLiveMode(false);
         setPlaying(false);
         setSub(null);
         setTick((prev) => Math.max(0, prev - 1));
     }, []);
 
+    // Unified speed — applies to both server ticks and client playback.
     const handleSetSpeed = useCallback((s) => {
         setSpeed(s);
+        if (connectedRef.current && !endedRef.current) {
+            postSpeed(s).catch(() => {});
+        }
+    }, []);
+
+    // Rewind the server to the current scrubber tick (discards later ticks)
+    const handleRewind = useCallback(() => {
+        const frames = recordingRef.current.frames;
+        const idx = Math.max(0, Math.min(tickRef.current, frames.length - 1));
+        const frame = frames[idx];
+        const gameTick = frame && typeof frame.gameTime === 'number' ? frame.gameTime : idx;
+        setPlaying(false);
+        setSub(null);
+        postRestoreTick(gameTick).catch(() => {
+            /* SSE error event carries the message */
+        });
+    }, []);
+
+    // Save a snapshot of the current server state to disk
+    const handleSaveSnapshot = useCallback(() => {
+        const controllable = connectedRef.current && !endedRef.current && serverStateRef.current !== 'idle';
+        if (!controllable) return;
+
+        postSaveSnapshot().catch(() => {
+            /* SSE error event carries the message */
+        });
     }, []);
 
     // ─── Canvas click → Object Inspector ────────────────────────────────────
@@ -491,19 +554,22 @@ export default function App() {
     // ─── Keyboard shortcuts ─────────────────────────────────────────────────
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')
-                return;
+            const tag = e.target.tagName;
+            const isTimelineSlider = e.target instanceof HTMLInputElement && e.target.type === 'range';
+            // Hotkeys are suppressed while typing in form controls — except
+            // Space on the timeline scrubber: a range input has no native
+            // Space behavior, and the play/pause hotkey must keep working
+            // right after the user grabs the timeline.
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+                if (!isTimelineSlider || e.key !== ' ') return;
+            }
 
             switch (e.key) {
                 case ' ':
                     e.preventDefault();
-                    // Toggle LIVE server play/pause when connected, replay otherwise
-                    if (connected && !ended) {
-                        const isLiveRunning = serverState === 'running' || serverState === 'stepping';
-                        handleToggleLivePlay(!isLiveRunning);
-                    } else {
-                        handleTogglePlay(!playingRef.current);
-                    }
+                    // Single play/pause — reconciliation routes it to the
+                    // server or the client timer based on cursor position.
+                    handleTogglePlay(!playingRef.current);
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
@@ -514,24 +580,22 @@ export default function App() {
                     handleStepBack();
                     break;
                 case ']':
-                    // Increase Live server speed
+                    // Increase unified speed (server + client)
                     {
-                        const speeds = [1, 5, 10, 20, 1000];
-                        const idx = speeds.indexOf(serverSpeed);
+                        const speeds = [1, 5, 10, 20, 50, 1000];
+                        const idx = speeds.indexOf(speedRef.current);
                         if (idx >= 0 && idx < speeds.length - 1) {
-                            const next = speeds[idx + 1];
-                            postSpeed(next).catch(() => {});
+                            handleSetSpeed(speeds[idx + 1]);
                         }
                     }
                     break;
                 case '[':
-                    // Decrease Live server speed
+                    // Decrease unified speed (server + client)
                     {
-                        const speeds = [1, 5, 10, 20, 1000];
-                        const idx = speeds.indexOf(serverSpeed);
+                        const speeds = [1, 5, 10, 20, 50, 1000];
+                        const idx = speeds.indexOf(speedRef.current);
                         if (idx > 0) {
-                            const next = speeds[idx - 1];
-                            postSpeed(next).catch(() => {});
+                            handleSetSpeed(speeds[idx - 1]);
                         }
                     }
                     break;
@@ -545,16 +609,7 @@ export default function App() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [
-        handleToggleLivePlay,
-        handleTogglePlay,
-        handleStepForward,
-        handleStepBack,
-        serverSpeed,
-        serverState,
-        connected,
-        ended,
-    ]);
+    }, [handleTogglePlay, handleStepForward, handleStepBack, handleSetSpeed, serverState]);
 
     // ─── Test API ───────────────────────────────────────────────────────────
     if (import.meta.env.DEV) {
@@ -582,7 +637,7 @@ export default function App() {
                         tick: tickRef.current,
                         playing: playingRef.current,
                         speed: speedRef.current,
-                        liveMode,
+                        atEdge: isAtEdge,
                     },
                     /** UI toggles */
                     ui: {
@@ -627,7 +682,7 @@ export default function App() {
                 setPlaying(val);
             },
             seekTick(t) {
-                setLiveMode(false);
+                setPlaying(false);
                 setTick(Math.max(0, Math.min(t, recordingRef.current.frames.length - 1)));
             },
             getCamera() {
@@ -690,44 +745,6 @@ export default function App() {
 
     return (
         <div className="viewer-layout">
-            {/* ─── Toolbar ─────────────────────────────────────── */}
-            <div className="viewer-toolbar">
-                <button onClick={handleBackToScenarios} className="btn-back" title="Back to Scenarios">
-                    <ArrowLeftIcon size={16} />
-                    Scenarios
-                </button>
-                <div className="toolbar-separator" />
-                <LiveControls
-                    connected={connected}
-                    serverState={serverState}
-                    serverTick={serverTick}
-                    serverSpeed={serverSpeed}
-                    onServerStateChange={setServerState}
-                    onToggleLivePlay={handleToggleLivePlay}
-                />
-                <div className="toolbar-separator" />
-                <ReplayControls
-                    playing={playing}
-                    tick={tick}
-                    maxTicks={maxTicks}
-                    speed={speed}
-                    onTogglePlay={handleTogglePlay}
-                    onSeekTick={handleSeekTick}
-                    onSetSpeed={handleSetSpeed}
-                    onStepForward={handleStepForward}
-                    onStepBack={handleStepBack}
-                />
-                {/* Future: SL-1/2 save/load, HR-1 hot reload */}
-                <div className="toolbar-actions">
-                    <button className="icon-btn" title="Save snapshot (coming soon)" disabled>
-                        <DownloadIcon size={16} />
-                    </button>
-                    <button className="icon-btn" title="Hot reload bot (coming soon)" disabled>
-                        <RefreshCwIcon size={16} />
-                    </button>
-                </div>
-            </div>
-
             {/* ─── Main area: canvas + side panels ────── */}
             <div className="viewer-main">
                 <div className="viewer-canvas-area">
@@ -742,16 +759,39 @@ export default function App() {
                         onCameraChange={setCameraForMiniMap}
                     />
 
+                    {/* ─── Floating transport controls (frosted glass, top) ──
+                         Always mounted — controls must be usable before the
+                         first frame arrives (the server re-sends its last
+                         frame on connect, but a cold start may still have none) */}
+                    <Timeline
+                        connected={connected}
+                        ended={ended}
+                        serverState={serverState}
+                        serverTick={serverTick}
+                        playing={playing}
+                        tick={tick}
+                        maxTicks={maxTicks}
+                        speed={speed}
+                        onTogglePlay={handleTogglePlay}
+                        onSeekTick={handleSeekTick}
+                        onStepForward={handleStepForward}
+                        onStepBack={handleStepBack}
+                        onSetSpeed={handleSetSpeed}
+                        onRewind={handleRewind}
+                        onSave={handleSaveSnapshot}
+                        onBackToScenarios={handleBackToScenarios}
+                    />
+
                     {/* Canvas overlays */}
                     {currentRoom && !isLoading && (
-                        <div className="canvas-overlay canvas-room-label">
+                        <div className="canvas-overlay canvas-room-label glass-panel">
                             <MapIcon size={12} />
                             {currentRoom}
                         </div>
                     )}
                     {!isLoading && (
                         <div
-                            className="canvas-overlay interactive canvas-zoom-indicator"
+                            className="canvas-overlay interactive canvas-zoom-indicator glass-panel"
                             onClick={() => canvasStageRef.current?.resetCamera?.()}
                             title="Reset camera (click)"
                             style={{ cursor: 'pointer' }}
@@ -761,7 +801,7 @@ export default function App() {
                         </div>
                     )}
                     {!isLoading && (
-                        <div className="canvas-overlay interactive canvas-toolbar">
+                        <div className="canvas-overlay interactive canvas-toolbar glass-panel">
                             <button
                                 className={`icon-btn ${showGrid ? 'active' : ''}`}
                                 onClick={() => setShowGrid(!showGrid)}
@@ -873,9 +913,9 @@ export default function App() {
                             <span>Metrics</span>
                         </button>
                         <button
-                            className={`sidebar-tab ${sidebarTab === 'saveload' ? 'active' : ''}`}
-                            onClick={() => setSidebarTab('saveload')}
-                            title="Save / Load"
+                            className={`sidebar-tab ${sidebarTab === 'state' ? 'active' : ''}`}
+                            onClick={() => setSidebarTab('state')}
+                            title="World State"
                         >
                             <DatabaseIcon size={14} />
                         </button>
@@ -903,7 +943,19 @@ export default function App() {
                             />
                         )}
                         {sidebarTab === 'metrics' && <MetricsPanel frames={recording.frames} />}
-                        {sidebarTab === 'saveload' && <SaveLoadPanel />}
+                        {sidebarTab === 'state' && (
+                            <StatePanel
+                                scenario={scenario}
+                                serverTick={serverTick}
+                                connected={connected}
+                                ended={ended}
+                                disabled={isLoading || ended}
+                                atEdge={isAtEdge}
+                                replayBuffer={replayBuffer}
+                                sseError={sseError}
+                                onClearError={() => setSseError(null)}
+                            />
+                        )}
                         {sidebarTab === 'settings' && (
                             <SettingsPanel
                                 showMiniMap={showMiniMap}
@@ -986,57 +1038,6 @@ export default function App() {
                             <kbd>`</kbd>console
                         </span>
                     </span>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ─── Save/Load Panel (placeholder for future SL-1 to SL-5) ──────────────────
-function SaveLoadPanel() {
-    return (
-        <div className="save-load-panel">
-            <div className="save-load-section">
-                <h3>
-                    <DownloadIcon size={16} />
-                    Snapshot
-                </h3>
-                <p>Save the current world state to a JSON file for later inspection or replay.</p>
-                <div className="save-load-actions">
-                    <button className="btn-primary" disabled title="Coming soon">
-                        <DownloadIcon size={14} />
-                        Save Snapshot
-                    </button>
-                    <button className="btn-secondary" disabled title="Coming soon">
-                        Load Snapshot
-                    </button>
-                </div>
-            </div>
-            <div className="save-load-section">
-                <h3>
-                    <DatabaseIcon size={16} />
-                    Auto-save
-                </h3>
-                <p>Automatically save each tick to memory for rewind capability.</p>
-                <div className="save-load-actions">
-                    <button className="btn-secondary" disabled title="Coming soon">
-                        Configure limit...
-                    </button>
-                </div>
-            </div>
-            <div className="save-load-section">
-                <h3>
-                    <FilmIcon size={16} />
-                    Export
-                </h3>
-                <p>Export snapshot as room fixture or memory fixture.</p>
-                <div className="save-load-actions">
-                    <button className="btn-secondary" disabled title="Coming soon">
-                        Room fixture
-                    </button>
-                    <button className="btn-secondary" disabled title="Coming soon">
-                        Memory fixture
-                    </button>
                 </div>
             </div>
         </div>

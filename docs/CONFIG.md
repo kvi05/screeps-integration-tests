@@ -13,6 +13,7 @@ From lowest to highest:
    - `BOT_DIST_DIR` → `distDir`
    - `SIT_MEMORY_FIXTURES_DIR` → `memoryFixturesDir` (read by `lib/builders/memory.js`; also set by CLI from config)
    - `SIT_CACHE_DIR` → `cacheDir` (read by `lib/orchestration/world.js` and `src/tools/clean-cache.js`; also set by CLI from config)
+   - `SIT_SNAPSHOTS_DIR` → `snapshotsDir` (read by `lib/orchestration/world.js`; set for workers by the CLI from config)
 4. CLI arguments
 5. Explicit overrides from code
 
@@ -24,6 +25,7 @@ Relative paths are resolved **from the config file's directory**; if there is no
 module.exports = {
   distDir: './dist', // bot modules; fallback: BOT_DIST_DIR, then ./dist
   scenariosDir: './scenarios', // *.scenario.js
+  snapshotsDir: './snapshots', // saved world snapshots (*.json)
   memoryFixturesDir: './fixtures', // *.memory.json
   roomFixturesDir: null, // *.room.js; null = auto-load disabled
   profilesDir: './profiles', // callgrind profiles
@@ -35,6 +37,7 @@ module.exports = {
   require: [], // modules to require before scenarios
   env: {}, // env for worker processes
   viewer: false, // always run in UI mode (--viewer flag)
+  viewerPort: null, // fixed port for the viewer UI server; null = auto-pick a free port
   viewerOptions: {
     // fine-tuning for viewer mode (partial override ok)
     paused: false, // start paused
@@ -99,23 +102,29 @@ npx screeps-integration-tests --build
 
 ## CLI flags
 
-| Flag                        | Description                                               |
-| --------------------------- | --------------------------------------------------------- |
-| `--help`/ `-h`              | -                                                         |
-| `--version`/ `-v`           | Print the framework version                               |
-| `--config <path>`           | Path to config                                            |
-| `--scenariosDir <dir>`      | Directory with scenarios                                  |
-| `--distDir <dir>`           | Bot `dist/` directory (flat compiled `.js` modules)       |
-| `--memoryFixturesDir <dir>` | Directory with memory fixtures                            |
-| `--roomFixturesDir <dir>`   | Directory with room fixtures                              |
-| `--profilesDir <dir>`       | Directory for profiles                                    |
-| `--cacheDir <dir>`          | Directory for server cache                                |
-| `--only <name>`             | Run only one scenario by file name without `.scenario.js` |
-| `--profiling`               | Enable callgrind profiling                                |
-| `--bail`                    | Stop on first error                                       |
-| `--timeout <int>`           | Timeout per scenario, ms                                  |
-| `--jobs <int>`              | Number of parallel workers                                |
-| `--build`                   | Run the configured `buildCommand` before scenarios        |
+Flags use camelCase and mirror the config keys 1:1 (`--distDir` ↔ `distDir`) —
+what works in the config file works on the CLI under the same name.
+
+| Flag                        | Description                                                |
+| --------------------------- | ---------------------------------------------------------- |
+| `--help`/ `-h`              | -                                                          |
+| `--version`/ `-v`           | Print the framework version                                |
+| `--config <path>`           | Path to config                                             |
+| `--scenariosDir <dir>`      | Directory with scenarios                                   |
+| `--distDir <dir>`           | Bot `dist/` directory (flat compiled `.js` modules)        |
+| `--memoryFixturesDir <dir>` | Directory with memory fixtures                             |
+| `--roomFixturesDir <dir>`   | Directory with room fixtures                               |
+| `--snapshotsDir <dir>`      | Directory for saved world snapshots                        |
+| `--profilesDir <dir>`       | Directory for profiles                                     |
+| `--cacheDir <dir>`          | Directory for server cache                                 |
+| `--only <name>`             | Run only one scenario by file name without `.scenario.js`  |
+| `--profiling`               | Enable callgrind profiling                                 |
+| `--bail`                    | Stop on first error                                        |
+| `--timeout <int>`           | Timeout per scenario, ms (default 1800000 = 30 min)        |
+| `--jobs <int>`              | Number of parallel workers (default `min(4, CPU cores)`)   |
+| `--build`                   | Run the configured `buildCommand` before scenarios         |
+| `--viewer`                  | Start the browser viewer UI (see [VIEWER.md](./VIEWER.md)) |
+| `--viewerPort <int>`        | Fixed port for the viewer UI server (default: auto)        |
 
 The timeout applies to each scenario individually; there is no global timeout.
 

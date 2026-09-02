@@ -190,6 +190,12 @@ export const RefreshCwIcon = (p) => (
     </Icon>
 );
 
+export const FolderOpenIcon = (p) => (
+    <Icon {...p}>
+        <path d="M6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
+    </Icon>
+);
+
 export const MaximizeIcon = (p) => (
     <Icon {...p}>
         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
@@ -354,6 +360,12 @@ export const DownloadIcon = (p) => (
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
         <polyline points="7 10 12 15 17 10" />
         <line x1="12" y1="15" x2="12" y2="3" />
+    </Icon>
+);
+
+export const BookmarkIcon = (p) => (
+    <Icon {...p}>
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </Icon>
 );
 

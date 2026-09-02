@@ -200,7 +200,7 @@ export default function MiniMap({ roomNames = [], camera = { x: 0, y: 0 }, zoom 
     };
 
     return (
-        <div className="mini-map-container">
+        <div className="mini-map-container glass-panel">
             <div className="mini-map-header">
                 <MapIcon size={12} />
                 MiniMap

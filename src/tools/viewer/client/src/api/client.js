@@ -60,6 +60,15 @@ export function connectSSE(onEvent) {
         }
     });
 
+    es.addEventListener('restored', (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            onEvent('restored', data);
+        } catch {
+            /* skip */
+        }
+    });
+
     es.addEventListener('status', (e) => {
         try {
             const data = JSON.parse(e.data);
@@ -75,6 +84,15 @@ export function connectSSE(onEvent) {
             onEvent('scenario-result', data);
         } catch {
             /* skip */
+        }
+    });
+
+    es.addEventListener('error', (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            onEvent('error', data);
+        } catch {
+            onEvent('error', { message: 'Unknown server error' });
         }
     });
 
@@ -148,6 +166,43 @@ export function postSaveSnapshot() {
 /** Load a snapshot */
 export function postLoadSnapshot(data) {
     return postJSON('/api/load-snapshot', { data });
+}
+
+/** Rewind to a specific tick */
+export function postRestoreTick(tick) {
+    return postJSON('/api/restore-tick', { tick });
+}
+
+/** List saved snapshot files */
+export function getSnapshots() {
+    return fetch('/api/snapshots').then((r) => r.json());
+}
+
+/** Launch a scenario from a snapshot: file name (on disk) or inline data */
+export function postRunFromSnapshot(input) {
+    const body = typeof input === 'string' ? { snapshotFile: input } : { data: input };
+    return postJSON('/api/run-from-snapshot', body);
+}
+
+/** Fetch the JSON content of a saved snapshot file */
+export function getSnapshotFile(fileName) {
+    return fetch(`/snapshots/${encodeURIComponent(fileName)}`).then((r) => {
+        if (!r.ok) throw new Error(`Failed to fetch snapshot ${fileName}: ${r.status}`);
+        return r.json();
+    });
+}
+
+/** Delete a saved snapshot file */
+export function deleteSnapshot(fileName) {
+    return fetch(`/api/snapshots/${encodeURIComponent(fileName)}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete snapshot: ${r.status}`);
+        return r.json();
+    });
+}
+
+/** Open the snapshots directory in the OS file manager (server-side) */
+export function openSnapshotsFolder() {
+    return postJSON('/api/open-snapshots-folder');
 }
 
 /** Stop the current interactive scenario */

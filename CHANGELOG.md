@@ -22,11 +22,11 @@ PR #44 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/p
   - **Client:** React 18 + Vite SPA with Canvas 2D renderer (adapted from
     screeps-dojo). Multi-room layout engine, sprite prewarming, camera
     (drag/zoom/reset), playback controls (play/pause/seek/speed), SSE
-    connection lifecycle, sessionStorage persistence. `npm run build:viewer`
+    connection lifecycle, sessionStorage persistence. `npm run viewer:build`
     script.
   - **Test infrastructure (vitest + jsdom):** comprehensive Canvas 2D mock
     with pixel-buffer tracking, transform stack, and path bounding-box
-    support. `npm run test:viewer` script.
+    support. `npm run viewer:test` script.
   - **Unit tests:** `zoomToward` (extracted to pure `canvas/math.js`),
     `roomNameToXY` / `computeStageLayout`, all five drawing primitives.
   - **Component tests:** full `App` mount — canvas rendering with/without
@@ -38,9 +38,7 @@ PR #44 [Feature/viewer poc](https://github.com/kvi05/screeps-integration-tests/p
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 - **Phase 2 Browser Viewer (MVP):** bidirectional IPC for live server control
-  (pause/resume/step/speed via REST → `child.send()`). Controls are split into
-  Live Server (manages the real server) and Saved Replay (client-side playback
-  of accumulated frames).
+  (pause/resume/step/speed via REST → `child.send()`).
 - **Object Inspector:** click on canvas → list of objects on that tile → detailed
   properties. Selected object highlight on canvas. Type filter and search.
 - **Console Panel:** dockable panel with bot logs (`frame.console`).
@@ -90,6 +88,7 @@ PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-inte
 
 - **`viewerOptions` config key.** A new section in `screeps-integration.config.js`
   for viewer fine-tuning:
+
   ```js
   viewerOptions: {
     paused: false,          // start paused
@@ -98,7 +97,95 @@ PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-inte
     replayBuffer: 3000,     // max frames/ticks in ring buffers
   }
   ```
+
   Partial overrides are supported — only specify the keys you want to change.
+
+PR #54 [Feat/phase 3](https://github.com/kvi05/screeps-integration-tests/pull/54)
+
+- **Snapshot launch — `createWorld({ snapshot })` and time-travel restore.**
+  Recreate a full world from a saved snapshot (v2 format) without a scenario
+  file — useful for CI debugging and interactive exploration from Scenario
+  Manager.
+  - `createWorld({ snapshot: filePath | snapshotObject })` — builds rooms/bots
+    from snapshot metadata, materializes them, then restores the exact world
+    state (objects, terrain, flags, memory, gameTime) via `restoreState`.
+  - `screeps-integration-tests/snapshot` sub-path export: `restoreState`,
+    `readSnapshot`.
+  - REST: `POST /api/run-from-snapshot` (launch from saved file),
+    `DELETE /api/snapshots/:file` (delete saved snapshot).
+  - `GET /api/snapshots` now returns `tick` and `scenario` metadata per file
+    (parsed on the fly — no extra fetch needed).
+  - Worker restore mode: when `opts.restoreSnapshot` is set, the worker
+    creates a world from snapshot instead of requiring a scenario file.
+  - Snapshots directory is now derived from `scenariosDir` (sibling of the
+    scenarios folder), not `process.cwd()`.
+
+PR #55 [Feat/phase 4](https://github.com/kvi05/screeps-integration-tests/pull/55)
+
+- **Seamless unified timeline** — a single timeline, no separate Live / Replay
+  modes. The scrubber cursor is the single source of truth: at the recorded
+  edge the live server is the time source (play/pause/step drive it), in the
+  past the client plays through buffered frames and pauses the server
+  automatically.
+- **Post-end local replay.** The viewer is now notified when an interactive
+  scenario finishes (`end` SSE event), so the recorded frames remain playable
+  after the worker has exited. Server-only actions (rewind/save/step) are
+  correctly disabled once the scenario ends — there is no live DB to restore.
+- **`viewerOptions.paused` forwarded in the SSE start handshake** — the viewer
+  starts paused when configured.
+
+PR #59 [Feat/viewer timeline redesign](https://github.com/kvi05/screeps-integration-tests/pull/59)
+
+- **Floating frosted-glass transport.** The timeline renders as a floating
+  frosted-glass overlay pinned to the top of the canvas: a single full-width
+  `transport-row` holds three visually separated groups (back-to-scenarios
+  pill, flexible center transport bar, action pills), so the scrubber shrinks
+  first instead of the pills overlapping on narrow screens. A shared
+  `.glass-panel` utility (backdrop blur, inset depth, shadow) styles the
+  transport, the canvas overlays (room label, zoom indicator, toolbar) and the
+  minimap. Transport is always mounted — controls work before the first frame
+  arrives. A live server-tick indicator (running/paused/stepping dot) shows
+  the authoritative time source.
+- **Robust reconnect.** A late-connecting SSE client (e.g. page reload) now gets
+  the last broadcast frame and terrain re-sent right after the `start`
+  handshake, plus a `start` event merged with the _current_ paused state — so a
+  paused server stays paused and the canvas is never blank. `broadcastStart`
+  clears the cached frame/terrain so a new scenario never leaks stale data.
+  The client no longer forces `serverState` to `running` on the first frame;
+  `status`/`start` events are authoritative.
+
+PR #63 [feat(viewer): open snapshots folder from the UI](https://github.com/kvi05/screeps-integration-tests/pull/63)
+
+- **Open snapshots folder.** New `POST /api/open-snapshots-folder` endpoint
+  opens the snapshots directory in the OS file manager (Explorer / Finder /
+  `xdg-open`), creating it on demand. Buttons added in the viewer UI: an icon
+  button next to the refresh control in the StatePanel "Saved Snapshots"
+  section, and an "Open folder" button in the Scenario Manager Snapshots tab
+  footer.
+
+PR #64 [Feat/viewer dx](https://github.com/kvi05/screeps-integration-tests/pull/64)
+
+- **`npm run help` — annotated npm-scripts catalog.** `package.json` cannot
+  carry comments, so the grouped catalog (daily drivers / quality / viewer /
+  tools) lives in `src/tools/help.js`; `tests/scriptsHelp.test.js` fails when
+  the catalog and the `scripts` section drift apart.
+- **npm scripts regrouped and renamed** for consistency: `build:viewer` →
+  `viewer:build`, `test:viewer` → `viewer:test`; new `viewer` (launch the UI),
+  `viewer:dev` (Vite dev server with HMR), `fixture:capture`; `smoke` /
+  `profiling` variants now delegate to `test:integration` via `--`.
+- **`viewerPort` config/CLI option.** Pin the viewer UI server port
+  (`--viewerPort 3100` or `viewerPort` in the config) instead of auto-picking
+  a free port — required for the Vite dev-server proxy (`SIT_VIEWER_PORT`).
+  Invalid values from the config file are rejected early with an actionable
+  `INVALID_VIEWER_PORT` error.
+- **`VIEWER_NOT_BUILT` fail-fast error.** `--viewer` now checks for the
+  prebuilt client bundle at startup and explains how to build it, instead of
+  serving 404s to the browser.
+- **Grouped `--help` output.** CLI flags render as titled sections
+  (General / Paths / Run / Viewer) instead of one flat list.
+- **Docs:** new `docs/VIEWER.md` (launch, panels, replay/snapshots, dev mode,
+  troubleshooting); README / CONTRIBUTING / CONFIG.md synced with the new
+  scripts and flags.
 
 ### Changed
 
@@ -157,6 +244,41 @@ PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-inte
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 - `chart.js`, `react-chartjs-2`, `react-router-dom` (viewer client)
+
+### Fixed
+
+PR #56 [Fix/engine snapshot node24](https://github.com/kvi05/screeps-integration-tests/pull/56)
+
+- **Engine snapshot auto-regeneration after Node.js upgrades.** `@screeps/driver`
+  ships a prebuilt V8 snapshot (`build/runtime.snapshot.bin`) that only works
+  with the exact V8 version it was created with. After a Node.js patch upgrade
+  the engine child processes crashed (Windows) or hung integration tests
+  forever (Linux CI). The CLI runner now regenerates the snapshot with the
+  vendor's own `make-runtime-snapshot.js` eagerly — once per run, before any
+  worker is forked (`ensureEngineSnapshotCompat`; stamp-guarded,
+  lock-serialised across concurrent runs). `prepareServer` keeps the same
+  check as an idempotent safety net for direct `createWorld` usage outside
+  the CLI (fast path: a single stamp-file read).
+- **Fail fast on engine process death.** An `engineWatch` attached to the mock
+  server converts engine crashes — including signal-deaths that
+  screeps-server-mockup only reports as `info` — into an actionable
+  `ENGINE_CRASH` error instead of an endless `server.tick()` hang. Crashes of
+  non-engine processes (e.g. storage) that the mockup restarts automatically
+  are logged as warnings and no longer kill the worker through an unhandled
+  `error` event.
+- **Worker final message is flushed before exit.** `runScenario.js` used a
+  fixed 100ms delay before `process.exit(0)`, which could lose the final IPC
+  message under load (`Worker exited unexpectedly (exit code 0)`). The worker
+  now exits via the `process.send` callback once the message is flushed to
+  the channel.
+- **Storage startup retry on port collisions.** Parallel workers could pick
+  the same ephemeral port (probe→release window in `getFreePort`) and crash
+  each other's storage process. `prepareServer` now retries with a fresh port
+  up to 3 times before failing.
+- **CI cache key includes the resolved Node version.** Native modules cached
+  under `24.x` were reused across Node patch upgrades with a different V8,
+  masking the snapshot mismatch; the cache key now uses
+  `steps.setup-node.outputs.node-version`.
 
 ## [3.0.0] — 2026-08-06
 

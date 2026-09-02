@@ -19,6 +19,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const cp = require('child_process');
 const { getFreePort } = require('../../lib/runtime/port');
 
 // ─── SSE helpers ────────────────────────────────────────────────────────────
@@ -96,6 +97,21 @@ const MIME_TYPES = {
 };
 
 /**
+ * Returns the OS-specific command that opens a folder in the system file
+ * manager. Pure function (no process.platform access) so all platform
+ * branches can be unit-tested on any OS.
+ *
+ * @param {string} platform — a Node.js `process.platform` value
+ * @returns {string} command name to spawn
+ */
+function getOpenCommand(platform) {
+    if (platform === 'win32') return 'explorer';
+    if (platform === 'darwin') return 'open';
+    // Everything else (linux, freebsd, openbsd…) — freedesktop standard
+    return 'xdg-open';
+}
+
+/**
  * Serves a static file with the correct MIME type using streaming I/O.
  *
  * @param {http.ServerResponse} res
@@ -139,7 +155,7 @@ function serveStatic(res, filePath) {
  *
  * @typedef {Object} UiServer
  * @property {number} port — the port the server is listening on
- * @property {(scenario:string, maxTicks:number, replayBuffer?:number) => void} broadcastStart — send start event to all SSE clients
+ * @property {(scenario:string, maxTicks:number, replayBuffer?:number, paused?:boolean) => void} broadcastStart — send start event to all SSE clients
  * @property {(frame: Object) => void} broadcast — send a frame to all SSE clients
  * @property {(terrain: Object) => void} broadcastTerrain — send terrain data to all SSE clients
  * @property {(result: {scenario:string, status:string, time:number, ticks:number}) => void} broadcastScenarioResult — send scenario result to all SSE clients
@@ -154,8 +170,10 @@ function serveStatic(res, filePath) {
  * @param {number} [opts.port] — explicit port (default: auto via getFreePort)
  * @param {string} [opts.distDir] — path to ui/dist/ (default: computed relative to this file)
  * @param {Function} [opts.sendCommand] — callback to forward commands to worker: (cmd) => void
+ * @param {string} [opts.snapshotsDir] — directory for saved world snapshots (*.json)
  * @param {string} [opts.scenariosDir] — directory containing *.scenario.js files
  * @param {Function} [opts.onRunScenario] — callback to run a scenario: (scenarioPath, interactive) => void
+ * @param {Function} [opts.onRunFromSnapshot] — callback to launch from snapshot: (snapshotData) => void
  * @param {{scenario:string, maxTicks:number, replayBuffer:number}} [opts.lastStart] — last start info to re-send to late-connecting SSE clients
  * @param {Object} [opts.memoryHistory] — Memory history ring buffer for /api/memory endpoint
  * @returns {Promise<UiServer>}
@@ -166,11 +184,19 @@ async function createUiServer(opts = {}) {
     // Compute the path to ui/dist relative to this file's location
     const distDir = opts.distDir || path.resolve(__dirname, 'dist');
 
+    // Snapshots directory — defaults to ./snapshots in cwd if not configured
+    const snapshotsDir = opts.snapshotsDir || path.join(process.cwd(), 'snapshots');
+
     /** @type {Set<ReturnType<typeof openSse>>} */
     const sseClients = new Set();
 
     /** @type {{ state: string, tick: number, speed: number, scenario: string }} */
     const serverStatus = { state: 'idle', tick: 0, speed: DEFAULT_VIEWER_SPEED, scenario: '' };
+
+    /** @type {Object|null} Last broadcast frame — re-sent to late-connecting SSE clients */
+    let lastFrame = null;
+    /** @type {Object|null} Last broadcast terrain — re-sent to late-connecting SSE clients */
+    let lastTerrain = null;
 
     /**
      * Reads and parses a JSON request body.
@@ -208,9 +234,24 @@ async function createUiServer(opts = {}) {
                 speed: serverStatus.speed,
                 scenario: serverStatus.scenario,
             });
-            // Re-send last start if available (for late-connecting clients in interactive mode)
+            // Re-send last start if available (for late-connecting clients in
+            // interactive mode). Merge in the CURRENT paused state — the
+            // paused flag stored at scenario launch time goes stale once the
+            // server is paused/resumed.
             if (opts.lastStart) {
-                sse.send('start', opts.lastStart);
+                sse.send('start', {
+                    ...opts.lastStart,
+                    paused: serverStatus.state !== 'running',
+                });
+            }
+            // Re-send last terrain and frame so late clients render immediately.
+            // Order matters: `start` resets the client buffer, terrain + frame
+            // repopulate it right after.
+            if (lastTerrain) {
+                sse.send('terrain', lastTerrain);
+            }
+            if (lastFrame) {
+                sse.send('frame', lastFrame);
             }
             return;
         }
@@ -371,35 +412,265 @@ async function createUiServer(opts = {}) {
             return;
         }
 
-        // ─── REST: Save/Load Snapshot ─────────────────────────────────────
+        // ─── REST: Save/Load/Rewind Snapshot ──────────────────────────────
 
-        // POST /api/save-snapshot — save current state
+        // POST /api/save-snapshot — save current state to file
         if (pathname === '/api/save-snapshot' && req.method === 'POST') {
-            // Forward to worker for serialization
-            // if (opts.sendCommand) {
-            //     opts.sendCommand({ type: 'viewer:cmd', action: 'saveSnapshot' });
-            // }
-            res.writeHead(501, { 'Content-Type': 'application/json' });
-            res.end(
-                JSON.stringify({
-                    ok: false,
-                    status: 'not_implemented',
-                    message: 'Snapshot saving is not yet implemented',
-                }),
-            );
+            if (opts.sendCommand) {
+                opts.sendCommand({ type: 'viewer:cmd', action: 'saveSnapshot' });
+            }
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, message: 'Snapshot save in progress' }));
             return;
         }
 
-        // POST /api/load-snapshot — load saved state
+        // POST /api/load-snapshot — load state from uploaded JSON
         if (pathname === '/api/load-snapshot' && req.method === 'POST') {
-            res.writeHead(501, { 'Content-Type': 'application/json' });
-            res.end(
-                JSON.stringify({
-                    ok: false,
-                    status: 'not_implemented',
-                    message: 'Snapshot loading is not yet implemented',
-                }),
-            );
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                return;
+            }
+            if (opts.sendCommand) {
+                opts.sendCommand({
+                    type: 'viewer:cmd',
+                    action: 'loadSnapshot',
+                    params: { snapshot: body.data || body },
+                });
+            }
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, message: 'Snapshot load in progress' }));
+            return;
+        }
+
+        // POST /api/restore-tick — rewind to a past tick
+        if (pathname === '/api/restore-tick' && req.method === 'POST') {
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                body = {};
+            }
+            const tick = body.tick !== undefined ? body.tick : parseInt(url.searchParams.get('tick') || '0', 10);
+            if (opts.sendCommand) {
+                opts.sendCommand({
+                    type: 'viewer:cmd',
+                    action: 'restoreTick',
+                    params: { tick },
+                });
+            }
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, message: `Restore to tick ${tick} in progress` }));
+            return;
+        }
+
+        // POST /api/run-from-snapshot — launch a scenario from a snapshot.
+        // Accepts either { snapshotFile } (read from the snapshots dir) or
+        // { data } (inline snapshot JSON — launched directly, not persisted).
+        if (pathname === '/api/run-from-snapshot' && req.method === 'POST') {
+            let body;
+            try {
+                body = await readBody(req);
+            } catch {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                return;
+            }
+
+            let snapshotData;
+            if (body.data !== undefined) {
+                // Inline snapshot — launch directly, nothing is written to disk.
+                // Fail early on malformed payloads instead of letting the worker
+                // fail asynchronously after the client already got `ok`.
+                const data = body.data;
+                const isObject = data !== null && typeof data === 'object' && !Array.isArray(data);
+                if (
+                    !isObject ||
+                    !data.db ||
+                    !data.db['rooms.objects'] ||
+                    !data.env ||
+                    data.env.gameTime === undefined
+                ) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(
+                        JSON.stringify({
+                            error: "Invalid snapshot data — expected { db: { 'rooms.objects': [...] }, env: { gameTime: N } }",
+                        }),
+                    );
+                    return;
+                }
+                snapshotData = data;
+            } else {
+                const snapshotFile = body.snapshotFile;
+                if (!snapshotFile) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Missing snapshotFile or data' }));
+                    return;
+                }
+                // Security: use path.basename to strip any path traversal
+                const safeName = path.basename(snapshotFile);
+                if (!safeName || !safeName.endsWith('.json')) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid filename' }));
+                    return;
+                }
+                const filePath = path.join(snapshotsDir, safeName);
+                // Security: ensure the resolved path is still inside snapshotsDir
+                if (!filePath.startsWith(snapshotsDir)) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Forbidden' }));
+                    return;
+                }
+                // Read snapshot from disk
+                try {
+                    snapshotData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+                } catch {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Snapshot not found or invalid' }));
+                    return;
+                }
+            }
+
+            // Launch: fork worker with restoreSnapshot
+            if (opts.onRunFromSnapshot) {
+                opts.onRunFromSnapshot(snapshotData);
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // DELETE /api/snapshots/:file — delete a saved snapshot
+        if (pathname.startsWith('/api/snapshots/') && req.method === 'DELETE') {
+            // Extract filename: /api/snapshots/my-file.json → my-file.json
+            const fileName = decodeURIComponent(pathname.slice('/api/snapshots/'.length));
+            // Security: use path.basename to strip any path traversal
+            const safeName = path.basename(fileName);
+            if (!safeName || !safeName.endsWith('.json')) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid filename' }));
+                return;
+            }
+            const filePath = path.join(snapshotsDir, safeName);
+            // Security: ensure the resolved path is still inside snapshotsDir
+            if (!filePath.startsWith(snapshotsDir)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden' }));
+                return;
+            }
+            try {
+                fs.unlinkSync(filePath);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true }));
+            } catch {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'File not found' }));
+            }
+            return;
+        }
+
+        // GET /api/snapshots — list saved snapshot files with metadata
+        if (pathname === '/api/snapshots' && req.method === 'GET') {
+            /** @type {Array<{file:string, size:number, modified:string, tick?:number, scenario?:string}>} */
+            const snapshots = [];
+            try {
+                const entries = fs.readdirSync(snapshotsDir);
+                for (const entry of entries) {
+                    if (entry.endsWith('.json')) {
+                        const fullPath = path.join(snapshotsDir, entry);
+                        const stat = fs.statSync(fullPath);
+                        const item = {
+                            file: entry,
+                            size: stat.size,
+                            modified: stat.mtime.toISOString(),
+                        };
+                        // Parse meta for tick + scenario (best-effort)
+                        try {
+                            const data = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+                            if (data.meta) {
+                                item.tick = data.meta.tick;
+                                item.scenario = data.meta.scenario
+                                    ? data.meta.scenario
+                                          .split(/[/\\]/)
+                                          .pop()
+                                          .replace(/\.scenario\.js$/, '')
+                                    : undefined;
+                            }
+                        } catch {
+                            /* corrupted file — skip meta */
+                        }
+                        snapshots.push(item);
+                    }
+                }
+                snapshots.sort((a, b) => b.modified.localeCompare(a.modified));
+            } catch {
+                // Directory doesn't exist — return empty list
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ snapshots }));
+            return;
+        }
+
+        // POST /api/open-snapshots-folder — open the snapshots directory in
+        // the OS file manager (Explorer/Finder/xdg-open). The viewer is a
+        // localhost tool, so the folder lives on the machine running the
+        // server — the browser cannot open it directly.
+        if (pathname === '/api/open-snapshots-folder' && req.method === 'POST') {
+            // Create the directory if it doesn't exist yet — opening a
+            // non-existent folder fails silently in most file managers.
+            fs.mkdirSync(snapshotsDir, { recursive: true });
+            const command = getOpenCommand(process.platform);
+            try {
+                const child = cp.spawn(command, [snapshotsDir], { detached: true, stdio: 'ignore' });
+                child.unref();
+                // Spawn failures (e.g. ENOENT on headless Linux without
+                // xdg-utils) are reported asynchronously via the 'error'
+                // event, which Node emits on process.nextTick — before the
+                // setImmediate below runs. So the client gets an honest 500
+                // instead of a silent ok when no file manager is available.
+                let settled = false;
+                child.on('error', (err) => {
+                    if (settled) return;
+                    settled = true;
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: `Failed to open folder: ${err.message}` }));
+                });
+                setImmediate(() => {
+                    if (settled) return;
+                    settled = true;
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: true, path: snapshotsDir }));
+                });
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: `Failed to open folder: ${err.message}` }));
+            }
+            return;
+        }
+
+        // GET /snapshots/:filename — serve a saved snapshot file
+        if (pathname.startsWith('/snapshots/') && req.method === 'GET') {
+            const requestedFile = path.basename(pathname); // strip path traversal
+            if (!requestedFile || !requestedFile.endsWith('.json')) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Not found' }));
+                return;
+            }
+            const filePath = path.join(snapshotsDir, requestedFile);
+            // Security: ensure the resolved path is still inside snapshotsDir
+            if (!filePath.startsWith(snapshotsDir)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden' }));
+                return;
+            }
+            if (serveStatic(res, filePath)) {
+                return;
+            }
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Snapshot file not found' }));
             return;
         }
 
@@ -475,19 +746,27 @@ async function createUiServer(opts = {}) {
                  * @param {Object} frame — the snapshot Frame
                  */
                 broadcast(frame) {
+                    // Keep the latest frame for late-connecting SSE clients
+                    lastFrame = frame;
                     // Forward all frame fields to SSE clients (including _sentAt, _size for metrics)
                     for (const client of sseClients) {
                         client.send('frame', frame);
                     }
                 },
 
-                broadcastStart(scenario, maxTicks, replayBuffer) {
+                broadcastStart(scenario, maxTicks, replayBuffer, paused) {
+                    // New scenario — stale frames/terrain must not leak to
+                    // late-connecting clients
+                    lastFrame = null;
+                    lastTerrain = null;
                     for (const client of sseClients) {
-                        client.send('start', { scenario, maxTicks, replayBuffer });
+                        client.send('start', { scenario, maxTicks, replayBuffer, paused });
                     }
                 },
 
                 broadcastTerrain(terrain) {
+                    // Keep the latest terrain for late-connecting SSE clients
+                    lastTerrain = terrain;
                     for (const client of sseClients) {
                         client.send('terrain', terrain);
                     }
@@ -496,6 +775,28 @@ async function createUiServer(opts = {}) {
                 broadcastEnd(reason, ticksRun) {
                     for (const client of sseClients) {
                         client.send('end', { reason, ticksRun });
+                    }
+                },
+
+                /**
+                 * Broadcast an error event to all SSE clients.
+                 * @param {string} code — error category (e.g. 'restore', 'save')
+                 * @param {string} message — human-readable error message
+                 */
+                broadcastError(code, message) {
+                    for (const client of sseClients) {
+                        client.send('error', { code, message });
+                    }
+                },
+
+                /**
+                 * Broadcast a restore-confirmation event to all SSE clients.
+                 * Signals the client to reset its local frame buffer.
+                 * @param {number} tick — the tick the server was restored to
+                 */
+                broadcastRestored(tick) {
+                    for (const client of sseClients) {
+                        client.send('restored', { tick });
                     }
                 },
 
@@ -525,4 +826,4 @@ async function createUiServer(opts = {}) {
     });
 }
 
-module.exports = { createUiServer };
+module.exports = { createUiServer, getOpenCommand };

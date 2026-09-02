@@ -27,6 +27,7 @@ const { once } = require('events');
 const { resolveConfig, printHelpAndExit, printVersionAndExit } = require('../src/lib/config/config');
 const { saveCallgrind } = require('../src/lib/runtime/profile');
 const { pruneCache } = require('../src/lib/runtime/cleanup');
+const { ensureEngineSnapshotCompat } = require('../src/lib/runtime/engineSnapshot');
 const { assertDir, FrameworkError } = require('../src/lib/errors');
 const { createUiServer } = require('../src/tools/viewer/server');
 const { createMemoryHistory } = require('../src/tools/viewer/memoryHistory');
@@ -35,10 +36,27 @@ const { createMemoryHistory } = require('../src/tools/viewer/memoryHistory');
 const SUMMARY_WARNINGS_LIMIT = 6;
 /** @type {number} Maximum lines of error output in summary */
 const SUMMARY_ERROR_LINES = 10;
+/**
+ * Grace period (ms) after a worker exits to wait for its final IPC message.
+ *
+ * The worker flushes its final message to the channel before exiting
+ * (process.send callback), but the parent has no ordering guarantee between
+ * the 'message' and 'exit' events. If 'exit' arrives first, this window lets
+ * the already-flushed message resolve the run instead of reporting
+ * "Worker exited unexpectedly" for a scenario that actually completed.
+ *
+ * @type {number}
+ */
+const WORKER_EXIT_GRACE_MS = 250;
 
 /**
  * @typedef {import('../src/lib/types').WorkerMessage} WorkerMessage
  * @typedef {import('../src/lib/types').SummaryEntry} SummaryEntry
+ *
+ * @typedef {Object} SnapshotDump — full world snapshot sent by worker via viewer:snapshot-data IPC
+ * @property {{scenario:string, timestamp:string, tick:number, bots:string[], rooms:string[]}} meta
+ * @property {{'rooms.objects':Object[], 'rooms.terrain':Object[], 'rooms.flags':Object[]}} db
+ * @property {{gameTime:number, memory:Object<string,Object>, roomStatus:Object|null, accessibleRooms:string[]|null}} env
  */
 
 const RUNNER_SCRIPT = path.join(__dirname, '..', 'src', 'runScenario.js');
@@ -215,7 +233,16 @@ function findScenarios(scenariosDir, only) {
  * @returns {Promise<WorkerMessage & {time?: number}>}
  */
 async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onIpcMessage) {
-    const child = fork(RUNNER_SCRIPT, [], { silent: true });
+    // SIT_SNAPSHOTS_DIR is read directly by lib/orchestration/world.js
+    // (resolveSnapshotsDir). Passing it via env guarantees the value reaches
+    // createWorld even when a scenario does not spread opts into it.
+    const child = fork(RUNNER_SCRIPT, [], {
+        silent: true,
+        env: {
+            ...process.env,
+            ...(opts && opts.snapshotsDir ? { SIT_SNAPSHOTS_DIR: opts.snapshotsDir } : {}),
+        },
+    });
     pipeChildStreams(child);
     const startTime = Date.now();
 
@@ -231,8 +258,22 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
 
         /** @type {WorkerMessage & { time?: number }} */
         const result = await new Promise((resolve, reject) => {
+            let finalReceived = false;
+            /** @type {ReturnType<typeof setTimeout>|null} Timer started when 'exit' beats 'message' */
+            let exitGraceTimer = null;
+
             function onMessage(msg) {
                 if (isFinalMessage(msg)) {
+                    finalReceived = true;
+                    if (exitGraceTimer) {
+                        // The worker exited before its final message was
+                        // processed — the message was still delivered, so
+                        // this is a recovered result, not a failure.
+                        console.warn(
+                            `[runner] ${path.basename(scenarioPath)}: worker exited before its ` +
+                                'final message was processed — recovered the flushed message',
+                        );
+                    }
                     cleanup();
                     resolve(msg);
                     return;
@@ -253,9 +294,18 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
             }
 
             function onExit(code, signal) {
-                cleanup();
+                if (finalReceived) {
+                    return; // already resolved via the final message
+                }
+                // The worker exits right after flushing its final message
+                // (send callback). 'exit' may be processed before 'message'
+                // — give the flushed message a short window to arrive before
+                // declaring the worker dead.
                 const reason = code !== null ? `exit code ${code}` : `signal ${signal}`;
-                reject(new Error(`Worker exited unexpectedly (${reason})`));
+                exitGraceTimer = setTimeout(() => {
+                    cleanup();
+                    reject(new Error(`Worker exited unexpectedly (${reason})`));
+                }, WORKER_EXIT_GRACE_MS);
             }
 
             function onAbort() {
@@ -264,6 +314,7 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
             }
 
             function cleanup() {
+                clearTimeout(exitGraceTimer);
                 child.removeListener('message', onMessage);
                 child.removeListener('error', onError);
                 child.removeListener('exit', onExit);
@@ -359,11 +410,18 @@ function printSummary(results) {
  * @returns {Promise<void>}
  */
 async function runViewerMode(config) {
+    // Fail loud, fail early: the viewer UI is a prebuilt bundle. Without it
+    // the HTTP server would start fine but the browser would only get 404s.
+    const viewerDistIndex = path.join(__dirname, '..', 'src', 'tools', 'viewer', 'dist', 'index.html');
+    if (!fs.existsSync(viewerDistIndex)) {
+        throw new FrameworkError('VIEWER_NOT_BUILT', path.dirname(viewerDistIndex));
+    }
+
     /** @type {boolean} */
     let terrainSent = false;
     /** @type {{scenario:string, maxTicks:number, replayBuffer:number}} */
     const lastStart = { scenario: '', maxTicks: 0, replayBuffer: 0 };
-    /** @type {Array<{scenarioPath:string, interactive:boolean}>} */
+    /** @type {Array<{scenarioPath:string, interactive:boolean, snapshotData?:Object}>} */
     const scenarioQueue = [];
     let activeCount = 0;
     // Interactive scenarios run one-at-a-time to avoid viewer race conditions.
@@ -412,7 +470,7 @@ async function runViewerMode(config) {
             case 'viewer:snapshot':
                 if (msg.data) {
                     try {
-                        const dir = path.join(process.cwd(), 'snapshots');
+                        const dir = config.snapshotsDir;
                         fs.mkdirSync(dir, { recursive: true });
                         const filename = `snapshot-${Date.now()}.json`;
                         fs.writeFileSync(path.join(dir, filename), JSON.stringify(msg.data, null, 2));
@@ -420,6 +478,62 @@ async function runViewerMode(config) {
                     } catch (err) {
                         console.error(`[viewer] Failed to save snapshot: ${err.message}`);
                     }
+                }
+                break;
+            case 'viewer:snapshot-data':
+                if (msg.dump) {
+                    /** @type {SnapshotDump} */
+                    const dump = msg.dump;
+                    try {
+                        const dir = config.snapshotsDir;
+                        fs.mkdirSync(dir, { recursive: true });
+                        // Extract scenario name from path: /path/to/my-scenario.scenario.js → my-scenario
+                        const scenarioRaw = dump.meta.scenario || '';
+                        const scenarioName =
+                            path
+                                .basename(scenarioRaw)
+                                .replace(/\.scenario\.js$/, '')
+                                .replace(/[<>:"/\\|?*]/g, '_') || 'unknown';
+
+                        // Human-readable timestamp: YYYY-MM-DD_HH-mm
+                        const now = new Date();
+                        const pad = (n) => String(n).padStart(2, '0');
+                        const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+                        const filename = `snapshot-${scenarioName}-tick${dump.meta.tick}-${ts}.json`;
+                        const filepath = path.join(dir, filename);
+                        fs.writeFileSync(filepath, JSON.stringify(dump));
+                        console.log(`[viewer] Snapshot saved: ${filepath}`);
+                        if (activeChild && activeChild.connected) {
+                            activeChild.send({
+                                type: 'viewer:snapshot-saved',
+                                path: filepath,
+                            });
+                        }
+                    } catch (err) {
+                        console.error(`[viewer] Failed to save snapshot: ${err.message}`);
+                    }
+                }
+                break;
+            case 'viewer:snapshot-error':
+                console.error(`[viewer] Snapshot save failed: ${msg.error}`);
+                break;
+            case 'viewer:restored':
+                if (uiServer) {
+                    uiServer.updateStatus({
+                        state: 'running',
+                        tick: msg.tick,
+                    });
+                    // Tell clients to reset their local frame buffer
+                    uiServer.broadcastRestored(msg.tick);
+                }
+                break;
+            case 'viewer:restore-error':
+                console.error(`[viewer] Restore failed: ${msg.error}`);
+                if (uiServer) {
+                    // Broadcast error to SSE clients so UI can display it.
+                    // Do NOT call updateStatus here — the worker already sends
+                    // the correct state via viewer:status (preserving wasPaused).
+                    uiServer.broadcastError('restore', msg.error || 'Unknown restore error');
                 }
                 break;
             case 'viewer:scenario-result':
@@ -436,6 +550,25 @@ async function runViewerMode(config) {
                     });
                 }
                 break;
+            case 'viewer:memory-request':
+                if (memoryHistory && msg.tick !== undefined && msg.bots) {
+                    /** @type {Object<string, Object>} */
+                    const memories = {};
+                    for (const username of msg.bots) {
+                        const mem = memoryHistory.reconstruct(msg.tick, username);
+                        if (mem !== null) {
+                            memories[username] = mem;
+                        }
+                    }
+                    if (child && child.connected) {
+                        child.send({
+                            type: 'viewer:memory-reconstruct',
+                            tick: msg.tick,
+                            memories,
+                        });
+                    }
+                }
+                break;
         }
     }
 
@@ -450,12 +583,16 @@ async function runViewerMode(config) {
                 break;
             }
 
-            const { scenarioPath, interactive } = scenarioQueue.shift();
+            const { scenarioPath, interactive, snapshotData } = scenarioQueue.shift();
             activeCount++;
             if (interactive) interactiveRunning++;
-            const scenarioName = path.basename(scenarioPath, '.scenario.js');
+            const scenarioName = snapshotData
+                ? snapshotData.meta && snapshotData.meta.scenario
+                    ? path.basename(snapshotData.meta.scenario).replace(/\.scenario\.js$/, '')
+                    : 'snapshot-launch'
+                : path.basename(scenarioPath, '.scenario.js');
 
-            const opts = { profiling: config.profiling || false };
+            const opts = { profiling: config.profiling || false, snapshotsDir: config.snapshotsDir };
 
             if (interactive) {
                 opts.viewer = true;
@@ -464,8 +601,19 @@ async function runViewerMode(config) {
                 lastStart.scenario = scenarioName;
                 lastStart.maxTicks = 0;
                 lastStart.replayBuffer = replayBufferTicks;
-                if (uiServer) uiServer.broadcastStart(scenarioName, 0, replayBufferTicks);
+                if (uiServer) {
+                    uiServer.broadcastStart(
+                        scenarioName,
+                        0,
+                        replayBufferTicks,
+                        config.viewerOptions ? config.viewerOptions.paused : false,
+                    );
+                }
                 activeChild = null; // Will be set inside runScenarioInWorker via routeIpcMessage
+                // Snapshot launch: pass snapshot data to worker for restore mode
+                if (snapshotData) {
+                    opts.restoreSnapshot = snapshotData;
+                }
             }
 
             // For interactive scenarios, we need to track activeChild.
@@ -482,6 +630,11 @@ async function runViewerMode(config) {
                     if (interactive) interactiveRunning--;
                     // Clear active child if this was our interactive scenario
                     if (interactive) activeChild = null;
+                    // Tell the viewer the scenario has finished so the client
+                    // switches to local replay of the recorded frames.
+                    if (interactive && uiServer) {
+                        uiServer.broadcastEnd(result.status, result.result?.ticksRun || 0);
+                    }
                     if (result.status === 'fail' || result.status === 'timeout') {
                         console.error(`[viewer] ${scenarioName} failed: ${result.error || result.status}`);
                     }
@@ -508,9 +661,33 @@ async function runViewerMode(config) {
         processQueue();
     };
 
+    /**
+     * Launch a world from a saved snapshot (via REST).
+     * Uses the existing worker infrastructure — the worker detects
+     * `opts.restoreSnapshot` and creates the world from snapshot meta
+     * instead of requiring a scenario file.
+     *
+     * @param {Object} snapshotData — full snapshot object from disk
+     */
+    const launchFromSnapshot = (snapshotData) => {
+        // Dispose existing interactive scenario if any
+        disposeActiveScenario();
+
+        // Queue as interactive scenario — processQueue handles activeChild,
+        // concurrency, and IPC routing (routeIpcMessage)
+        scenarioQueue.push({
+            scenarioPath: '', // empty — runScenario.js detects restoreSnapshot
+            interactive: true,
+            snapshotData,
+        });
+        processQueue();
+    };
+
     try {
         uiServer = await createUiServer({
+            port: config.viewerPort ?? undefined,
             scenariosDir: config.scenariosDir,
+            snapshotsDir: config.snapshotsDir,
             lastStart,
             memoryHistory,
             sendCommand: (cmd) => {
@@ -519,6 +696,7 @@ async function runViewerMode(config) {
                 }
             },
             onRunScenario: launchScenario,
+            onRunFromSnapshot: launchFromSnapshot,
         });
     } catch (err) {
         console.error('[runner] Failed to start UI server:', err.message);
@@ -605,11 +783,36 @@ async function main() {
         console.log(`[runner] Cache cleanup: removed ${cleanupResult.removed}, kept ${cleanupResult.kept}`);
     }
 
+    // ── Engine snapshot compatibility ──────────────────────────────────
+    // `@screeps/driver` ships a prebuilt V8 snapshot that breaks after every
+    // Node.js upgrade. Regenerate it eagerly, ONCE per run, BEFORE any
+    // worker is forked — workers then hit only the stamp fast path in
+    // prepareServer (a single file read, no lock contention).
+    try {
+        ensureEngineSnapshotCompat();
+    } catch (err) {
+        if (err instanceof FrameworkError) {
+            console.error(`\n${err.toString()}`);
+        } else {
+            console.error('[runner] Engine snapshot check failed:', err.stack || err.message);
+        }
+        process.exit(1);
+    }
+
     // ── Viewer mode ────────────────────────────────────────────────────
     // When --viewer is active, delegate to the viewer runner which owns
     // its own IPC routing, queue management, and SSE broadcasting.
     if (config.viewer) {
-        await runViewerMode(config);
+        try {
+            await runViewerMode(config);
+        } catch (err) {
+            if (err instanceof FrameworkError) {
+                console.error(`\n${err.toString()}`);
+            } else {
+                console.error('[runner] Viewer error:', err.message);
+            }
+            process.exit(1);
+        }
         // runViewerMode blocks indefinitely (await new Promise(() => {}))
         return;
     }
@@ -660,7 +863,7 @@ async function main() {
 
             const result = await runScenarioInWorker(
                 scenarioPath,
-                { profiling: config.profiling, viewer: config.viewer },
+                { profiling: config.profiling, viewer: config.viewer, snapshotsDir: config.snapshotsDir },
                 config.timeout,
                 config.roomFixturesDir,
                 null, // no IPC routing in batch mode

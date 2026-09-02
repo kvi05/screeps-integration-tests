@@ -51,6 +51,13 @@ const ERROR_CONTEXTS = {
             '  4. Or use --build to run the build command automatically before tests.',
         docs: 'docs/GETTING-STARTED.md',
     },
+    VIEWER_NOT_BUILT: {
+        title: 'Viewer UI is not built',
+        why: 'The browser viewer (--viewer) serves a prebuilt bundle from src/tools/viewer/dist/. The bundle is not published to npm — it is built on the user side. Without it the UI server would start, but the browser would only get 404s.',
+        how:
+            '1. In a repo checkout: npm run viewer:build.\n' +
+            '  2. From the npm package: cd node_modules/screeps-integration-tests/src/tools/viewer/client && npm install && npm run build.\n',
+    },
     MISSING_FIXTURES_DIR: {
         title: 'Fixtures directory not found',
         why: 'Memory fixtures (*.memory.json) provide pre-built bot Memory snapshots for scenarios. They are loaded from the fixtures directory.',
@@ -77,6 +84,14 @@ const ERROR_CONTEXTS = {
             "  module.exports = { scenariosDir: './tests/scenarios', distDir: './dist' };\n" +
             'Or as a function:\n' +
             '  module.exports = () => ({ ... });',
+        docs: 'docs/CONFIG.md',
+    },
+    INVALID_VIEWER_PORT: {
+        title: 'Invalid viewerPort value',
+        why: 'viewerPort must be an integer between 1 and 65535, or null to pick a free port automatically. The configured value is passed to the UI server as-is and would otherwise fail with a cryptic listen error.',
+        how:
+            '1. Set viewerPort to a valid port number, e.g. 3100.\n' +
+            '  2. Or remove it / set it to null to pick a free port automatically.',
         docs: 'docs/CONFIG.md',
     },
     MISSING_SCENARIO: {
@@ -161,6 +176,28 @@ const ERROR_CONTEXTS = {
         why: 'The config file exists but contains invalid JavaScript syntax and cannot be loaded.',
         how: 'Check the file for syntax errors: missing commas, unmatched brackets, invalid statements, etc.',
         docs: 'docs/CONFIG.md',
+    },
+    ENGINE_SNAPSHOT_MISMATCH: {
+        title: 'Engine snapshot is incompatible with the current Node.js version',
+        why:
+            'The mock server engine (@screeps/driver) ships a prebuilt V8 snapshot that only works with the exact V8 version it was built with. ' +
+            'After a Node.js upgrade the snapshot stops working, and the framework tried to regenerate it automatically but the regeneration failed.',
+        how:
+            '1. Reinstall dependencies: `npm ci`.\n' +
+            '  2. Make sure the `isolated-vm` native module is rebuilt for this Node.js version: `npm rebuild isolated-vm`.\n' +
+            '  3. If the problem persists, delete the lock file next to the snapshot and run again.',
+        docs: 'docs/GETTING-STARTED.md',
+    },
+    ENGINE_CRASH: {
+        title: 'The mock server engine crashed',
+        why:
+            'The engine child processes started by screeps-server-mockup exited unexpectedly. ' +
+            'This usually means the prebuilt V8 snapshot in @screeps/driver is incompatible with the current Node.js version.',
+        how:
+            '1. The framework regenerates the snapshot automatically — simply run again.\n' +
+            '  2. If the crash persists, reinstall dependencies: `npm ci`.\n' +
+            '  3. Make sure the `isolated-vm` native module is built for this Node.js version: `npm rebuild isolated-vm`.',
+        docs: 'docs/GETTING-STARTED.md',
     },
 };
 
