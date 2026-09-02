@@ -187,7 +187,7 @@ PR #64 [Feat/viewer dx](https://github.com/kvi05/screeps-integration-tests/pull/
   troubleshooting); README / CONTRIBUTING / CONFIG.md synced with the new
   scripts and flags.
 
-PR #65 [Feat/cross world totals](https://github.com/kvi05/screeps-integration-tests/pull/65)
+PR #66 [Feat/cross world totals](https://github.com/kvi05/screeps-integration-tests/pull/66)
 
 - **Scenario Manager: total ticks per run.** The worker now aggregates
   `ticksRun` across **all** worlds created by a scenario (a scenario may call
