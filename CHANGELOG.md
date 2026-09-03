@@ -205,6 +205,9 @@ PR #66 [Feat/cross world totals](https://github.com/kvi05/screeps-integration-te
   aggregate. Worlds are tracked in the new `orchestration/worldReports.js`
   registry: `dispose()` freezes the world's final `ticksRun` and releases its
   report, so long-lived processes do not accumulate disposed worlds' reports.
+
+PR #67 [feat(viewer): Run All / Stop All lifecycle — atomic restart, graceful batch dispose](https://github.com/kvi05/screeps-integration-tests/pull/67)
+
 - **Viewer — Run All / Stop All lifecycle.**
   - **Stop All:** new `POST /api/stop-all` endpoint and Scenario Manager
     toolbar button — stops every running scenario (interactive and headless)
