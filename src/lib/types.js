@@ -500,8 +500,9 @@
  *
  * @property {string[]} frameworkWarnings               — technical framework warnings (not bot errors)
  *
- * @property {Array<{level:string, message:string, bot:string, tick:number}>} [_consoleEntries]
+ * @property {Array<{level: 'error'|'warn'|'info', message:string, bot:string, tick:number}>} [_consoleEntries]
  *           — @internal structured console entries for viewer snapshots
+ *             (level comes from classifyConsoleLine — same classification as report.errors/warnings)
  *
  * @property {string|null} stopReason                   — stop reason (predicate / signal / maxTicks)
  */

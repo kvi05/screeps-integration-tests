@@ -66,9 +66,72 @@ function looksLikeWarn(line) {
 }
 
 /**
+ * Severity of a classified console line.
+ *
+ * @typedef {'error'|'warn'|'info'} ConsoleLineLevel
+ */
+
+/**
+ * Strips the `[ERROR]`/`[WARN]` marker from a console line so the UI can
+ * render its own severity badge instead of the engine's text marker.
+ * Falls back to the original line when no marker is present.
+ *
+ * @param {string} line
+ * @param {string} marker — marker to strip ('[ERROR]' or '[WARN]')
+ * @returns {string}
+ */
+function stripLogMarker(line, marker) {
+    const idx = line.indexOf(marker);
+    if (idx === -1) {
+        return line;
+    }
+    return (line.slice(0, idx) + line.slice(idx + marker.length)).trim();
+}
+
+/**
+ * Classifies a single console line into a severity level. Single source of
+ * truth for console classification — shared by `createConsoleCapture`
+ * (report.errors/warnings/logs) and the viewer snapshot collector
+ * (`world._consoleEntries` → `Frame.console`), so the UI Error/Warn tabs
+ * always agree with `world.report`.
+ *
+ * A line is an error when it contains an `[ERROR]` marker or matches one of
+ * {@link ERROR_PATTERNS} — the engine reports runtime errors without a
+ * prefix (e.g. `TypeError: Cannot read property 'x' of undefined`).
+ * A line is a warning when it contains a `[WARN]` marker. Everything else
+ * is informational.
+ *
+ * For error/warn lines the `[ERROR]`/`[WARN]` marker is stripped from
+ * `message`; for pattern-detected errors (no marker) the message is
+ * returned unchanged.
+ *
+ * @param {string} line — raw console line from the engine
+ * @returns {{ level: ConsoleLineLevel, message: string }}
+ *
+ * @example
+ * classifyConsoleLine('[ERROR] Spawn failed');
+ * // → { level: 'error', message: 'Spawn failed' }
+ * classifyConsoleLine('TypeError: Cannot read property x');
+ * // → { level: 'error', message: 'TypeError: Cannot read property x' }
+ * classifyConsoleLine('[WARN] Low energy');
+ * // → { level: 'warn', message: 'Low energy' }
+ * classifyConsoleLine('Harvester moving to source');
+ * // → { level: 'info', message: 'Harvester moving to source' }
+ */
+function classifyConsoleLine(line) {
+    if (line.includes('[ERROR]') || looksLikeError(line)) {
+        return { level: 'error', message: stripLogMarker(line, '[ERROR]') };
+    }
+    if (line.includes('[WARN]') || looksLikeWarn(line)) {
+        return { level: 'warn', message: stripLogMarker(line, '[WARN]') };
+    }
+    return { level: 'info', message: line };
+}
+
+/**
  * Creates a console event handler for a mockup bot.
  *
- * Classification logic:
+ * Classification logic (delegates to {@link classifyConsoleLine}):
  *   1. '[ERROR]' + ERROR_PATTERNS → report.errors (always)
  *   2. '[WARN]' + WARN_PATTERNS → report.warnings (always)
  *   3. report.logs — accumulates all logs. Threshold is opts.logLevel
@@ -94,13 +157,12 @@ function createConsoleCapture(opts = {}) {
             return;
         }
         for (const line of logs) {
-            const isError = line.includes('[ERROR]') || looksLikeError(line);
-            const isWarn = line.includes('[WARN]') || looksLikeWarn(line);
+            const { level } = classifyConsoleLine(line);
 
-            if (isError) {
+            if (level === 'error') {
                 report.errors.push(line);
                 report.logs.push(line);
-            } else if (isWarn) {
+            } else if (level === 'warn') {
                 report.warnings.push(line);
                 if (logLevel !== 'error') {
                     report.logs.push(line);
@@ -114,4 +176,11 @@ function createConsoleCapture(opts = {}) {
     return { handler, report };
 }
 
-module.exports = { createConsoleCapture, looksLikeError, ERROR_PATTERNS, DEFAULT_LOG_LEVEL, DEFAULT_MAX_CONSOLE_LINES };
+module.exports = {
+    createConsoleCapture,
+    classifyConsoleLine,
+    looksLikeError,
+    ERROR_PATTERNS,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_MAX_CONSOLE_LINES,
+};

@@ -23,7 +23,12 @@ const { collectMetrics, sampleMetrics, collectBotMetrics, sampleBotMetrics } = r
 const { MetricsReport } = require('../assertions/metricsReport');
 const { checkStopCondition } = require('../observers/predicate');
 const { snapshotOwners, mergeOwners } = require('../observers/ownership');
-const { createConsoleCapture, DEFAULT_LOG_LEVEL, DEFAULT_MAX_CONSOLE_LINES } = require('../runtime/console');
+const {
+    createConsoleCapture,
+    classifyConsoleLine,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_MAX_CONSOLE_LINES,
+} = require('../runtime/console');
 const { createEventRegistry, registerDefaultEvents } = require('./events');
 const { createWorldHelpers, getRoomRcl } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
@@ -285,20 +290,16 @@ async function initializeBots(bots, resolvedBots, adapter, opts, report, globalL
         }
 
         const { handler } = createConsoleCapture({ report, logLevel: effectiveLogLevel, maxConsoleLines });
-        // Wrap handler to also store structured console entries for the viewer
+        // Wrap handler to also store structured console entries for the viewer.
+        // Classification is shared with createConsoleCapture (classifyConsoleLine)
+        // so viewer severity tags match report.errors/report.warnings — including
+        // unprefixed engine errors ("TypeError: ...") that the UI Error/Warn
+        // tabs rely on.
         bot.on('console', (logs /*, results, userid, username */) => {
             // Store structured entries for viewer snapshot (with tick placeholder — filled in doTick)
             const tickNum = report.ticksRun; // Current tick (pre-increment in doTick)
             for (const line of logs) {
-                let level = 'info';
-                let message = line;
-                if (line.startsWith('[ERROR]')) {
-                    level = 'error';
-                    message = line.slice(7).trim();
-                } else if (line.startsWith('[WARN]')) {
-                    level = 'warn';
-                    message = line.slice(6).trim();
-                }
+                const { level, message } = classifyConsoleLine(line);
                 // Store structured entry on report for snapshot
                 if (!report._consoleEntries) report._consoleEntries = [];
                 report._consoleEntries.push({ level, message, bot: username, tick: tickNum });
