@@ -2771,6 +2771,42 @@ body,
     margin-bottom: 0 !important;
 }
 
+/* Resources panel (sidebar tab) */
+.resources-panel .resources-meta {
+    margin-left: auto;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-normal);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+}
+.resources-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-sm);
+}
+.resources-table td {
+    padding: var(--sp-1) 0;
+    color: var(--text-muted);
+}
+.resources-table td.mono {
+    text-align: right;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.resources-table td.mono.bad {
+    color: var(--error);
+}
+.resources-hint {
+    margin-top: var(--sp-3);
+    font-size: var(--fs-xs) !important;
+    color: var(--text-dim) !important;
+}
+.resources-hint.warn {
+    color: #fbbf24 !important;
+}
+
 /* Snapshot list — vertical cards: name gets a full-width scrollable row,
    meta sits below, actions are pinned to the bottom with a hairline */
 .snapshot-list {

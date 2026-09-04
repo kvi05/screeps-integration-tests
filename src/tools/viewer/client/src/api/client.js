@@ -148,6 +148,14 @@ export function getStatus() {
     return fetch('/api/status').then((r) => r.json());
 }
 
+/** Get backend resource usage (parent process memory/CPU, host system, viewer buffers) */
+export function getStats() {
+    return fetch('/api/stats').then((r) => {
+        if (!r.ok) throw new Error(`Failed to fetch stats: ${r.status}`);
+        return r.json();
+    });
+}
+
 /** Get list of available scenarios */
 export function getScenarios() {
     return fetch('/api/scenarios').then((r) => r.json());
