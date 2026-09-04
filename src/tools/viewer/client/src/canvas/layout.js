@@ -103,7 +103,49 @@ export function nextLocal(base, next, layout) {
 const ACTION_KEYS = ['harvest', 'attack', 'upgradeController', 'heal', 'rangedAttack', 'rangedHeal', 'build'];
 
 /**
+ * How many frames back the "last known movement" scan may look (path 3).
+ *
+ * The old implementation scanned the ENTIRE ring buffer for every creep that
+ * had not moved recently — O(buffer × objects) per creep per redraw. With a
+ * 3000-frame buffer that is a main-thread death spiral around tick ~1500
+ * (renderer killed by the browser watchdog → black screen). 60 frames ≈ one
+ * minute of game time is more than enough to pick a stable facing angle;
+ * older than that the fallback angle is used.
+ * @type {number}
+ */
+export const FACING_LOOKBACK = 60;
+
+/**
+ * Memo: objectId → { gameTime, angle }. Keyed by gameTime (stable across ring
+ * buffer eviction, unlike the array index). Redraws at the same tick but
+ * different sub-frames hit the memo instead of re-scanning history.
+ * @type {Map<string, {gameTime:number, angle:number}>}
+ */
+const facingMemo = new Map();
+
+/** Upper bound for the memo map — clears on overflow (creep ids churn). */
+const FACING_MEMO_MAX = 1000;
+
+/**
+ * Clear the facing memo (used when the frame buffer is reset: new scenario,
+ * rewind/restore).
+ */
+export function resetFacingMemo() {
+    facingMemo.clear();
+}
+
+/**
  * Compute the facing angle of a creep.
+ *
+ * Paths (in priority order):
+ *   1. actionLog target of frame i+1
+ *   2. movement delta i→i+1
+ *   3. bounded backward history scan for the last movement (≤ FACING_LOOKBACK
+ *      frames — see the constant above for why it must stay bounded)
+ *   4. fallbackAngle
+ *
+ * Results are memoized per (objectId, gameTime) — sub-frame redraws at the
+ * same tick are pure cache hits.
  *
  * @param {Object[]} frames
  * @param {number} frameIndex
@@ -113,6 +155,28 @@ const ACTION_KEYS = ['harvest', 'attack', 'upgradeController', 'heal', 'rangedAt
  * @returns {number} angle in degrees
  */
 export function creepFacing(frames, frameIndex, objectId, layout, fallbackAngle = 0) {
+    const baseFrame = frames[frameIndex];
+    const gameTime = baseFrame ? baseFrame.gameTime : -1;
+    const memo = facingMemo.get(objectId);
+    if (memo && memo.gameTime === gameTime) return memo.angle;
+
+    const angle = computeFacing(frames, frameIndex, objectId, layout, fallbackAngle);
+    if (facingMemo.size >= FACING_MEMO_MAX) facingMemo.clear();
+    facingMemo.set(objectId, { gameTime, angle });
+    return angle;
+}
+
+/**
+ * Unmemoized facing computation — see creepFacing for the path order.
+ *
+ * @param {Object[]} frames
+ * @param {number} frameIndex
+ * @param {string} objectId
+ * @param {StageLayout} layout
+ * @param {number} fallbackAngle
+ * @returns {number} angle in degrees
+ */
+function computeFacing(frames, frameIndex, objectId, layout, fallbackAngle) {
     const offsets = layout ? layout.offsets : null;
     const posAt = (fi) => {
         const frame = frames[fi];
@@ -147,7 +211,9 @@ export function creepFacing(frames, frameIndex, objectId, layout, fallbackAngle 
         const delta = worldDelta(curr, next);
         if (delta) return (Math.atan2(delta.dy, delta.dx) * 180) / Math.PI;
     }
-    for (let k = frameIndex; k >= 1; k--) {
+    // Bounded backward scan: never further than FACING_LOOKBACK frames.
+    const lowerBound = Math.max(1, frameIndex - FACING_LOOKBACK);
+    for (let k = frameIndex; k >= lowerBound; k--) {
         const a = posAt(k - 1);
         const b = posAt(k);
         if (a && b) {
