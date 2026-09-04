@@ -39,7 +39,9 @@
  * @property {number} gameTime
  * @property {FrameObject[]} objects
  * @property {Object<string,string[]>} [terrain]
- * @property {string[]} [console]
+ * @property {Array<{level: 'error'|'warn'|'info', message: string, bot: string}>} [console]
+ *   Structured console entries for this tick. Mirrors the canonical `Frame`
+ *   typedef in `src/lib/types.js`.
  */
 
 /**
