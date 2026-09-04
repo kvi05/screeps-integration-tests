@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { render, act, fireEvent } from '@testing-library/react';
 import React from 'react';
 import App from '../src/App';
 import CanvasStage from '../src/components/CanvasStage';
@@ -289,6 +289,256 @@ describe('canvas rendering', () => {
         } finally {
             window.requestAnimationFrame = origRaf;
             window.cancelAnimationFrame = origCancelRaf;
+        }
+    });
+
+    it('coalesces camera drag into one paint per frame and commits state at gesture end', () => {
+        // Regression: live camera gestures must paint straight from the camera
+        // ref, coalesced to at most one canvas redraw per animation frame —
+        // NOT a React state update + full redraw per mousemove. React state
+        // (and onCameraChange consumers like MiniMap) is committed once, at
+        // gesture end.
+        const makeRecording = (n) => ({
+            terrain: { W0N0: Array.from({ length: 50 }, () => '.'.repeat(50)) },
+            frames: Array.from({ length: n }, (_, i) => ({
+                gameTime: i,
+                objects: [{ _id: 'src' + i, type: 'source', x: 25, y: 25, room: 'W0N0' }],
+                console: [],
+            })),
+        });
+
+        // Count paints: renderCurrentFrame calls clearRect exactly once per draw.
+        const origGetContext = HTMLCanvasElement.prototype.getContext;
+        const clearCount = { n: 0 };
+        HTMLCanvasElement.prototype.getContext = function (type) {
+            const ctx = origGetContext.call(this, type);
+            const origClear = ctx.clearRect.bind(ctx);
+            ctx.clearRect = (...args) => {
+                clearCount.n++;
+                return origClear(...args);
+            };
+            return ctx;
+        };
+
+        // Manual rAF queue — callbacks run only when flushed explicitly.
+        const origRaf = window.requestAnimationFrame;
+        const origCancelRaf = window.cancelAnimationFrame;
+        const queue = [];
+        let rafSeq = 0;
+        window.requestAnimationFrame = vi.fn((cb) => {
+            queue.push(cb);
+            return ++rafSeq;
+        });
+        window.cancelAnimationFrame = vi.fn();
+
+        const onCameraChange = vi.fn();
+
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            render(
+                <CanvasStage
+                    recording={makeRecording(1)}
+                    tick={0}
+                    sub={null}
+                    playing={false}
+                    onCameraChange={onCameraChange}
+                />,
+                { container },
+            );
+            act(() => {}); // flush mount effects (initial fit + paint)
+
+            const canvas = container.querySelector('canvas');
+            const paintsAtStart = clearCount.n;
+            const commitsAtStart = onCameraChange.mock.calls.length;
+            const before = onCameraChange.mock.calls[commitsAtStart - 1][0];
+
+            // Drag: right-button down + three moves inside one frame window.
+            fireEvent.mouseDown(canvas, { button: 2, clientX: 100, clientY: 100 });
+            fireEvent.mouseMove(canvas, { clientX: 120, clientY: 90 });
+            fireEvent.mouseMove(canvas, { clientX: 140, clientY: 80 });
+            fireEvent.mouseMove(canvas, { clientX: 160, clientY: 70 });
+
+            // No synchronous paints, exactly one rAF scheduled for the whole
+            // batch, and no React state commits during the gesture.
+            expect(clearCount.n).toBe(paintsAtStart);
+            expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
+            expect(onCameraChange.mock.calls.length).toBe(commitsAtStart);
+
+            // Flushing the frame → exactly ONE paint for the whole batch.
+            act(() => {
+                const pending = queue.splice(0);
+                for (const cb of pending) cb();
+            });
+            expect(clearCount.n).toBe(paintsAtStart + 1);
+
+            // Gesture end → single commit carrying the final camera position
+            // (dx = +60, dy = −30 from the three moves; zoom unchanged).
+            fireEvent.mouseUp(canvas, { clientX: 160, clientY: 70 });
+            expect(onCameraChange.mock.calls.length).toBe(commitsAtStart + 1);
+            expect(onCameraChange).toHaveBeenLastCalledWith({
+                x: before.x + 60,
+                y: before.y - 30,
+                zoom: before.zoom,
+            });
+        } finally {
+            HTMLCanvasElement.prototype.getContext = origGetContext;
+            window.requestAnimationFrame = origRaf;
+            window.cancelAnimationFrame = origCancelRaf;
+        }
+    });
+
+    // ─── Idle keep-warm + visibility warm-up ────────────────────────────────
+    // Regression guard for the "first interaction after an idle period
+    // stutters" bug: while visible-but-idle the browser evicts decoded
+    // sprite bitmaps and the canvas' GPU backing store; the stage must keep
+    // its caches warm and repaint immediately when the tab returns.
+
+    const makeRecording = (n) => ({
+        terrain: { W0N0: Array.from({ length: 50 }, () => '.'.repeat(50)) },
+        frames: Array.from({ length: n }, (_, i) => ({
+            gameTime: i,
+            objects: [{ _id: 'src' + i, type: 'source', x: 25, y: 25, room: 'W0N0' }],
+            console: [],
+        })),
+    });
+
+    /** Count full paints: renderCurrentFrame calls clearRect exactly once per draw. */
+    function instrumentPaints() {
+        const origGetContext = HTMLCanvasElement.prototype.getContext;
+        const clearCount = { n: 0 };
+        HTMLCanvasElement.prototype.getContext = function (type) {
+            const ctx = origGetContext.call(this, type);
+            const origClear = ctx.clearRect.bind(ctx);
+            ctx.clearRect = (...args) => {
+                clearCount.n++;
+                return origClear(...args);
+            };
+            return ctx;
+        };
+        return {
+            clearCount,
+            restore() {
+                HTMLCanvasElement.prototype.getContext = origGetContext;
+            },
+        };
+    }
+
+    /** Override document visibility (jsdom defaults to visible); returns a restore fn. */
+    function setVisibility(state) {
+        Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+        Object.defineProperty(document, 'hidden', { value: state === 'hidden', configurable: true });
+        return () => {
+            delete document.visibilityState;
+            delete document.hidden;
+        };
+    }
+
+    it('keep-warm: repaints an idle visible stage at most once per interval', () => {
+        // Date is faked so the staleness check (Date.now() vs last paint)
+        // advances together with the interval.
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+        const { clearCount, restore } = instrumentPaints();
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const { unmount } = render(
+                <CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={false} />,
+                { container },
+            );
+            act(() => {}); // flush mount effects (initial paint)
+
+            const baseline = clearCount.n;
+            expect(baseline).toBeGreaterThan(0);
+
+            // Idle for a full interval → exactly one warm repaint.
+            act(() => {
+                vi.advanceTimersByTime(4000);
+            });
+            expect(clearCount.n).toBe(baseline + 1);
+
+            // The repaint refreshed the timestamp — an interval fire just
+            // before the next interval must NOT paint again.
+            act(() => {
+                vi.advanceTimersByTime(3999);
+            });
+            expect(clearCount.n).toBe(baseline + 1);
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(clearCount.n).toBe(baseline + 2);
+
+            unmount();
+        } finally {
+            restore();
+            vi.useRealTimers();
+        }
+    });
+
+    it('repaints immediately when the tab becomes visible again', () => {
+        const { clearCount, restore } = instrumentPaints();
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            render(<CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={false} />, {
+                container,
+            });
+            act(() => {});
+
+            const baseline = clearCount.n;
+            expect(baseline).toBeGreaterThan(0);
+
+            // visibilitychange while hidden → no paint.
+            const hide = setVisibility('hidden');
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+            expect(clearCount.n).toBe(baseline);
+            hide();
+
+            // Back to visible → immediate warm-up repaint.
+            const show = setVisibility('visible');
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+            expect(clearCount.n).toBe(baseline + 1);
+            show();
+        } finally {
+            restore();
+        }
+    });
+
+    it('skips data-driven paints while hidden and covers the return with a warm-up', () => {
+        const { clearCount, restore } = instrumentPaints();
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const { rerender } = render(
+                <CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={false} />,
+                { container },
+            );
+            act(() => {});
+
+            const baseline = clearCount.n;
+
+            // Hide the tab, then deliver a new frame — the paint is skipped
+            // (nothing is composited while hidden).
+            const hide = setVisibility('hidden');
+            rerender(<CanvasStage recording={makeRecording(2)} tick={1} sub={null} playing={false} />);
+            act(() => {});
+            expect(clearCount.n).toBe(baseline);
+            hide();
+
+            // Return to visible → warm-up repaint with the latest state.
+            const show = setVisibility('visible');
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+            expect(clearCount.n).toBe(baseline + 1);
+            show();
+        } finally {
+            restore();
         }
     });
 });

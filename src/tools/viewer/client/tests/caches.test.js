@@ -116,3 +116,112 @@ describe('SpriteCache incremental prewarm', () => {
         expect(rasterizeInvader).not.toHaveBeenCalled();
     });
 });
+
+/**
+ * Sprites must be canvas-backed bitmaps, not SVG `<img>` elements.
+ *
+ * drawImage from an `<img>` goes through Blink's decoded-image cache —
+ * Chromium evicts decoded data on memory pressure / hidden tab / disuse, and
+ * the first draw after that synchronously re-decodes the SVG on the main
+ * thread (the "first interaction after idle stutters" bug). A canvas bitmap
+ * is a plain texture blit with no decode step.
+ */
+describe('SpriteCache rasterization target', () => {
+    /**
+     * jsdom never fires Image.onload — install a fake Image class that
+     * "loads" asynchronously so the rasterizer's canvas blit actually runs.
+     * @returns {() => void} restore function
+     */
+    function installFakeImage() {
+        const FakeImage = class {
+            set src(v) {
+                this._src = v;
+                queueMicrotask(() => this.onload());
+            }
+            get src() {
+                return this._src;
+            }
+        };
+        const orig = window.Image;
+        window.Image = FakeImage;
+        return () => {
+            window.Image = orig;
+        };
+    }
+
+    const creep = (overrides = {}) => ({
+        _id: 'c1',
+        type: 'creep',
+        user: '1',
+        x: 1,
+        y: 1,
+        room: 'W0N0',
+        body: ['WORK', 'WORK', 'MOVE'],
+        store: {},
+        storeCapacity: 100,
+        ...overrides,
+    });
+
+    it('rasterizes creep sprites into a canvas bitmap, not an <img>', async () => {
+        const restoreImage = installFakeImage();
+        // Spy on the blit: the rasterizer must draw the SVG into the bitmap.
+        const origGetContext = HTMLCanvasElement.prototype.getContext;
+        const drawImageCalls = [];
+        HTMLCanvasElement.prototype.getContext = function (type) {
+            const ctx = origGetContext.call(this, type);
+            const origDraw = ctx.drawImage.bind(ctx);
+            ctx.drawImage = (...args) => {
+                drawImageCalls.push(args);
+                return origDraw(...args);
+            };
+            return ctx;
+        };
+        try {
+            const cache = new SpriteCache();
+            const c = creep();
+            await cache.rasterizeCreep(cache.key(c), c);
+
+            const sprite = cache.creepSprite(c);
+            expect(sprite).toBeInstanceOf(HTMLCanvasElement);
+            expect(sprite.width).toBe(96);
+            expect(sprite.height).toBe(96);
+            // Exactly one blit: the SVG <img> → the canvas bitmap, at full size.
+            expect(drawImageCalls.length).toBe(1);
+            const [source, dx, dy, dw, dh] = drawImageCalls[0];
+            expect(source).toBeInstanceOf(window.Image);
+            expect([dx, dy, dw, dh]).toEqual([0, 0, 96, 96]);
+        } finally {
+            HTMLCanvasElement.prototype.getContext = origGetContext;
+            restoreImage();
+        }
+    });
+
+    it('rasterizes the invader into a canvas bitmap too', async () => {
+        const restoreImage = installFakeImage();
+        try {
+            const cache = new SpriteCache();
+            await cache.rasterizeInvader();
+
+            expect(cache.invaderSprite()).toBeInstanceOf(HTMLCanvasElement);
+            expect(cache.invaderSprite().width).toBe(96);
+            expect(cache.invaderSprite().height).toBe(96);
+        } finally {
+            restoreImage();
+        }
+    });
+
+    it('falls back to the raw <img> when no 2D context is available', async () => {
+        const restoreImage = installFakeImage();
+        const origGetContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = () => null;
+        try {
+            const cache = new SpriteCache();
+            await cache.rasterizeInvader();
+
+            expect(cache.invaderSprite()).toBeInstanceOf(window.Image);
+        } finally {
+            HTMLCanvasElement.prototype.getContext = origGetContext;
+            restoreImage();
+        }
+    });
+});
