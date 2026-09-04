@@ -1,6 +1,11 @@
 'use strict';
 
-const { createConsoleCapture, looksLikeError, ERROR_PATTERNS } = require('../src/lib/runtime/console');
+const {
+    classifyConsoleLine,
+    createConsoleCapture,
+    looksLikeError,
+    ERROR_PATTERNS,
+} = require('../src/lib/runtime/console');
 
 describe('console capture', () => {
     describe('looksLikeError', () => {
@@ -30,6 +35,72 @@ describe('console capture', () => {
 
         it('does not trigger on empty string', () => {
             expect(looksLikeError('')).toBe(false);
+        });
+    });
+
+    describe('classifyConsoleLine', () => {
+        it('classifies [ERROR] line as error and strips the marker', () => {
+            expect(classifyConsoleLine('[ERROR] Something went wrong')).toEqual({
+                level: 'error',
+                message: 'Something went wrong',
+            });
+        });
+
+        it('classifies [WARN] line as warn and strips the marker', () => {
+            expect(classifyConsoleLine('[WARN] Low energy')).toEqual({
+                level: 'warn',
+                message: 'Low energy',
+            });
+        });
+
+        it('classifies unprefixed engine error (TypeError) as error', () => {
+            const line = "TypeError: Cannot read property 'x' of undefined";
+            expect(classifyConsoleLine(line)).toEqual({ level: 'error', message: line });
+        });
+
+        it('classifies ReferenceError pattern as error', () => {
+            expect(classifyConsoleLine('ReferenceError: foo is not defined').level).toBe('error');
+        });
+
+        it('detects the marker anywhere in the line, not only at the start', () => {
+            expect(classifyConsoleLine('bot [ERROR] boom').level).toBe('error');
+            expect(classifyConsoleLine('bot [WARN] careful').level).toBe('warn');
+        });
+
+        it('classifies normal line as info with message unchanged', () => {
+            expect(classifyConsoleLine('Harvester moving to source')).toEqual({
+                level: 'info',
+                message: 'Harvester moving to source',
+            });
+        });
+    });
+
+    // createConsoleCapture (report.errors/warnings) and classifyConsoleLine
+    // (viewer entries) must classify identically — the UI Error/Warn tabs
+    // depend on it.
+    describe('classification consistency', () => {
+        it('createConsoleCapture and classifyConsoleLine agree on every line', () => {
+            const lines = [
+                '[ERROR] boom',
+                '[WARN] careful',
+                'TypeError: Cannot read property x of undefined',
+                'Harvester moving to source',
+            ];
+            const { handler, report } = createConsoleCapture({ logLevel: 'all' });
+            handler(lines);
+            for (const line of lines) {
+                const { level } = classifyConsoleLine(line);
+                expect(report.errors.includes(line)).toBe(level === 'error');
+                expect(report.warnings.includes(line)).toBe(level === 'warn');
+            }
+        });
+
+        it('createConsoleCapture keeps full lines in report.errors (marker included)', () => {
+            const { handler, report } = createConsoleCapture({ logLevel: 'all' });
+            handler(['[ERROR] boom', 'TypeError: nope', '[WARN] careful', 'all good']);
+            expect(report.errors).toEqual(['[ERROR] boom', 'TypeError: nope']);
+            expect(report.warnings).toEqual(['[WARN] careful']);
+            expect(report.logs).toEqual(['[ERROR] boom', 'TypeError: nope', '[WARN] careful', 'all good']);
         });
     });
 
