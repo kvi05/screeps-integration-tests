@@ -282,6 +282,38 @@ describe('UiServer', () => {
         expect(parsed).toEqual({ ok: true, scenario: 'test', interactive: true });
     });
 
+    it('/api/run POST does not mark the status running — queueing is not running', async () => {
+        // The parent flips the status when a worker actually starts
+        // (processQueue), not when a run request is merely queued.
+        server = await createUiServer({ port: 0 });
+        await httpPost(server.port, '/api/run', { scenario: 'test', interactive: true });
+        const status = JSON.parse(await httpGet(server.port, '/api/status'));
+        expect(status.state).toBe('idle');
+        expect(status.scenario).toBe('');
+    });
+
+    it('/api/run-all POST calls onRunAll and returns ok', async () => {
+        const onRunAll = jest.fn();
+        server = await createUiServer({ port: 0, onRunAll });
+        const result = await httpPost(server.port, '/api/run-all');
+        expect(result.status).toBe(200);
+        expect(JSON.parse(result.body)).toEqual({ ok: true });
+        expect(onRunAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('/api/stop-all POST calls onStopAll and resets the status to idle', async () => {
+        const onStopAll = jest.fn();
+        server = await createUiServer({ port: 0, onStopAll });
+        // Make the cached status non-idle first, as if a scenario were running
+        server.updateStatus({ state: 'running', tick: 42, scenario: 'demo' });
+        const result = await httpPost(server.port, '/api/stop-all');
+        expect(result.status).toBe(200);
+        expect(JSON.parse(result.body)).toEqual({ ok: true });
+        expect(onStopAll).toHaveBeenCalledTimes(1);
+        const status = JSON.parse(await httpGet(server.port, '/api/status'));
+        expect(status).toEqual({ state: 'idle', tick: 0, speed: 1000, scenario: '' });
+    });
+
     it('/api/dispose POST returns ok', async () => {
         server = await createUiServer({ port: 0 });
         const result = await httpPost(server.port, '/api/dispose');

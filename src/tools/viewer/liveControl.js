@@ -46,8 +46,7 @@ const { rewindToTick } = require('./rewind');
  * @param {string} opts.scenarioPath — scenario file path (for status messages)
  * @param {boolean} [opts.paused=false] — start paused
  * @param {number} [opts.speed=1000] — ticks per second (1000 = realtime, higher = faster)
- * @param {number} [opts.keyframeInterval=100] — send full Memory every N ticks
- * @returns {TickInterceptor}
+ * @param {number} [opts.keyframeInterval=100] — send full Memory every N ticks * @param {boolean} [opts.preDisposed] — a `dispose` command already arrived at worker boot * @returns {TickInterceptor}
  */
 function createViewerInterceptor(opts = {}) {
     const control = new EventEmitter();
@@ -58,8 +57,14 @@ function createViewerInterceptor(opts = {}) {
     let stepRequested = 0;
     /** @type {number} */
     let speed = opts.speed || 1000;
-    /** @type {boolean} Signals the tick loop to stop gracefully */
-    let disposed = false;
+    /** @type {boolean} Signals the tick loop to stop gracefully.
+     *  Seeded from `preDisposed` — a stop that raced the worker boot may have
+     *  been emitted before this interceptor attached its IPC listener. */
+    let disposed = !!opts.preDisposed;
+    if (disposed && process.send) {
+        // Acknowledge the early stop so the parent knows it was received.
+        process.send({ type: 'viewer:disposed', scenario: opts.scenarioPath || '' });
+    }
     /** @type {number} Keyframe interval for Memory diffs */
     const keyframeInterval = opts.keyframeInterval || 100;
 
@@ -332,6 +337,16 @@ function createViewerInterceptor(opts = {}) {
         },
 
         /**
+         * Whether a `dispose` command was received. Used by the worker to
+         * report a user-stopped run as `skip` instead of `pass`.
+         *
+         * @returns {boolean}
+         */
+        wasDisposed() {
+            return disposed;
+        },
+
+        /**
          * Called after observations. Sends viewer:frame snapshot and
          * viewer:memory Memory diffs via IPC.
          *
@@ -422,4 +437,58 @@ function createViewerInterceptor(opts = {}) {
     };
 }
 
-module.exports = { createViewerInterceptor };
+/**
+ * Creates a minimal tick interceptor that only handles the `dispose` command.
+ *
+ * Batch (headless) scenarios have no viewer frames and no live controls, but
+ * the parent must still be able to stop them gracefully (Stop All, Run All
+ * restart, interactive preemption). This interceptor listens for the same
+ * `viewer:cmd` IPC protocol as the full viewer interceptor, so the parent can
+ * treat every running worker uniformly: send `dispose` → the tick loop exits
+ * → the scenario finishes → the worker reports `skip` and exits cleanly.
+ *
+ * @param {Object} [opts]
+ * @param {string} [opts.scenarioPath] — scenario file path (for the viewer:disposed message)
+ * @param {boolean} [opts.preDisposed] — a `dispose` command already arrived at worker boot
+ * @returns {import('../../lib/types').TickInterceptor & { wasDisposed: () => boolean }}
+ */
+function createDisposeInterceptor(opts = {}) {
+    /** @type {boolean} Signals the tick loop to stop gracefully.
+     *  Seeded from `preDisposed` — a stop that raced the worker boot may have
+     *  been emitted before this interceptor attached its IPC listener. */
+    let disposed = !!opts.preDisposed;
+    if (disposed && process.send) {
+        process.send({ type: 'viewer:disposed', scenario: opts.scenarioPath || '' });
+    }
+
+    process.on('message', (cmd) => {
+        if (!cmd || cmd.type !== 'viewer:cmd' || cmd.action !== 'dispose') return;
+        disposed = true;
+        if (process.send) {
+            process.send({ type: 'viewer:disposed', scenario: opts.scenarioPath || '' });
+        }
+    });
+
+    return {
+        /**
+         * Called before each server tick. Stops the tick loop once disposed.
+         *
+         * @returns {Promise<boolean>} true to stop the tick loop
+         */
+        async beforeTick() {
+            return disposed;
+        },
+
+        /**
+         * Whether a `dispose` command was received. Used by the worker to
+         * report a user-stopped run as `skip` instead of `pass`.
+         *
+         * @returns {boolean}
+         */
+        wasDisposed() {
+            return disposed;
+        },
+    };
+}
+
+module.exports = { createViewerInterceptor, createDisposeInterceptor };

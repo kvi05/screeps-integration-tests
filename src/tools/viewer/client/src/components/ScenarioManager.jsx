@@ -13,7 +13,7 @@
  * - SM-10: Group by prefix
  * - SM-11: Snapshots tab — launch/delete/import world snapshots
  * - BM-6 (future): Flags (--only, --profiling)
- * - BM-8 (future): Stop current run
+ * - BM-8: Stop All — stop every running scenario and clear the queue
  * - BM-9: Batch summary
  *
  * @component
@@ -24,6 +24,8 @@ import ScenarioList from './ScenarioList';
 import {
     getScenarios,
     postRun,
+    postRunAll,
+    postStopAll,
     getSnapshots,
     postRunFromSnapshot,
     deleteSnapshot,
@@ -44,6 +46,7 @@ import {
     LayersIcon,
     CopyIcon,
     FolderOpenIcon,
+    SquareIcon,
 } from './Icons';
 
 /** Mirrors ScenarioList.STATUS_CONFIG for detail panel use */
@@ -73,6 +76,7 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     const [groupPrefix, setGroupPrefix] = useState('');
     const [loading, setLoading] = useState(true);
     const [profiling, setProfiling] = useState(false);
+    const [isRunningAll, setIsRunningAll] = useState(false);
     const [selectedName, setSelectedName] = useState(/** @type {string|null} */ (null));
     const [detailTab, setDetailTab] = useState(/** @type {'main'|'snapshots'} */ ('main'));
     /** @type {[Array<{file:string, size:number, modified:string, tick?:number, scenario?:string}>, Function]} */
@@ -151,19 +155,51 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     }, []);
 
     const handleRunAll = useCallback(async () => {
-        // Mark all as pending, then launch them — the server queues with concurrency limit
-        for (const s of scenarios) {
-            setStatuses((prev) => ({ ...prev, [s.name]: 'pending' }));
+        if (isRunningAll) return;
+        setIsRunningAll(true);
+        // Optimistically mark everything pending — the server handles the
+        // restart atomically: it first stops all running scenarios (their
+        // late results are not broadcast), then queues the full set with a
+        // concurrency limit. Repeated clicks while in flight are ignored.
+        setStatuses((prev) => {
+            const next = { ...prev };
+            for (const s of scenarios) next[s.name] = 'pending';
+            return next;
+        });
+        try {
+            await postRunAll();
+        } catch {
+            setStatuses((prev) => {
+                const next = { ...prev };
+                for (const s of scenarios) next[s.name] = 'fail';
+                return next;
+            });
+        } finally {
+            setIsRunningAll(false);
         }
-        for (const s of scenarios) {
-            try {
-                await postRun(s.name, false);
-                setStatuses((prev) => ({ ...prev, [s.name]: 'running' }));
-            } catch {
-                setStatuses((prev) => ({ ...prev, [s.name]: 'fail' }));
+    }, [scenarios, isRunningAll]);
+
+    const handleStopAll = useCallback(async () => {
+        try {
+            await postStopAll();
+        } catch {
+            /* server unreachable — still clear local active statuses */
+        }
+        // Stopped runs are reported as skipped by the server; since their
+        // results are not broadcast for a manual stop, reflect it locally.
+        setStatuses((prev) => {
+            const next = { ...prev };
+            for (const [name, status] of Object.entries(prev)) {
+                if (status === 'pending' || status === 'running') next[name] = 'skip';
             }
-        }
-    }, [scenarios]);
+            try {
+                sessionStorage.setItem('sit-scenario-statuses', JSON.stringify(next));
+            } catch {
+                /* ignore */
+            }
+            return next;
+        });
+    }, []);
 
     const handleRunOne = useCallback(async (name) => {
         setStatuses((prev) => ({ ...prev, [name]: 'pending' }));
@@ -304,6 +340,7 @@ export default function ScenarioManager({ onNavigateToViewer }) {
     const hasResults = summary.pass + summary.fail + summary.skip > 0;
     const totalDone = summary.pass + summary.fail + summary.skip;
     const progressPct = scenarios.length > 0 ? (totalDone / scenarios.length) * 100 : 0;
+    const hasActiveRuns = summary.pending + summary.running > 0;
 
     // Resolve selected scenario object
     const selectedScenario = useMemo(
@@ -370,7 +407,20 @@ export default function ScenarioManager({ onNavigateToViewer }) {
                         Profiling
                     </label>
                 </div>
-                <button onClick={handleRunAll} disabled={scenarios.length === 0} className="btn-primary">
+                <button
+                    onClick={handleStopAll}
+                    disabled={!hasActiveRuns}
+                    className="btn-secondary"
+                    title="Stop all running scenarios and clear the queue"
+                >
+                    <SquareIcon size={16} />
+                    Stop All
+                </button>
+                <button
+                    onClick={handleRunAll}
+                    disabled={scenarios.length === 0 || isRunningAll}
+                    className="btn-primary"
+                >
                     <PlayIcon size={16} />
                     Run All
                 </button>

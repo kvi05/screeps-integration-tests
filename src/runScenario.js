@@ -13,6 +13,44 @@ const { collectTotalWorldTicks, collectWorldCount, clearWorldReports } = require
 let finalMessageScheduled = false;
 
 /**
+ * True when a `dispose` command arrived before any interceptor existed.
+ *
+ * The parent may stop a job while its worker is still booting, so the
+ * command can be read in the same burst as the run configuration — emitted
+ * before the interceptor (created only after the config is consumed)
+ * attaches its own listener. A module-level listener captures it and the
+ * interceptors are seeded with the flag at creation, so a stop racing the
+ * spawn is never lost.
+ *
+ * @type {boolean}
+ */
+let earlyDispose = false;
+process.on('message', (cmd) => {
+    if (cmd && cmd.type === 'viewer:cmd' && cmd.action === 'dispose') {
+        earlyDispose = true;
+    }
+});
+
+/**
+ * The tick interceptor installed by this worker (viewer interceptor for
+ * interactive runs, dispose-only interceptor for batch runs), or null if no
+ * interceptor was installed. Queried when resolving the reported status so a
+ * run stopped by the parent can be reported as `skip`.
+ *
+ * @type {import('./lib/types').TickInterceptor & { wasDisposed?: () => boolean } | null}
+ */
+let activeInterceptor = null;
+
+/**
+ * Scenario name reported in `viewer:scenario-result` messages. Resolved once
+ * the worker receives its run configuration (snapshot meta takes priority,
+ * then the scenario path).
+ *
+ * @type {string}
+ */
+let activeScenarioName = 'snapshot-launch';
+
+/**
  * Sends the final worker message and exits once it is flushed to the IPC
  * channel.
  *
@@ -106,6 +144,64 @@ function buildWorldTotals(result) {
 }
 
 /**
+ * Whether the installed interceptor received a `dispose` command, i.e. the
+ * parent intentionally stopped this run (Stop All, Run All restart,
+ * interactive preemption, viewer Back button).
+ *
+ * @returns {boolean}
+ */
+function wasRunDisposed() {
+    return !!(
+        activeInterceptor &&
+        typeof activeInterceptor.wasDisposed === 'function' &&
+        activeInterceptor.wasDisposed()
+    );
+}
+
+/**
+ * Resolves the scenario status for IPC messages.
+ *
+ * A run stopped by the parent is reported as `skip`: it neither passed nor
+ * failed — the user simply stopped it. This also covers the crash-guard path
+ * (a stopped run often throws scenario-side assertions on partial data; that
+ * failure is an artifact of the stop, not a real regression).
+ *
+ * @param {ScenarioOutput|null} result — scenario result (null on failure)
+ * @param {'pass'|'skip'|'fail'} defaultStatus — status when not disposed
+ * @returns {'pass'|'skip'|'fail'}
+ */
+function resolveStatus(result, defaultStatus) {
+    if (wasRunDisposed()) return 'skip';
+    return result?.skipped ? 'skip' : defaultStatus;
+}
+
+/**
+ * Sends the `viewer:scenario-result` IPC message consumed by the viewer
+ * Scenario Manager. Non-critical: serialization/connection failures are
+ * swallowed.
+ *
+ * @param {'pass'|'skip'|'fail'} status
+ * @param {ScenarioOutput|null} result — scenario result (null on failure)
+ * @returns {void}
+ */
+function sendScenarioResult(status, result) {
+    if (!process.send) return;
+    try {
+        process.send({
+            type: 'viewer:scenario-result',
+            scenario: activeScenarioName,
+            status,
+            time: result?.wallClockMs || 0,
+            // Sum across ALL worlds the scenario created — the world
+            // whose report it returned is just the last one.
+            totalTicks: collectTotalWorldTicks() || result?.ticksRun || 0,
+        });
+    } catch {
+        /* non-critical */
+    }
+}
+
+/**
  * Installs last-resort process guards so a crash inside the worker never
  * leaves the parent with a bare "Worker exited unexpectedly (exit code 1)".
  *
@@ -113,8 +209,9 @@ function buildWorldTotals(result) {
  * escaping it — exceptions in event-loop callbacks, promises without
  * handlers, tool (viewer interceptor) bugs — used to kill the worker with a
  * non-zero exit code and no final message. The guards convert the first such
- * error into a `fail` WorkerMessage carrying the real stack, then terminate
- * the worker through sendFinalMessage().
+ * error into a `fail` WorkerMessage carrying the real stack (or `skip` when
+ * the run had already been disposed by the parent), then terminate the
+ * worker through sendFinalMessage().
  *
  * @returns {void}
  */
@@ -138,8 +235,16 @@ function installGlobalGuards() {
             return;
         }
         try {
+            // The Scenario Manager listens for viewer:scenario-result — report
+            // a user stop even when the worker crashes while being torn down
+            // (e.g. storage disconnect while server.stop() runs).
+            if (wasRunDisposed()) {
+                sendScenarioResult('skip', null);
+            }
             sendFinalMessage({
-                status: 'fail',
+                // A disposed run crashing during teardown is a user stop, not
+                // a real failure.
+                status: wasRunDisposed() ? 'skip' : 'fail',
                 error: `Uncaught ${kind} in the worker process:\n${detail}`,
                 // Worlds may have run before the crash — keep the totals.
                 ...buildWorldTotals(null),
@@ -199,9 +304,15 @@ function installGlobalGuards() {
 
         const opts = msg.opts || {};
 
-        // ── Tool injection: viewer tick interceptor ──────────────────────
+        // Snapshot meta wins over the file path — the viewer shows the
+        // scenario the snapshot was captured from.
+        activeScenarioName = /** @type {string} */ (
+            opts.restoreSnapshot?.meta?.scenario || msg.scenarioPath || 'snapshot-launch'
+        );
+
+        // ── Tool injection: tick interceptors ────────────────────────────
         // Attach before scenario.run() so createWorld receives it via opts.
-        // The interceptor is self-contained — core never knows it's a viewer.
+        // The interceptor is self-contained — core never knows it's a tool.
         if (opts.viewer) {
             const { createViewerInterceptor } = require('./tools/viewer/liveControl');
             /** @type {import('./lib/types').ViewerOptions} */
@@ -213,11 +324,23 @@ function installGlobalGuards() {
                 speed: viewerOpts.speed,
                 keyframeInterval: viewerOpts.keyframeInterval,
                 replayBuffer: viewerOpts.replayBuffer,
+                preDisposed: earlyDispose,
             });
+            activeInterceptor = opts.tickInterceptor;
             // Also set via tickHooks — ensures createWorld() finds the
             // interceptor even if the scenario's run() builds a fresh opts
             // object instead of forwarding the one we pass here.
             setTickInterceptor(opts.tickInterceptor);
+        } else {
+            // Batch (headless) run: install the minimal dispose interceptor
+            // so the parent can still stop this worker gracefully (Stop All,
+            // Run All restart, interactive preemption) without a hard kill.
+            const { createDisposeInterceptor } = require('./tools/viewer/liveControl');
+            activeInterceptor = createDisposeInterceptor({
+                scenarioPath: msg.scenarioPath,
+                preDisposed: earlyDispose,
+            });
+            setTickInterceptor(activeInterceptor);
         }
 
         /** @type {import('./lib/types').ScenarioOutput} */
@@ -254,27 +377,11 @@ function installGlobalGuards() {
         // ── Send scenario result (common for both paths) ──────────────
         // Send scenario result for viewer ScenarioManager.
         // Always send when running in a forked process (headless or interactive).
-        if (process.send) {
-            try {
-                process.send({
-                    type: 'viewer:scenario-result',
-                    scenario: /** @type {string} */ (
-                        opts.restoreSnapshot?.meta?.scenario || msg.scenarioPath || 'snapshot-launch'
-                    ),
-                    status: result?.skipped ? 'skip' : 'pass',
-                    time: result?.wallClockMs || 0,
-                    // Sum across ALL worlds the scenario created — the world
-                    // whose report it returned is just the last one.
-                    totalTicks: collectTotalWorldTicks() || result?.ticksRun || 0,
-                });
-            } catch {
-                /* non-critical */
-            }
-        }
+        sendScenarioResult(resolveStatus(result, 'pass'), result);
 
         /** @type {WorkerMessage} */
         const message = {
-            status: result?.skipped ? 'skip' : 'pass',
+            status: resolveStatus(result, 'pass'),
             result,
             // Cross-world aggregates — the scenario result holds only the
             // last world's report.
@@ -291,12 +398,19 @@ function installGlobalGuards() {
 
         /** @type {WorkerMessage} */
         const message = {
-            status: 'fail',
+            // A disposed run often throws scenario-side assertions on partial
+            // data — report it as a user stop (`skip`), not a real failure.
+            status: wasRunDisposed() ? 'skip' : 'fail',
             error: formatted ? `${formatted}\n\n${e.stack || ''}` : e.stack || String(e),
             // Worlds may have run (or been created) before the failure —
             // the totals tell how far the scenario got.
             ...buildWorldTotals(null),
         };
+        // The Scenario Manager listens for viewer:scenario-result — report a
+        // user stop even when the run crashed after being disposed.
+        if (wasRunDisposed()) {
+            sendScenarioResult('skip', null);
+        }
         sendFinalMessage(message);
     } finally {
         clearTickInterceptor();

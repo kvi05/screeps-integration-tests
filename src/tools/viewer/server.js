@@ -174,6 +174,8 @@ function serveStatic(res, filePath) {
  * @param {string} [opts.scenariosDir] — directory containing *.scenario.js files
  * @param {Function} [opts.onRunScenario] — callback to run a scenario: (scenarioPath, interactive) => void
  * @param {Function} [opts.onRunFromSnapshot] — callback to launch from snapshot: (snapshotData) => void
+ * @param {Function} [opts.onRunAll] — callback to run all scenarios: atomically stop everything, then queue the full suite
+ * @param {Function} [opts.onStopAll] — callback to stop all running scenarios and clear the queue
  * @param {{scenario:string, maxTicks:number, replayBuffer:number}} [opts.lastStart] — last start info to re-send to late-connecting SSE clients
  * @param {Object} [opts.memoryHistory] — Memory history ring buffer for /api/memory endpoint
  * @returns {Promise<UiServer>}
@@ -404,11 +406,38 @@ async function createUiServer(opts = {}) {
                     ? path.join(opts.scenariosDir, `${scenarioName}.scenario.js`)
                     : scenarioName;
                 opts.onRunScenario(scenarioPath, interactive);
-                serverStatus.state = 'running';
-                serverStatus.scenario = scenarioName;
+                // Status is NOT set here — queueing a job is not running it.
+                // The parent updates the status when a worker actually starts
+                // (see processQueue in runViewerMode).
             }
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ ok: true, scenario: scenarioName, interactive }));
+            return;
+        }
+
+        // POST /api/run-all — atomically stop everything and queue all scenarios.
+        // One request performs the whole restart, so repeated Run All clicks
+        // can never duplicate queue entries.
+        if (pathname === '/api/run-all' && req.method === 'POST') {
+            if (opts.onRunAll) {
+                opts.onRunAll();
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/stop-all — stop all running scenarios (graceful dispose)
+        // and clear the pending queue
+        if (pathname === '/api/stop-all' && req.method === 'POST') {
+            if (opts.onStopAll) {
+                opts.onStopAll();
+            }
+            serverStatus.state = 'idle';
+            serverStatus.tick = 0;
+            serverStatus.scenario = '';
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
             return;
         }
 

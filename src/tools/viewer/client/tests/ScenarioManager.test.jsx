@@ -3,17 +3,19 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 import ScenarioManager from '../src/components/ScenarioManager';
 
-// Mock API client — ScenarioManager tests focus on the Snapshots tab
+// Mock API client — ScenarioManager tests focus on the Snapshots tab and the Run All / Stop All toolbar
 vi.mock('../src/api/client', () => ({
     getScenarios: vi.fn(),
     postRun: vi.fn(),
+    postRunAll: vi.fn(),
+    postStopAll: vi.fn(),
     getSnapshots: vi.fn(),
     postRunFromSnapshot: vi.fn(),
     deleteSnapshot: vi.fn(),
 }));
 
 // Import the mocked module for assertions
-import { getScenarios, postRunFromSnapshot, getSnapshots } from '../src/api/client';
+import { getScenarios, postRun, postRunFromSnapshot, getSnapshots, postRunAll, postStopAll } from '../src/api/client';
 
 const SCENARIOS = [
     {
@@ -168,5 +170,82 @@ describe('ScenarioManager Snapshots tab', () => {
         await selectScenario('smoke-empty');
         openSnapshotsTab();
         await waitFor(() => expect(screen.getByText(/Failed to load snapshots/)).toBeInTheDocument());
+    });
+});
+
+describe('ScenarioManager Run All / Stop All', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+        sessionStorage.clear();
+        vi.clearAllMocks();
+        getScenarios.mockResolvedValue({ scenarios: SCENARIOS });
+        postRunAll.mockResolvedValue({ ok: true });
+        postStopAll.mockResolvedValue({ ok: true });
+    });
+
+    afterEach(() => {
+        document.body.innerHTML = '';
+        vi.restoreAllMocks();
+    });
+
+    it('Run All posts a single run-all request and marks all scenarios pending', async () => {
+        renderManager();
+        const runAllBtn = await waitFor(() => screen.getByRole('button', { name: /Run All/i }));
+        fireEvent.click(runAllBtn);
+
+        await waitFor(() => expect(postRunAll).toHaveBeenCalledTimes(1));
+        // Both scenarios flip to the pending state
+        await waitFor(() => expect(screen.getAllByText('Pending')).toHaveLength(2));
+        expect(postRun).not.toHaveBeenCalled();
+    });
+
+    it('ignores repeated Run All clicks while a restart is in flight', async () => {
+        let resolveRunAll;
+        postRunAll.mockImplementation(() => new Promise((res) => (resolveRunAll = res)));
+        renderManager();
+        const runAllBtn = await waitFor(() => screen.getByRole('button', { name: /Run All/i }));
+
+        fireEvent.click(runAllBtn);
+        fireEvent.click(runAllBtn);
+
+        resolveRunAll({ ok: true });
+        await waitFor(() => expect(runAllBtn).toBeEnabled());
+        expect(postRunAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('disables Run All while the restart request is in flight', async () => {
+        let resolveRunAll;
+        postRunAll.mockImplementation(() => new Promise((res) => (resolveRunAll = res)));
+        renderManager();
+        const runAllBtn = await waitFor(() => screen.getByRole('button', { name: /Run All/i }));
+
+        fireEvent.click(runAllBtn);
+        expect(runAllBtn).toBeDisabled();
+
+        resolveRunAll({ ok: true });
+        await waitFor(() => expect(runAllBtn).toBeEnabled());
+    });
+
+    it('Stop All posts stop-all and marks active runs as skipped', async () => {
+        renderManager();
+        const runAllBtn = await waitFor(() => screen.getByRole('button', { name: /Run All/i }));
+        fireEvent.click(runAllBtn);
+        await waitFor(() => expect(screen.getAllByText('Pending')).toHaveLength(2));
+
+        const stopAllBtn = screen.getByRole('button', { name: /Stop All/i });
+        expect(stopAllBtn).toBeEnabled();
+        fireEvent.click(stopAllBtn);
+
+        await waitFor(() => expect(postStopAll).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.getAllByText('Skipped')).toHaveLength(2));
+        // Persisted like the SSE-driven status updates
+        const saved = JSON.parse(sessionStorage.getItem('sit-scenario-statuses') || '{}');
+        expect(saved).toEqual({ 'smoke-empty': 'skip', 'world-spawn': 'skip' });
+    });
+
+    it('Stop All is disabled when no scenario is pending or running', async () => {
+        renderManager();
+        const stopAllBtn = await waitFor(() => screen.getByRole('button', { name: /Stop All/i }));
+        expect(stopAllBtn).toBeDisabled();
     });
 });

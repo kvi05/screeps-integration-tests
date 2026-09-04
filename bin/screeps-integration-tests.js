@@ -50,6 +50,16 @@ const SUMMARY_ERROR_LINES = 10;
 const WORKER_EXIT_GRACE_MS = 250;
 
 /**
+ * Grace period (ms) after a `dispose` command before a stopping worker is
+ * force-killed. Dispose only lands inside the tick loop; a worker stuck
+ * outside it (scenario code between worlds, a long await) gets tree-killed
+ * after this window instead of hanging Stop All until the run timeout.
+ *
+ * @type {number}
+ */
+const STOP_GRACE_MS = 4000;
+
+/**
  * @typedef {import('../src/lib/types').WorkerMessage} WorkerMessage
  * @typedef {import('../src/lib/types').SummaryEntry} SummaryEntry
  *
@@ -60,9 +70,6 @@ const WORKER_EXIT_GRACE_MS = 250;
  */
 
 const RUNNER_SCRIPT = path.join(__dirname, '..', 'src', 'runScenario.js');
-
-/** @type {import('child_process').ChildProcess|null} Active child for viewer live-control commands */
-let activeChild = null;
 
 /** @type {import('../src/tools/viewer/server').UiServer|null} UI server ref for viewer:status updates */
 let uiServer = null;
@@ -230,9 +237,10 @@ function findScenarios(scenariosDir, only) {
  * @param {number} timeout - Per-scenario timeout in ms
  * @param {string|null} roomFixturesDir - Directory to auto-load room fixtures from
  * @param {Function|null} [onIpcMessage] - Callback for intermediate IPC messages: (msg, child) => void
+ * @param {Function|null} [onChild] - Callback invoked with the child process right after spawn: (child) => void
  * @returns {Promise<WorkerMessage & {time?: number}>}
  */
-async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onIpcMessage) {
+async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir, onIpcMessage, onChild) {
     // SIT_SNAPSHOTS_DIR is read directly by lib/orchestration/world.js
     // (resolveSnapshotsDir). Passing it via env guarantees the value reaches
     // createWorld even when a scenario does not spread opts into it.
@@ -254,7 +262,21 @@ async function runScenarioInWorker(scenarioPath, opts, timeout, roomFixturesDir,
 
     try {
         await once(child, 'spawn', { signal: ac.signal });
+        // The run configuration MUST be the first IPC message the worker
+        // consumes (runScenario.js treats it as such) — any `dispose` racing
+        // the spawn (see onChild) is queued after it.
         child.send({ scenarioPath, opts, roomFixturesDir });
+        // Hand the child to the caller after the config is queued — the
+        // viewer registry routes `dispose` (also for batch scenarios, which
+        // never send intermediate IPC messages), and that command must not
+        // overtake the config itself.
+        if (onChild) {
+            try {
+                onChild(child);
+            } catch {
+                /* non-critical */
+            }
+        }
 
         /** @type {WorkerMessage & { time?: number }} */
         const result = await new Promise((resolve, reject) => {
@@ -439,6 +461,22 @@ async function runViewerMode(config) {
     const maxInteractive = 1;
     let interactiveRunning = 0;
 
+    /**
+     * A scenario job that has been dequeued and handed to a worker child.
+     * Tracked while the worker is alive so `stopAll()` can address every
+     * running scenario (interactive and batch alike).
+     *
+     * @typedef {Object} RunningJob
+     * @property {string} name — scenario display name
+     * @property {boolean} interactive — whether the job streams to the viewer
+     * @property {import('child_process').ChildProcess|null} child — worker process (set on spawn)
+     * @property {boolean} stopping — dispose was requested; late results are not broadcast
+     * @property {ReturnType<typeof setTimeout>|null} killTimer — hard-kill fallback timer
+     */
+
+    /** @type {Set<RunningJob>} */
+    const runningJobs = new Set();
+
     // Create Memory history ring buffer — capacity matches viewer replay buffer
     // so client-side and server-side ring buffers stay in sync.
     const replayBufferTicks = config.viewerOptions.replayBuffer;
@@ -447,15 +485,38 @@ async function runViewerMode(config) {
     });
 
     /**
-     * Sends a dispose command to the currently running interactive scenario.
-     * The scenario will stop gracefully via its tick interceptor (beforeTick
-     * returns true → tick loop exits → worker sends final result → exits).
+     * Gracefully stops ALL running scenarios and drops the pending queue.
+     *
+     * Every worker (interactive and batch) receives a `dispose` command and
+     * stops via its tick interceptor (beforeTick returns true → tick loop
+     * exits → worker reports `skip` → exits). A hard-kill fallback covers
+     * workers stuck outside the tick loop. Late `viewer:scenario-result`
+     * messages from stopping jobs are not broadcast, so a restart does not
+     * flicker stale results over the fresh statuses in the Scenario Manager.
      */
-    function disposeActiveScenario() {
-        if (activeChild && activeChild.connected) {
-            activeChild.send({ type: 'viewer:cmd', action: 'dispose' });
-            // activeChild is cleared when viewer:disposed IPC arrives
-            // or when the scenario finishes naturally (see processQueue .then/.catch)
+    function stopAll() {
+        // Drop everything that has not started yet
+        scenarioQueue.length = 0;
+
+        for (const job of runningJobs) {
+            if (job.stopping) continue;
+            job.stopping = true;
+            if (job.child && job.child.connected) {
+                job.child.send({ type: 'viewer:cmd', action: 'dispose' });
+            }
+            // Safety net: dispose only lands inside the tick loop. If the
+            // worker is stuck elsewhere (scenario code between worlds, a long
+            // await), force-kill the process tree after a grace period.
+            job.killTimer = setTimeout(() => {
+                if (job.child && job.child.pid) {
+                    console.warn(`[viewer] ${job.name}: did not stop gracefully, killing worker tree`);
+                    treeKill(job.child.pid, 'SIGKILL', () => {});
+                }
+            }, STOP_GRACE_MS);
+        }
+
+        if (uiServer) {
+            uiServer.updateStatus({ state: 'idle', tick: 0, scenario: '' });
         }
     }
 
@@ -512,8 +573,8 @@ async function runViewerMode(config) {
                         const filepath = path.join(dir, filename);
                         fs.writeFileSync(filepath, JSON.stringify(dump));
                         console.log(`[viewer] Snapshot saved: ${filepath}`);
-                        if (activeChild && activeChild.connected) {
-                            activeChild.send({
+                        if (child && child.connected) {
+                            child.send({
                                 type: 'viewer:snapshot-saved',
                                 path: filepath,
                             });
@@ -549,7 +610,8 @@ async function runViewerMode(config) {
                 if (uiServer) uiServer.broadcastScenarioResult(msg);
                 break;
             case 'viewer:disposed':
-                if (activeChild === child) activeChild = null;
+                // Nothing to clean up here — the job leaves runningJobs when
+                // its worker exits (see processQueue .then/.catch).
                 break;
             case 'viewer:memory':
                 if (memoryHistory) {
@@ -610,35 +672,65 @@ async function runViewerMode(config) {
                 lastStart.scenario = scenarioName;
                 lastStart.maxTicks = 0;
                 lastStart.replayBuffer = replayBufferTicks;
+                const startPaused = config.viewerOptions ? config.viewerOptions.paused : false;
                 if (uiServer) {
-                    uiServer.broadcastStart(
-                        scenarioName,
-                        0,
-                        replayBufferTicks,
-                        config.viewerOptions ? config.viewerOptions.paused : false,
-                    );
+                    uiServer.broadcastStart(scenarioName, 0, replayBufferTicks, startPaused);
+                    // Reflect the actual start (not just the queueing): /api/run
+                    // and /api/run-all only enqueue jobs, the status turns
+                    // running/paused here when a worker really takes off.
+                    uiServer.updateStatus({
+                        state: startPaused ? 'paused' : 'running',
+                        scenario: scenarioName,
+                    });
                 }
-                activeChild = null; // Will be set inside runScenarioInWorker via routeIpcMessage
                 // Snapshot launch: pass snapshot data to worker for restore mode
                 if (snapshotData) {
                     opts.restoreSnapshot = snapshotData;
                 }
             }
 
-            // For interactive scenarios, we need to track activeChild.
-            // We wrap runScenarioInWorker to capture the child ref.
-            runScenarioInWorker(scenarioPath, opts, config.timeout, config.roomFixturesDir, (msg, child) => {
-                if (interactive && msg.type === 'viewer:status') {
-                    // Track the active child for live commands
-                    if (!activeChild) activeChild = child;
+            // Track the job while its worker is alive so stopAll() can address
+            // it (dispose command + hard-kill fallback), regardless of mode.
+            /** @type {RunningJob} */
+            const job = { name: scenarioName, interactive, child: null, stopping: false, killTimer: null };
+            runningJobs.add(job);
+
+            /** Removes the job from the registry and cancels its fallback timer */
+            const finishJob = () => {
+                runningJobs.delete(job);
+                if (job.killTimer) {
+                    clearTimeout(job.killTimer);
+                    job.killTimer = null;
                 }
-                routeIpcMessage(msg, child);
-            })
+            };
+
+            runScenarioInWorker(
+                scenarioPath,
+                opts,
+                config.timeout,
+                config.roomFixturesDir,
+                (msg, child) => {
+                    // A job that is being stopped has no newsworthy results —
+                    // swallowing them keeps Scenario Manager statuses stable
+                    // while Run All is restarting the suite.
+                    if (msg.type === 'viewer:scenario-result' && job.stopping) return;
+                    routeIpcMessage(msg, child);
+                },
+                (child) => {
+                    job.child = child;
+                    // A stop raced the spawn: the job was marked stopping
+                    // before the worker existed. The config is already queued
+                    // ahead of this command, and the worker pre-arms a dispose
+                    // flag at boot, so the stop is never lost.
+                    if (job.stopping && child.connected) {
+                        child.send({ type: 'viewer:cmd', action: 'dispose' });
+                    }
+                },
+            )
                 .then((result) => {
+                    finishJob();
                     activeCount--;
                     if (interactive) interactiveRunning--;
-                    // Clear active child if this was our interactive scenario
-                    if (interactive) activeChild = null;
                     // Tell the viewer the scenario has finished so the client
                     // switches to local replay of the recorded frames.
                     if (interactive && uiServer) {
@@ -652,9 +744,9 @@ async function runViewerMode(config) {
                     processQueue();
                 })
                 .catch((err) => {
+                    finishJob();
                     activeCount--;
                     if (interactive) interactiveRunning--;
-                    if (interactive) activeChild = null;
                     console.error(`[viewer] ${scenarioName} error: ${String(err?.message || err)}`);
                     processQueue();
                 });
@@ -664,11 +756,34 @@ async function runViewerMode(config) {
     /** Launch a scenario (via REST): queue it and start processing */
     const launchScenario = (scenarioPath, interactive) => {
         if (interactive) {
-            // Kill any currently-running interactive scenario before starting a new one.
-            // The old scenario will stop gracefully through its tick interceptor.
-            disposeActiveScenario();
+            // Exclusive takeover: an interactive launch is a fresh start.
+            // Stop every running scenario (interactive AND batch — all workers
+            // understand dispose now) and drop the pending queue, then launch
+            // this scenario alone.
+            stopAll();
         }
         scenarioQueue.push({ scenarioPath, interactive: !!interactive });
+        processQueue();
+    };
+
+    /**
+     * Run All (via REST): atomically stop everything, then queue all
+     * discovered scenarios. A single request performs the whole restart, so
+     * repeated Run All clicks can never duplicate queue entries.
+     */
+    const runAllScenarios = () => {
+        stopAll();
+        try {
+            const files = findScenarios(config.scenariosDir, null);
+            for (const file of files) {
+                scenarioQueue.push({
+                    scenarioPath: path.join(config.scenariosDir, file),
+                    interactive: false,
+                });
+            }
+        } catch (err) {
+            console.error(`[viewer] Run All failed to discover scenarios: ${err.message || err}`);
+        }
         processQueue();
     };
 
@@ -681,11 +796,12 @@ async function runViewerMode(config) {
      * @param {Object} snapshotData — full snapshot object from disk
      */
     const launchFromSnapshot = (snapshotData) => {
-        // Dispose existing interactive scenario if any
-        disposeActiveScenario();
+        // Interactive takeover: stop all running scenarios (any mode) and
+        // drop the pending queue before starting from the snapshot.
+        stopAll();
 
-        // Queue as interactive scenario — processQueue handles activeChild,
-        // concurrency, and IPC routing (routeIpcMessage)
+        // Queue as interactive scenario — processQueue handles the job
+        // registry, concurrency, and IPC routing (routeIpcMessage)
         scenarioQueue.push({
             scenarioPath: '', // empty — runScenario.js detects restoreSnapshot
             interactive: true,
@@ -702,12 +818,17 @@ async function runViewerMode(config) {
             lastStart,
             memoryHistory,
             sendCommand: (cmd) => {
-                if (activeChild && activeChild.connected) {
-                    activeChild.send(cmd);
+                // Live-control commands (pause/resume/step/speed/snapshot/
+                // dispose) target the single interactive job's worker.
+                const interactiveJob = Array.from(runningJobs).find((j) => j.interactive);
+                if (interactiveJob && interactiveJob.child && interactiveJob.child.connected) {
+                    interactiveJob.child.send(cmd);
                 }
             },
             onRunScenario: launchScenario,
             onRunFromSnapshot: launchFromSnapshot,
+            onRunAll: runAllScenarios,
+            onStopAll: () => stopAll(),
         });
     } catch (err) {
         console.error('[runner] Failed to start UI server:', err.message);
