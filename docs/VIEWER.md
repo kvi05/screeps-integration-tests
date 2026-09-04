@@ -42,6 +42,7 @@ The CLI prints the URL (a free port is picked automatically; pin it with
 | **Object Inspector** | Objects on the selected tile with full properties; type filter and search.          |
 | **Console**          | Bot logs (`console` output) with level filter, search, and click-to-jump-to-tick.   |
 | **Metrics**          | Metric charts (RCL, energy, creeps, tower…) via Chart.js + latest-values table.     |
+| **Resources**        | Live resource usage: backend RSS/heap/CPU, browser JS heap, buffer fill, storage.   |
 | **MiniMap**          | Room overview; click to navigate between rooms.                                     |
 | **Scenario Manager** | Lists `*.scenario.js` from `scenariosDir`; run one or all, headless or interactive. |
 
@@ -88,6 +89,12 @@ npm run viewer:dev
 
 Open `http://localhost:5173`. The proxy target comes from `SIT_VIEWER_PORT`
 (default `3100`).
+
+## Resource monitoring
+
+The **Resources** sidebar tab shows live runtime stats — UI server RSS/heap/CPU,
+per-worker usage, browser heap, and frame-buffer fill/storage — with hover
+tooltips. The same data is available headless via `GET /api/stats`.
 
 ## Troubleshooting
 

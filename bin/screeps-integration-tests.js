@@ -609,6 +609,18 @@ async function runViewerMode(config) {
             case 'viewer:scenario-result':
                 if (uiServer) uiServer.broadcastScenarioResult(msg);
                 break;
+            case 'viewer:worker-stats': {
+                // Worker self-reported resource usage (scenario processes —
+                // the parent's own stats in /api/stats don't cover them).
+                // Strip the message type — the payload is stored/exposed
+                // verbatim in /api/stats and the transport field is not a
+                // resource stat.
+                if (uiServer) {
+                    const { type: _msgType, ...workerStats } = msg;
+                    uiServer.setWorkerStats(workerStats);
+                }
+                break;
+            }
             case 'viewer:disposed':
                 // Nothing to clean up here — the job leaves runningJobs when
                 // its worker exits (see processQueue .then/.catch).
@@ -701,6 +713,11 @@ async function runViewerMode(config) {
                 if (job.killTimer) {
                     clearTimeout(job.killTimer);
                     job.killTimer = null;
+                }
+                // The worker process is gone — drop its resource stats so
+                // /api/stats never reports dead workers.
+                if (uiServer && job.child && job.child.pid) {
+                    uiServer.deleteWorkerStats(job.child.pid);
                 }
             };
 

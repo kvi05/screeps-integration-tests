@@ -229,6 +229,16 @@ PR #67 [feat(viewer): Run All / Stop All lifecycle — atomic restart, graceful 
   - The viewer status now flips to `running`/`paused` when a worker actually
     starts, not when a run is merely queued.
 
+PR #68 [feat(viewer): resource monitoring (Resources panel) and renderer stability fixes](https://github.com/kvi05/screeps-integration-tests/pull/68)
+
+- **Viewer — resource monitoring (`GET /api/stats` + Resources panel).**
+  `GET /api/stats` reports the parent Node process, the host system and viewer
+  state; forked scenario workers self-report RSS/heap/CPU via
+  `viewer:worker-stats` IPC (exposed as `viewer.workers[]`). New Resources
+  sidebar tab shows server/worker/browser metrics — JS heap, SSE latency,
+  render time, frame-buffer fill, sessionStorage usage with a quota warning —
+  with a tooltip per row.
+
 ### Changed
 
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)

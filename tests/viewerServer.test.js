@@ -345,6 +345,88 @@ describe('UiServer', () => {
         expect(lastCommand).toEqual({ type: 'viewer:cmd', action: 'pause' });
     });
 
+    it('/api/stats GET returns process, system and viewer resource stats', async () => {
+        const memoryHistory = {
+            size: () => 42,
+            reconstruct: () => null,
+        };
+        server = await createUiServer({
+            port: 0,
+            memoryHistory,
+            lastStart: { scenario: 'demo', maxTicks: 100, replayBuffer: 1234 },
+        });
+        const parsed = JSON.parse(await httpGet(server.port, '/api/stats'));
+
+        // Process section — real numbers from this very process
+        expect(typeof parsed.process.pid).toBe('number');
+        expect(parsed.process.uptimeSec).toBeGreaterThan(0);
+        for (const key of ['rss', 'heapUsed', 'heapTotal', 'external', 'cpuUserUsec', 'cpuSystemUsec']) {
+            expect(typeof parsed.process[key]).toBe('number');
+            expect(parsed.process[key]).toBeGreaterThanOrEqual(0);
+        }
+
+        // System section
+        expect(parsed.system.totalMem).toBeGreaterThan(0);
+        expect(parsed.system.freeMem).toBeGreaterThan(0);
+        expect(typeof parsed.system.cpus).toBe('number');
+        expect(Array.isArray(parsed.system.loadavg)).toBe(true);
+
+        // Viewer section — wired to the passed opts
+        expect(parsed.viewer.state).toBe('idle');
+        expect(parsed.viewer.scenario).toBe('');
+        expect(parsed.viewer.sseClients).toBe(0);
+        expect(parsed.viewer.memoryHistoryTicks).toBe(42);
+        expect(parsed.viewer.replayBuffer).toBe(1234);
+        expect(parsed.viewer.lastFrameTick).toBe(null);
+    });
+
+    it('/api/stats GET without memoryHistory reports null memoryHistoryTicks', async () => {
+        server = await createUiServer({ port: 0 });
+        const parsed = JSON.parse(await httpGet(server.port, '/api/stats'));
+        expect(parsed.viewer.memoryHistoryTicks).toBe(null);
+        expect(parsed.viewer.replayBuffer).toBe(null);
+    });
+
+    it('/api/stats GET reports scenario workers via setWorkerStats/deleteWorkerStats', async () => {
+        server = await createUiServer({ port: 0 });
+        // Empty before any worker reports
+        expect(JSON.parse(await httpGet(server.port, '/api/stats')).viewer.workers).toEqual([]);
+
+        // Worker self-reports — the payload is stored per pid
+        server.setWorkerStats({
+            pid: 111,
+            scenario: 'demo-scenario',
+            rss: 123,
+            heapUsed: 45,
+            cpuUserUsec: 1000,
+            cpuSystemUsec: 500,
+        });
+        // Same pid reports again — overwritten in place, not duplicated
+        server.setWorkerStats({ pid: 111, scenario: 'demo-scenario', rss: 222, cpuUserUsec: 2000 });
+        server.setWorkerStats({ pid: 222, scenario: 'smoke-empty', rss: 99, cpuUserUsec: 10 });
+
+        const parsed = JSON.parse(await httpGet(server.port, '/api/stats'));
+        expect(parsed.viewer.workers).toHaveLength(2);
+        const w111 = parsed.viewer.workers.find((w) => w.pid === 111);
+        expect(w111.scenario).toBe('demo-scenario');
+        expect(w111.rss).toBe(222); // latest report wins
+        expect(parsed.viewer.workers.find((w) => w.pid === 222).scenario).toBe('smoke-empty');
+
+        // Worker exits — its stats disappear
+        server.deleteWorkerStats(111);
+        const after = JSON.parse(await httpGet(server.port, '/api/stats'));
+        expect(after.viewer.workers).toHaveLength(1);
+        expect(after.viewer.workers[0].pid).toBe(222);
+    });
+
+    it('setWorkerStats ignores payloads without a numeric pid', async () => {
+        server = await createUiServer({ port: 0 });
+        server.setWorkerStats({ scenario: 'no-pid' });
+        server.setWorkerStats(null);
+        const parsed = JSON.parse(await httpGet(server.port, '/api/stats'));
+        expect(parsed.viewer.workers).toEqual([]);
+    });
+
     it('/api/scenarios returns real scenarios when scenariosDir is set', async () => {
         // Point to the examples directory which has real scenarios
         const scenariosDir = path.resolve(__dirname, '..', 'examples', 'scenarios');
