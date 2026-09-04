@@ -8,7 +8,9 @@ import { drawFrame } from '../canvas/drawFrame';
  * @file CanvasStage — the main canvas component that renders room frames.
  *
  * Handles:
- * - Camera: drag (right-click or Ctrl+left-click), zoom (wheel), reset
+ * - Camera: drag (right-click or Ctrl+left-click), zoom (wheel), reset.
+ *   Live gesture updates paint straight from a ref, coalesced to at most one
+ *   canvas redraw per animation frame; React state is committed at gesture end.
  * - Rendering: terrain → structures → creeps per frame
  * - Sprite prewarming
  * - Exposes camera state and jumpToRoom via imperative handle
@@ -40,7 +42,15 @@ const CanvasStage = forwardRef(function CanvasStage(
     // Camera state
     const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
     const cameraRef = useRef(camera);
-    cameraRef.current = camera;
+
+    // Single mutation point for COMMITTED camera changes: keeps the ref (read
+    // by the painter and all input handlers) and the React state (read by
+    // MiniMap / the zoom readout via onCameraChange) in sync. Live gesture
+    // updates bypass state entirely — see handleMouseMove / the wheel lerp.
+    const commitCamera = useCallback((next) => {
+        cameraRef.current = next;
+        setCamera(next);
+    }, []);
 
     // Notify parent of camera changes
     useEffect(() => {
@@ -51,6 +61,28 @@ const CanvasStage = forwardRef(function CanvasStage(
     const initDoneRef = useRef(false);
     const targetCameraRef = useRef(null);
     const zoomAnimRef = useRef(null);
+
+    // Coalesced painting: live camera gestures (drag, wheel lerp) paint
+    // straight from cameraRef and schedule at most ONE canvas redraw per
+    // animation frame, instead of a React state update + full redraw per
+    // input event. renderFnRef always points at the latest renderCurrentFrame
+    // so a pending rAF callback never paints with a stale tick/sub closure.
+    const renderFnRef = useRef(null);
+    const paintRafRef = useRef(null);
+    const schedulePaint = useCallback(() => {
+        if (paintRafRef.current !== null) return;
+        paintRafRef.current = requestAnimationFrame(() => {
+            paintRafRef.current = null;
+            if (renderFnRef.current) renderFnRef.current();
+        });
+    }, []);
+    // Cancel a pending coalesced paint on unmount.
+    useEffect(
+        () => () => {
+            if (paintRafRef.current !== null) cancelAnimationFrame(paintRafRef.current);
+        },
+        [],
+    );
 
     // Expose jumpToRoom + resetCamera via imperative handle
     useImperativeHandle(ref, () => ({
@@ -71,7 +103,7 @@ const CanvasStage = forwardRef(function CanvasStage(
             const zoom = cameraRef.current.zoom;
             const cx = cw / 2 - roomCenterX * zoom;
             const cy = ch / 2 - roomCenterY * zoom;
-            setCamera({ x: cx, y: cy, zoom });
+            commitCamera({ x: cx, y: cy, zoom });
         },
         resetCamera() {
             if (zoomAnimRef.current) cancelAnimationFrame(zoomAnimRef.current);
@@ -87,7 +119,7 @@ const CanvasStage = forwardRef(function CanvasStage(
             const zoom = Math.min(scaleX, scaleY, 3) * 0.9;
             const cx = (cw - layout.width * zoom) / 2;
             const cy = (ch - layout.height * zoom) / 2;
-            setCamera({ x: cx, y: cy, zoom });
+            commitCamera({ x: cx, y: cy, zoom });
         },
     }));
 
@@ -130,9 +162,9 @@ const CanvasStage = forwardRef(function CanvasStage(
             const zoom = Math.min(scaleX, scaleY, 3) * 0.9;
             const cx = (cw - layout.width * zoom) / 2;
             const cy = (ch - layout.height * zoom) / 2;
-            setCamera({ x: cx, y: cy, zoom });
+            commitCamera({ x: cx, y: cy, zoom });
         }
-    }, [recording]);
+    }, [recording, commitCamera]);
 
     // Render the current frame — recording read via ref to avoid deps churn
     const recordingRef2 = useRef(recording);
@@ -195,6 +227,9 @@ const CanvasStage = forwardRef(function CanvasStage(
 
         ctx.restore();
     }, [tick, sub, selectedId]);
+
+    // Keep the rAF paint callback pointed at the latest render function.
+    renderFnRef.current = renderCurrentFrame;
 
     // The newest frame — a fresh object reference on every SSE arrival, so it
     // changes even when the ring buffer is full (frames.length stays constant).
@@ -271,17 +306,26 @@ const CanvasStage = forwardRef(function CanvasStage(
             const pos = getEventPos(e);
             const dx = pos.x - dragRef.current.startX;
             const dy = pos.y - dragRef.current.startY;
-            setCamera((prev) => ({
-                ...prev,
+            // Live update: paint from the ref — zero React work per event.
+            // State is committed once, at gesture end (handleMouseUp).
+            cameraRef.current = {
+                ...cameraRef.current,
                 x: dragRef.current.camStartX + dx,
                 y: dragRef.current.camStartY + dy,
-            }));
+            };
+            schedulePaint();
         },
-        [getEventPos],
+        [getEventPos, schedulePaint],
     );
 
     const handleMouseUp = useCallback(() => {
+        if (!dragRef.current) return;
         dragRef.current = null;
+        // Commit the ref-driven camera to React state once per gesture.
+        // Returning prev bails out of a re-render when nothing moved — a
+        // plain right-click must not trigger a pointless App re-render.
+        const c = cameraRef.current;
+        setCamera((prev) => (prev.x === c.x && prev.y === c.y && prev.zoom === c.zoom ? prev : { ...c }));
     }, []);
 
     // ─── Wheel handler — smooth zoom via lerp ─────────────────────────
@@ -312,17 +356,19 @@ const CanvasStage = forwardRef(function CanvasStage(
                 const dy = tgt.y - cur.y;
                 const dz = tgt.zoom - cur.zoom;
                 if (Math.abs(dx) < eps && Math.abs(dy) < eps && Math.abs(dz) < eps) {
-                    setCamera(tgt);
+                    commitCamera(tgt);
                     targetCameraRef.current = null;
                     zoomAnimRef.current = null;
                     return;
                 }
                 const t = 0.55;
-                setCamera({
+                // Already inside rAF — paint directly from the ref, no state.
+                cameraRef.current = {
                     x: cur.x + dx * t,
                     y: cur.y + dy * t,
                     zoom: cur.zoom + dz * t,
-                });
+                };
+                if (renderFnRef.current) renderFnRef.current();
                 zoomAnimRef.current = requestAnimationFrame(lerp);
             };
             zoomAnimRef.current = requestAnimationFrame(lerp);
@@ -330,7 +376,7 @@ const CanvasStage = forwardRef(function CanvasStage(
 
         canvas.addEventListener('wheel', onWheel, { passive: false });
         return () => canvas.removeEventListener('wheel', onWheel);
-    }, []);
+    }, [commitCamera]);
 
     const handleContextMenu = useCallback((e) => {
         e.preventDefault();
@@ -381,8 +427,8 @@ const CanvasStage = forwardRef(function CanvasStage(
         const zoom = Math.min(scaleX, scaleY, 3) * 0.9;
         const cx = (cw - layout.width * zoom) / 2;
         const cy = (ch - layout.height * zoom) / 2;
-        setCamera({ x: cx, y: cy, zoom });
-    }, []);
+        commitCamera({ x: cx, y: cy, zoom });
+    }, [commitCamera]);
 
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -396,19 +442,21 @@ const CanvasStage = forwardRef(function CanvasStage(
                 case '+':
                 case '=':
                     if (!container) break;
-                    setCamera((prev) => zoomToward(prev, container.clientWidth / 2, container.clientHeight / 2, 1.45));
+                    commitCamera(
+                        zoomToward(cameraRef.current, container.clientWidth / 2, container.clientHeight / 2, 1.45),
+                    );
                     break;
                 case '-':
                     if (!container) break;
-                    setCamera((prev) =>
-                        zoomToward(prev, container.clientWidth / 2, container.clientHeight / 2, 1 / 1.45),
+                    commitCamera(
+                        zoomToward(cameraRef.current, container.clientWidth / 2, container.clientHeight / 2, 1 / 1.45),
                     );
                     break;
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [resetCamera]);
+    }, [resetCamera, commitCamera]);
 
     // ─── Test API (excluded from production builds by Vite dead-code elimination) ──
     if (import.meta.env.DEV) {

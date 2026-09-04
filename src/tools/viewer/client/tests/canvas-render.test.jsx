@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { render, act, fireEvent } from '@testing-library/react';
 import React from 'react';
 import App from '../src/App';
 import CanvasStage from '../src/components/CanvasStage';
@@ -287,6 +287,102 @@ describe('canvas rendering', () => {
             expect(cancelRaf).toHaveBeenCalled();
             expect(raf).toHaveBeenCalledTimes(1);
         } finally {
+            window.requestAnimationFrame = origRaf;
+            window.cancelAnimationFrame = origCancelRaf;
+        }
+    });
+
+    it('coalesces camera drag into one paint per frame and commits state at gesture end', () => {
+        // Regression: live camera gestures must paint straight from the camera
+        // ref, coalesced to at most one canvas redraw per animation frame —
+        // NOT a React state update + full redraw per mousemove. React state
+        // (and onCameraChange consumers like MiniMap) is committed once, at
+        // gesture end.
+        const makeRecording = (n) => ({
+            terrain: { W0N0: Array.from({ length: 50 }, () => '.'.repeat(50)) },
+            frames: Array.from({ length: n }, (_, i) => ({
+                gameTime: i,
+                objects: [{ _id: 'src' + i, type: 'source', x: 25, y: 25, room: 'W0N0' }],
+                console: [],
+            })),
+        });
+
+        // Count paints: renderCurrentFrame calls clearRect exactly once per draw.
+        const origGetContext = HTMLCanvasElement.prototype.getContext;
+        const clearCount = { n: 0 };
+        HTMLCanvasElement.prototype.getContext = function (type) {
+            const ctx = origGetContext.call(this, type);
+            const origClear = ctx.clearRect.bind(ctx);
+            ctx.clearRect = (...args) => {
+                clearCount.n++;
+                return origClear(...args);
+            };
+            return ctx;
+        };
+
+        // Manual rAF queue — callbacks run only when flushed explicitly.
+        const origRaf = window.requestAnimationFrame;
+        const origCancelRaf = window.cancelAnimationFrame;
+        const queue = [];
+        let rafSeq = 0;
+        window.requestAnimationFrame = vi.fn((cb) => {
+            queue.push(cb);
+            return ++rafSeq;
+        });
+        window.cancelAnimationFrame = vi.fn();
+
+        const onCameraChange = vi.fn();
+
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            render(
+                <CanvasStage
+                    recording={makeRecording(1)}
+                    tick={0}
+                    sub={null}
+                    playing={false}
+                    onCameraChange={onCameraChange}
+                />,
+                { container },
+            );
+            act(() => {}); // flush mount effects (initial fit + paint)
+
+            const canvas = container.querySelector('canvas');
+            const paintsAtStart = clearCount.n;
+            const commitsAtStart = onCameraChange.mock.calls.length;
+            const before = onCameraChange.mock.calls[commitsAtStart - 1][0];
+
+            // Drag: right-button down + three moves inside one frame window.
+            fireEvent.mouseDown(canvas, { button: 2, clientX: 100, clientY: 100 });
+            fireEvent.mouseMove(canvas, { clientX: 120, clientY: 90 });
+            fireEvent.mouseMove(canvas, { clientX: 140, clientY: 80 });
+            fireEvent.mouseMove(canvas, { clientX: 160, clientY: 70 });
+
+            // No synchronous paints, exactly one rAF scheduled for the whole
+            // batch, and no React state commits during the gesture.
+            expect(clearCount.n).toBe(paintsAtStart);
+            expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
+            expect(onCameraChange.mock.calls.length).toBe(commitsAtStart);
+
+            // Flushing the frame → exactly ONE paint for the whole batch.
+            act(() => {
+                const pending = queue.splice(0);
+                for (const cb of pending) cb();
+            });
+            expect(clearCount.n).toBe(paintsAtStart + 1);
+
+            // Gesture end → single commit carrying the final camera position
+            // (dx = +60, dy = −30 from the three moves; zoom unchanged).
+            fireEvent.mouseUp(canvas, { clientX: 160, clientY: 70 });
+            expect(onCameraChange.mock.calls.length).toBe(commitsAtStart + 1);
+            expect(onCameraChange).toHaveBeenLastCalledWith({
+                x: before.x + 60,
+                y: before.y - 30,
+                zoom: before.zoom,
+            });
+        } finally {
+            HTMLCanvasElement.prototype.getContext = origGetContext;
             window.requestAnimationFrame = origRaf;
             window.cancelAnimationFrame = origCancelRaf;
         }
