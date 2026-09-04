@@ -290,6 +290,9 @@ PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-inte
   3000 frames) and `memoryHistory` maxTicks (server, 5000 ticks) were separate
   values with the same purpose. Both now use a single
   `config.viewerOptions.replayBuffer` (default 3000).
+
+PR #70 [fix(viewer): eliminate input lag after idle periods](https://github.com/kvi05/screeps-integration-tests/pull/70)
+
 - **Viewer: camera gestures no longer re-render React per input event.** Drag
   and the wheel-zoom lerp now paint the canvas straight from a camera ref,
   coalesced to at most one redraw per animation frame (`CanvasStage.jsx`).
@@ -297,15 +300,6 @@ PR #51 [Refactor/improvement of constants](https://github.com/kvi05/screeps-inte
   stage plus the whole App tree via `onCameraChange` → MiniMap) and a full
   canvas repaint. React state — and the MiniMap viewport indicator and the
   zoom readout — is now committed once at gesture end instead of per event.
-
-### Added dependencies
-
-PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
-
-- `chart.js`, `react-chartjs-2`, `react-router-dom` (viewer client)
-
-### Fixed
-
 - **Viewer: no more input lag after idle periods.** The first camera drag/zoom
   after the stage had been idle used to stutter: Chromium evicts decoded sprite
   bitmaps (SVG `<img>` sources go through the decoded-image cache) and can
@@ -315,6 +309,14 @@ PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
   itself every 4 s while idle and visible, and returning to the tab triggers
   an immediate repaint. Data-driven repaints are skipped while the tab is
   hidden.
+
+### Added dependencies
+
+PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
+
+- `chart.js`, `react-chartjs-2`, `react-router-dom` (viewer client)
+
+### Fixed
 
 PR #56 [Fix/engine snapshot node24](https://github.com/kvi05/screeps-integration-tests/pull/56)
 
