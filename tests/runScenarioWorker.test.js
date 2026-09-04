@@ -391,6 +391,48 @@ describe('runScenario viewer scenario-result message', () => {
         expect(msg.totalWorlds).toBe(1);
     });
 
+    test('a failing scenario reports viewer:scenario-result with status fail', async () => {
+        // The Scenario Manager learns about failures only through the
+        // `viewer:scenario-result` IPC message — without it the UI keeps the
+        // stale 'running' status while the console already shows the error.
+        const scenarioPath = writeScenario(`
+            'use strict';
+            module.exports = {
+                async run() {
+                    throw new Error('scenario-boom');
+                },
+            };
+        `);
+
+        const { resultMessage, scenarioResult } = await runWorkerCollectingScenarioResult(scenarioPath);
+        expect(resultMessage.status).toBe('fail');
+        expect(scenarioResult).not.toBeNull();
+        expect(scenarioResult.type).toBe('viewer:scenario-result');
+        expect(scenarioResult.status).toBe('fail');
+    });
+
+    test('an uncaught exception reports viewer:scenario-result with status fail', async () => {
+        // The global crash guards must broadcast the failure too — a crash
+        // outside the awaited scenario.run() used to skip the Scenario
+        // Manager notification entirely.
+        const scenarioPath = writeScenario(`
+            'use strict';
+            module.exports = {
+                async run() {
+                    setImmediate(() => { throw new Error('guard-result-boom'); });
+                    await new Promise(() => {}); // never resolves — the guard exits the worker
+                },
+            };
+        `);
+
+        const { resultMessage, scenarioResult } = await runWorkerCollectingScenarioResult(scenarioPath);
+        expect(resultMessage.status).toBe('fail');
+        expect(resultMessage.error).toContain('guard-result-boom');
+        expect(scenarioResult).not.toBeNull();
+        expect(scenarioResult.type).toBe('viewer:scenario-result');
+        expect(scenarioResult.status).toBe('fail');
+    });
+
     test('disposed worlds are still counted — dispose freezes the contribution', async () => {
         const indexPath = path.join(__dirname, '..', 'src', 'index.js');
         const scenarioPath = writeScenario(`

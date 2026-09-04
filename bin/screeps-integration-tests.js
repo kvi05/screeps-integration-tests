@@ -471,7 +471,8 @@ async function runViewerMode(config) {
      * @property {boolean} interactive — whether the job streams to the viewer
      * @property {import('child_process').ChildProcess|null} child — worker process (set on spawn)
      * @property {boolean} stopping — dispose was requested; late results are not broadcast
-     * @property {ReturnType<typeof setTimeout>|null} killTimer — hard-kill fallback timer
+     * @property {boolean} resultReported — the worker sent its `viewer:scenario-result`
+     *   message (a worker that died without one gets a synthesized broadcast)
      */
 
     /** @type {Set<RunningJob>} */
@@ -704,7 +705,14 @@ async function runViewerMode(config) {
             // Track the job while its worker is alive so stopAll() can address
             // it (dispose command + hard-kill fallback), regardless of mode.
             /** @type {RunningJob} */
-            const job = { name: scenarioName, interactive, child: null, stopping: false, killTimer: null };
+            const job = {
+                name: scenarioName,
+                interactive,
+                child: null,
+                stopping: false,
+                killTimer: null,
+                resultReported: false,
+            };
             runningJobs.add(job);
 
             /** Removes the job from the registry and cancels its fallback timer */
@@ -730,7 +738,10 @@ async function runViewerMode(config) {
                     // A job that is being stopped has no newsworthy results —
                     // swallowing them keeps Scenario Manager statuses stable
                     // while Run All is restarting the suite.
-                    if (msg.type === 'viewer:scenario-result' && job.stopping) return;
+                    if (msg.type === 'viewer:scenario-result') {
+                        if (job.stopping) return;
+                        job.resultReported = true;
+                    }
                     routeIpcMessage(msg, child);
                 },
                 (child) => {
@@ -748,6 +759,19 @@ async function runViewerMode(config) {
                     finishJob();
                     activeCount--;
                     if (interactive) interactiveRunning--;
+                    // The worker reports its own result via
+                    // `viewer:scenario-result`, but a worker that died without
+                    // a final message (timeout, hard kill, spawn crash) never
+                    // gets to send it — synthesize the broadcast here so the
+                    // Scenario Manager does not keep the stale 'running' status.
+                    if (uiServer && !job.resultReported && !job.stopping) {
+                        uiServer.broadcastScenarioResult({
+                            scenario: scenarioName,
+                            status: result.status === 'pass' ? 'pass' : result.status === 'skip' ? 'skip' : 'fail',
+                            time: result.time || 0,
+                            totalTicks: result.totalTicks || 0,
+                        });
+                    }
                     // Tell the viewer the scenario has finished so the client
                     // switches to local replay of the recorded frames.
                     if (interactive && uiServer) {
@@ -765,6 +789,14 @@ async function runViewerMode(config) {
                     activeCount--;
                     if (interactive) interactiveRunning--;
                     console.error(`[viewer] ${scenarioName} error: ${String(err?.message || err)}`);
+                    if (uiServer && !job.resultReported && !job.stopping) {
+                        uiServer.broadcastScenarioResult({
+                            scenario: scenarioName,
+                            status: 'fail',
+                            time: 0,
+                            totalTicks: 0,
+                        });
+                    }
                     processQueue();
                 });
         }

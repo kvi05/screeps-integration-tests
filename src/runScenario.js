@@ -275,16 +275,14 @@ function installGlobalGuards() {
             return;
         }
         try {
+            // A disposed run crashing during teardown is a user stop, not
+            // a real failure.
+            const status = wasRunDisposed() ? 'skip' : 'fail';
             // The Scenario Manager listens for viewer:scenario-result — report
-            // a user stop even when the worker crashes while being torn down
-            // (e.g. storage disconnect while server.stop() runs).
-            if (wasRunDisposed()) {
-                sendScenarioResult('skip', null);
-            }
+            // crashes too, otherwise the UI keeps the stale 'running' status.
+            sendScenarioResult(status, null);
             sendFinalMessage({
-                // A disposed run crashing during teardown is a user stop, not
-                // a real failure.
-                status: wasRunDisposed() ? 'skip' : 'fail',
+                status,
                 error: `Uncaught ${kind} in the worker process:\n${detail}`,
                 // Worlds may have run before the crash — keep the totals.
                 ...buildWorldTotals(null),
@@ -435,22 +433,21 @@ function installGlobalGuards() {
         // fall back to stack / String for non-framework errors.
         const { FrameworkError: FE } = require('./lib/errors');
         const formatted = e instanceof FE ? e.toString() : null;
+        // A disposed run often throws scenario-side assertions on partial
+        // data — report it as a user stop (`skip`), not a real failure.
+        const status = wasRunDisposed() ? 'skip' : 'fail';
 
         /** @type {WorkerMessage} */
         const message = {
-            // A disposed run often throws scenario-side assertions on partial
-            // data — report it as a user stop (`skip`), not a real failure.
-            status: wasRunDisposed() ? 'skip' : 'fail',
+            status,
             error: formatted ? `${formatted}\n\n${e.stack || ''}` : e.stack || String(e),
             // Worlds may have run (or been created) before the failure —
             // the totals tell how far the scenario got.
             ...buildWorldTotals(null),
         };
-        // The Scenario Manager listens for viewer:scenario-result — report a
-        // user stop even when the run crashed after being disposed.
-        if (wasRunDisposed()) {
-            sendScenarioResult('skip', null);
-        }
+        // The Scenario Manager listens for viewer:scenario-result — report
+        // failures too, otherwise the UI keeps the stale 'running' status.
+        sendScenarioResult(status, null);
         sendFinalMessage(message);
     } finally {
         clearTickInterceptor();
