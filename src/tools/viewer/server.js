@@ -17,6 +17,7 @@
  */
 
 const http = require('http');
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
@@ -160,6 +161,8 @@ function serveStatic(res, filePath) {
  * @property {(terrain: Object) => void} broadcastTerrain — send terrain data to all SSE clients
  * @property {(result: {scenario:string, status:string, time:number, totalTicks:number}) => void} broadcastScenarioResult — send scenario result to all SSE clients
  * @property {(status: {state?:string, tick?:number, speed?:number, scenario?:string}) => void} updateStatus — update cached status and broadcast to SSE
+ * @property {(stats: {pid:number, [k:string]: *}) => void} setWorkerStats — store the latest self-reported worker resource stats (per pid)
+ * @property {(pid: number) => void} deleteWorkerStats — drop a worker's stats entry (worker exited)
  * @property {() => Promise<void>} close — stop the server
  */
 
@@ -191,6 +194,15 @@ async function createUiServer(opts = {}) {
 
     /** @type {Set<ReturnType<typeof openSse>>} */
     const sseClients = new Set();
+
+    /**
+     * Latest resource stats per scenario worker (pid → stats payload).
+     * Workers self-report every WORKER_STATS_INTERVAL_MS via the
+     * `viewer:worker-stats` IPC message; the parent forwards them here.
+     * Entries are removed when the worker exits (deleteWorkerStats).
+     * @type {Map<number, Object>}
+     */
+    const workerStats = new Map();
 
     /** @type {{ state: string, tick: number, speed: number, scenario: string }} */
     const serverStatus = { state: 'idle', tick: 0, speed: DEFAULT_VIEWER_SPEED, scenario: '' };
@@ -326,6 +338,52 @@ async function createUiServer(opts = {}) {
         if (pathname === '/api/status' && req.method === 'GET') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(serverStatus));
+            return;
+        }
+
+        // GET /api/stats — resource usage of the viewer backend (parent
+        // process) and the host system. The client polls this for the
+        // Resources panel; all numbers are plain bytes/microseconds so the
+        // UI can format and rate-compute them.
+        if (pathname === '/api/stats' && req.method === 'GET') {
+            const mu = process.memoryUsage();
+            const cu = process.cpuUsage();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(
+                JSON.stringify({
+                    process: {
+                        pid: process.pid,
+                        uptimeSec: process.uptime(),
+                        rss: mu.rss,
+                        heapUsed: mu.heapUsed,
+                        heapTotal: mu.heapTotal,
+                        external: mu.external,
+                        // Cumulative CPU time — the client diffs two polls to
+                        // get a percentage/rate.
+                        cpuUserUsec: cu.user,
+                        cpuSystemUsec: cu.system,
+                    },
+                    system: {
+                        totalMem: os.totalmem(),
+                        freeMem: os.freemem(),
+                        loadavg: os.loadavg(),
+                        platform: `${os.platform()}/${os.arch()}`,
+                        cpus: os.cpus().length,
+                    },
+                    viewer: {
+                        state: serverStatus.state,
+                        scenario: serverStatus.scenario,
+                        sseClients: sseClients.size,
+                        memoryHistoryTicks: opts.memoryHistory ? opts.memoryHistory.size() : null,
+                        replayBuffer: opts.lastStart ? opts.lastStart.replayBuffer || null : null,
+                        lastFrameTick: lastFrame && lastFrame.gameTime !== undefined ? lastFrame.gameTime : null,
+                        // Scenario workers (child processes) — self-reported
+                        // stats. The process section above covers ONLY the
+                        // parent; scenarios run in forked workers.
+                        workers: [...workerStats.values()],
+                    },
+                }),
+            );
             return;
         }
 
@@ -837,6 +895,27 @@ async function createUiServer(opts = {}) {
                     for (const client of sseClients) {
                         client.send('scenario-result', result);
                     }
+                },
+
+                /**
+                 * Store the latest self-reported resource stats of a scenario
+                 * worker (forwarded by the parent from `viewer:worker-stats`
+                 * IPC). Keyed by pid, so repeated reports overwrite in place.
+                 * @param {{pid:number, [k:string]: *}} stats
+                 */
+                setWorkerStats(stats) {
+                    if (stats && typeof stats.pid === 'number') {
+                        workerStats.set(stats.pid, stats);
+                    }
+                },
+
+                /**
+                 * Drop a worker's stats entry — called when its process
+                 * exits, so /api/stats never reports dead workers.
+                 * @param {number} pid
+                 */
+                deleteWorkerStats(pid) {
+                    workerStats.delete(pid);
                 },
 
                 async close() {
