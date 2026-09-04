@@ -8,6 +8,7 @@ import MetricsPanel from './components/MetricsPanel';
 import MiniMap from './components/MiniMap';
 import ScenarioManager from './components/ScenarioManager';
 import StatePanel from './components/StatePanel';
+import ResourcesPanel from './components/ResourcesPanel';
 import {
     connectSSE,
     postDispose,
@@ -19,6 +20,9 @@ import {
     postStep,
 } from './api/client';
 import { loadPrefs, savePrefs } from './state/prefs';
+import { resetFacingMemo } from './canvas/layout';
+import { PERSIST_BUDGET_CHARS } from './utils/limits';
+import { scenarioBasename } from './utils/scenarioName';
 import {
     ChevronLeftIcon,
     ChevronRightIcon,
@@ -32,6 +36,7 @@ import {
     WifiIcon,
     WifiOffIcon,
     FilmIcon,
+    GaugeIcon,
 } from './components/Icons';
 import './styles/global.css';
 
@@ -48,7 +53,7 @@ import './styles/global.css';
  * - Console panel (logs from frames)
  * - Metrics graphs
  * - MiniMap
- * - Sidebar tabs: Inspector / Metrics / State / Settings
+ * - Sidebar tabs: Inspector / Metrics / State / Resources / Settings
  *
  * @component
  */
@@ -121,7 +126,7 @@ export default function App() {
     // Side panels
     const [showConsole, setShowConsole] = useState(() => loadPrefs().showConsole);
     const [showMiniMap, setShowMiniMap] = useState(() => loadPrefs().showMiniMap);
-    const [sidebarTab, setSidebarTab] = useState('inspector'); // inspector | metrics | state | settings
+    const [sidebarTab, setSidebarTab] = useState('inspector'); // inspector | metrics | state | resources | settings
 
     // Sidebar
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -161,15 +166,51 @@ export default function App() {
     const replayBufferRef = useRef(replayBuffer);
     replayBufferRef.current = replayBuffer;
 
+    // Set by the SSE `start` case when a reconnect kept the local history —
+    // the next `frame` event confirms (or refutes) it. See start/frame cases.
+    const keepHistoryRef = useRef(false);
+
     // ─── Persist recording to sessionStorage (scenario end / page hide) ─────
     // The previous debounced persist JSON.stringified up to 200 frames every
     // 500ms on the main thread during a live run. Saving only on scenario end
     // or right before the page hides/unloads is enough to survive a reload.
+    //
+    // Quota guard (2026-09-03): a full ring buffer serializes to 30+ MB
+    // (measured ~190 MB for 3000 frames of a real run) — beyond the browser
+    // quota (5 MB older browsers, 50 MB current Firefox). The write throws
+    // QuotaExceededError and the recording was lost SILENTLY. On quota errors
+    // we estimate a fitting frame count from PERSIST_BUDGET_CHARS and keep
+    // the newest frames that fit instead of dropping everything.
     const persistRecording = useCallback(() => {
+        let jsonLen = 0;
         try {
-            sessionStorage.setItem('sit-viewer-recording', JSON.stringify(recordingRef.current));
+            const json = JSON.stringify(recordingRef.current);
+            jsonLen = json.length;
+            sessionStorage.setItem('sit-viewer-recording', json);
         } catch {
-            // Storage full — keep in-memory only
+            // Quota exceeded — keep the newest frames that fit. The failed
+            // full stringify tells us the exact per-frame cost, so jump
+            // straight to a fitting count instead of halving from the full
+            // buffer (each halving step was a huge stringify on the main
+            // thread right before unload).
+            const frames = recordingRef.current.frames || [];
+            const perFrame = frames.length > 0 && jsonLen > 0 ? jsonLen / frames.length : 0;
+            let keep = frames.length;
+            if (perFrame > 0) {
+                keep = Math.min(keep, Math.floor(PERSIST_BUDGET_CHARS / perFrame));
+            }
+            while (keep > 0) {
+                try {
+                    const shrunk = JSON.stringify({
+                        ...recordingRef.current,
+                        frames: frames.slice(-keep),
+                    });
+                    sessionStorage.setItem('sit-viewer-recording', shrunk);
+                    return;
+                } catch {
+                    keep = Math.floor(keep / 2);
+                }
+            }
         }
     }, []);
 
@@ -179,13 +220,9 @@ export default function App() {
     }, [ended, persistRecording]);
 
     useEffect(() => {
-        const onHide = () => persistRecording();
-        window.addEventListener('pagehide', onHide);
-        window.addEventListener('visibilitychange', onHide);
-        return () => {
-            window.removeEventListener('pagehide', onHide);
-            window.removeEventListener('visibilitychange', onHide);
-        };
+        const onPageHide = () => persistRecording();
+        window.addEventListener('pagehide', onPageHide);
+        return () => window.removeEventListener('pagehide', onPageHide);
     }, [persistRecording]);
 
     // ─── Persist user preferences to localStorage ─────────────────────────
@@ -209,26 +246,46 @@ export default function App() {
         let firstFrame = true;
         const sse = connectSSE((eventType, data) => {
             switch (eventType) {
-                case 'start':
+                case 'start': {
+                    // Reconnect detection: the server re-sends `start` to
+                    // late-connecting clients — i.e. right after a page reload
+                    // while a scenario runs. If the local buffer belongs to the
+                    // SAME scenario, keep its history: a reload must not wipe
+                    // the recording. A genuinely fresh run (different scenario,
+                    // or the same scenario restarted from tick 0) is detected
+                    // on the first frame below.
+                    const startName = scenarioBasename(data.scenario || '');
+                    const prev = recordingRef.current;
+                    const keepHistory =
+                        !!startName && prev._scenario === startName && prev.frames && prev.frames.length > 0;
                     setScenario(data.scenario || '');
                     setConnected(true);
                     // Respect viewerOptions.paused: start paused if the server did
                     setServerState(data.paused ? 'paused' : 'running');
                     setEnded(false);
                     setPlaying(!data.paused);
-                    setTick(0);
                     setSub(null);
-                    setRecording({ terrain: {}, frames: [] });
-                    setClickedTile(null);
-                    setSelectedId(null);
+                    if (keepHistory) {
+                        // Stay at the recorded edge — the server continues from
+                        // there; the first frame confirms (or refutes) it.
+                        keepHistoryRef.current = true;
+                        setTick(prev.frames.length - 1);
+                    } else {
+                        setTick(0);
+                        setRecording({ terrain: {}, frames: [], _scenario: startName });
+                        resetFacingMemo(); // frame buffer reset — facing memo must follow
+                        setClickedTile(null);
+                        setSelectedId(null);
+                        try {
+                            sessionStorage.removeItem('sit-viewer-recording');
+                        } catch {
+                            /* ignore */
+                        }
+                    }
                     if (data.replayBuffer) setReplayBuffer(data.replayBuffer);
                     firstFrame = true;
-                    try {
-                        sessionStorage.removeItem('sit-viewer-recording');
-                    } catch {
-                        /* ignore */
-                    }
                     break;
+                }
                 case 'terrain': {
                     setRecording((prev) => ({
                         ...prev,
@@ -256,21 +313,43 @@ export default function App() {
                             }));
                         }
                     }
-                    setServerTick(data.gameTime);
-                    setRecording((prev) => {
-                        const newFrames = [
-                            ...prev.frames,
-                            {
-                                gameTime: data.gameTime,
-                                objects: data.objects || [],
-                                console: data.console || [],
-                            },
-                        ];
-                        if (newFrames.length > replayBufferRef.current) {
-                            newFrames.splice(0, newFrames.length - replayBufferRef.current);
+                    // Reconnect confirmation (see the `start` case): decide
+                    // what the held history means now that a real frame arrived.
+                    let skipAppend = false;
+                    if (keepHistoryRef.current) {
+                        keepHistoryRef.current = false;
+                        const prev = recordingRef.current;
+                        const lastGt = prev.frames.length ? prev.frames[prev.frames.length - 1].gameTime : -1;
+                        if (typeof data.gameTime === 'number' && data.gameTime < lastGt) {
+                            // Same scenario but restarted from tick 0 — the held
+                            // history is from the previous run: drop it.
+                            setRecording((p) => ({ ...p, frames: [] }));
+                            resetFacingMemo(); // frame buffer reset — facing memo must follow
+                            setTick(0);
+                        } else if (data.gameTime === lastGt) {
+                            // The server re-sent its latest frame, which we
+                            // already hold — keep the buffer, skip the dupe.
+                            skipAppend = true;
                         }
-                        return { ...prev, frames: newFrames };
-                    });
+                        // data.gameTime > lastGt → clean reconnect: just append.
+                    }
+                    setServerTick(data.gameTime);
+                    if (!skipAppend) {
+                        setRecording((prev) => {
+                            const newFrames = [
+                                ...prev.frames,
+                                {
+                                    gameTime: data.gameTime,
+                                    objects: data.objects || [],
+                                    console: data.console || [],
+                                },
+                            ];
+                            if (newFrames.length > replayBufferRef.current) {
+                                newFrames.splice(0, newFrames.length - replayBufferRef.current);
+                            }
+                            return { ...prev, frames: newFrames };
+                        });
+                    }
                     break;
                 }
                 case 'end':
@@ -279,8 +358,12 @@ export default function App() {
                     setServerState('idle');
                     break;
                 case 'restored': {
-                    // Server was rewound to a past tick — reset local frame buffer
-                    setRecording({ terrain: recording.terrain, frames: [] });
+                    // Server was rewound to a past tick — reset local frame
+                    // buffer, keep terrain and the scenario tag (_scenario).
+                    // Functional update: the SSE callback closes over the
+                    // INITIAL recording, the closure variable would be stale.
+                    setRecording((prev) => ({ ...prev, frames: [] }));
+                    resetFacingMemo(); // frame buffer reset — facing memo must follow
                     setTick(0);
                     setSub(null);
                     setServerTick(data.tick || 0);
@@ -920,6 +1003,13 @@ export default function App() {
                             <DatabaseIcon size={14} />
                         </button>
                         <button
+                            className={`sidebar-tab ${sidebarTab === 'resources' ? 'active' : ''}`}
+                            onClick={() => setSidebarTab('resources')}
+                            title="Resources — memory / CPU / buffer usage"
+                        >
+                            <GaugeIcon size={14} />
+                        </button>
+                        <button
                             className={`sidebar-tab ${sidebarTab === 'settings' ? 'active' : ''}`}
                             onClick={() => setSidebarTab('settings')}
                             title="Settings"
@@ -963,6 +1053,9 @@ export default function App() {
                                 showConsole={showConsole}
                                 onToggleConsole={() => setShowConsole(!showConsole)}
                             />
+                        )}
+                        {sidebarTab === 'resources' && (
+                            <ResourcesPanel recordingRef={recordingRef} replayBuffer={replayBuffer} />
                         )}
                     </div>
 
