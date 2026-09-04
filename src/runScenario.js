@@ -32,6 +32,55 @@ process.on('message', (cmd) => {
 });
 
 /**
+ * Scenario name reported in `viewer:scenario-result` / `viewer:worker-stats`
+ * messages. Resolved once the worker receives its run configuration (snapshot
+ * meta takes priority, then the scenario path).
+ *
+ * Declared before the stats timer below, which references it.
+ *
+ * @type {string}
+ */
+let activeScenarioName = 'snapshot-launch';
+
+/**
+ * Self-report this worker's resource usage to the parent every 2 s
+ * (`viewer:worker-stats` IPC → uiServer.setWorkerStats → GET /api/stats →
+ * viewer Resources panel).
+ *
+ * Why: scenarios run in FORKED child processes — the parent's own
+ * process.memoryUsage()/cpuUsage() (what /api/stats reported before)
+ * covers only the UI server, not the scenario workers that actually burn
+ * CPU and memory. One tiny message per 2 s per worker is negligible; the
+ * interval dies with process.exit(0) on worker shutdown. In non-viewer runs
+ * the parent simply drops these messages (uiServer is null / typed messages
+ * are filtered out in batch mode).
+ *
+ * @type {ReturnType<typeof setInterval>}
+ */
+const workerStatsTimer = setInterval(() => {
+    if (!process.send) return;
+    try {
+        const mu = process.memoryUsage();
+        const cu = process.cpuUsage();
+        process.send({
+            type: 'viewer:worker-stats',
+            pid: process.pid,
+            scenario: activeScenarioName,
+            rss: mu.rss,
+            heapUsed: mu.heapUsed,
+            heapTotal: mu.heapTotal,
+            external: mu.external,
+            cpuUserUsec: cu.user,
+            cpuSystemUsec: cu.system,
+            uptimeSec: process.uptime(),
+        });
+    } catch {
+        /* non-critical — channel may be closing */
+    }
+}, 2000);
+workerStatsTimer.unref?.();
+
+/**
  * The tick interceptor installed by this worker (viewer interceptor for
  * interactive runs, dispose-only interceptor for batch runs), or null if no
  * interceptor was installed. Queried when resolving the reported status so a
@@ -40,15 +89,6 @@ process.on('message', (cmd) => {
  * @type {import('./lib/types').TickInterceptor & { wasDisposed?: () => boolean } | null}
  */
 let activeInterceptor = null;
-
-/**
- * Scenario name reported in `viewer:scenario-result` messages. Resolved once
- * the worker receives its run configuration (snapshot meta takes priority,
- * then the scenario path).
- *
- * @type {string}
- */
-let activeScenarioName = 'snapshot-launch';
 
 /**
  * Sends the final worker message and exits once it is flushed to the IPC
