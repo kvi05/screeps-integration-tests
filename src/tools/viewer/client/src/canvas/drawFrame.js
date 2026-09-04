@@ -10,7 +10,7 @@ const CREEP_SIZE_TILES = 1.25;
 /**
  * Draw a creep sprite at world tile coords.
  * @param {CanvasRenderingContext2D} ctx
- * @param {HTMLImageElement} img
+ * @param {HTMLCanvasElement|HTMLImageElement} img
  * @param {number} wx
  * @param {number} wy
  * @param {number} angleDeg

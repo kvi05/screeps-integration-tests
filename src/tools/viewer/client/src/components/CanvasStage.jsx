@@ -4,6 +4,9 @@ import { computeStageLayout } from '../canvas/layout';
 import { zoomToward } from '../canvas/math';
 import { drawFrame } from '../canvas/drawFrame';
 
+/** @type {number} Idle keep-warm repaint interval (ms) — see the keep-warm effect. */
+const KEEP_WARM_MS = 4000;
+
 /**
  * @file CanvasStage — the main canvas component that renders room frames.
  *
@@ -13,6 +16,10 @@ import { drawFrame } from '../canvas/drawFrame';
  *   canvas redraw per animation frame; React state is committed at gesture end.
  * - Rendering: terrain → structures → creeps per frame
  * - Sprite prewarming
+ * - Idle keep-warm: a low-frequency repaint while visible-but-idle keeps
+ *   browser caches (decoded sprites, GPU backing) warm, and returning to the
+ *   tab repaints immediately — the first interaction after a pause must not
+ *   stutter.
  * - Exposes camera state and jumpToRoom via imperative handle
  *
  * @component
@@ -38,6 +45,9 @@ const CanvasStage = forwardRef(function CanvasStage(
     const layersRef = useRef(null);
     const layoutRef = useRef(null);
     const animFrameRef = useRef(null);
+    // Timestamp of the last canvas paint — the keep-warm timer fires only
+    // when the last paint is older than KEEP_WARM_MS (true idle).
+    const lastPaintAtRef = useRef(0);
 
     // Camera state
     const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
@@ -180,6 +190,8 @@ const CanvasStage = forwardRef(function CanvasStage(
 
         if (!canvas || !rec || !sprites || !layers || !layout) return;
 
+        lastPaintAtRef.current = Date.now();
+
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
 
@@ -236,8 +248,12 @@ const CanvasStage = forwardRef(function CanvasStage(
     // Using it as a dep keeps live redraws driven by actual data arrival.
     const latestFrame = recording.frames[recording.frames.length - 1];
 
-    // Re-render on tick/sub change, new frames, or selectedId change
+    // Re-render on tick/sub change, new frames, or selectedId change.
+    // Skipped while the tab is hidden — the paint would not be composited
+    // anyway, and the visibility warm-up below repaints the latest state on
+    // return.
     useEffect(() => {
+        if (document.hidden) return;
         const t0 = performance.now();
         renderCurrentFrame();
         const elapsed = performance.now() - t0;
@@ -246,8 +262,10 @@ const CanvasStage = forwardRef(function CanvasStage(
         }
     }, [renderCurrentFrame, latestFrame, selectedId]);
 
-    // Also re-render on camera change (mouse drag/wheel zoom — needed when playback is paused)
+    // Also re-render on camera change (mouse drag/wheel zoom — needed when
+    // playback is paused). Same hidden-tab skip as above.
     useEffect(() => {
+        if (document.hidden) return;
         const t0 = performance.now();
         renderCurrentFrame();
         const elapsed = performance.now() - t0;
@@ -271,6 +289,35 @@ const CanvasStage = forwardRef(function CanvasStage(
             };
         }
     }, [playing, sub, renderCurrentFrame]);
+
+    // ─── Idle keep-warm + visibility warm-up ────────────────────────────────
+    // While the page is visible but nothing changes (paused playback, no
+    // incoming frames), Chromium evicts decoded sprite bitmaps and can
+    // discard the canvas' GPU backing store; the first user interaction then
+    // pays a synchronous re-decode + re-upload — visible stutter until the
+    // caches warm up. Two cheap countermeasures:
+    //   - a low-frequency repaint while idle (skipped while hidden, and
+    //     skipped while the last paint is still fresh);
+    //   - an immediate repaint when the tab becomes visible again (also
+    //     covers the data-driven paints skipped while hidden above).
+    useEffect(() => {
+        const paint = () => {
+            if (renderFnRef.current) renderFnRef.current();
+        };
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') paint();
+        };
+        const timer = setInterval(() => {
+            if (document.visibilityState !== 'visible') return;
+            if (Date.now() - lastPaintAtRef.current < KEEP_WARM_MS) return;
+            paint();
+        }, KEEP_WARM_MS);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, []);
 
     // ─── Mouse handlers ─────────────────────────────────────────────────────
 

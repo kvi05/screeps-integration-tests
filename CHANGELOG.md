@@ -306,6 +306,16 @@ PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 ### Fixed
 
+- **Viewer: no more input lag after idle periods.** The first camera drag/zoom
+  after the stage had been idle used to stutter: Chromium evicts decoded sprite
+  bitmaps (SVG `<img>` sources go through the decoded-image cache) and can
+  discard the canvas' GPU backing store, so the first draws synchronously
+  re-decoded SVG on the main thread. Sprites are now rasterized once into
+  canvas bitmaps (plain texture blit, no decode step), the stage repaints
+  itself every 4 s while idle and visible, and returning to the tab triggers
+  an immediate repaint. Data-driven repaints are skipped while the tab is
+  hidden.
+
 PR #56 [Fix/engine snapshot node24](https://github.com/kvi05/screeps-integration-tests/pull/56)
 
 - **Engine snapshot auto-regeneration after Node.js upgrades.** `@screeps/driver`

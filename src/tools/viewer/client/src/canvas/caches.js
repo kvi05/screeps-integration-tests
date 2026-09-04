@@ -20,15 +20,49 @@ const INVADER_INNER =
 const INVADER_VIEWBOX = { width: 64, height: 50 };
 
 /**
- * Rasterize an SVG string to an HTMLImageElement.
- * @param {string} svg
- * @returns {Promise<HTMLImageElement>}
+ * A rasterized sprite bitmap. Canvas-backed when a 2D context is available
+ * (the normal case), raw `<img>` as a fallback.
+ * @typedef {HTMLCanvasElement|HTMLImageElement} SpriteBitmap
  */
-function svgToImage(svg) {
+
+/**
+ * Rasterize an SVG string into a canvas-backed bitmap.
+ *
+ * drawImage from a canvas is a plain texture blit. drawImage from an SVG
+ * `<img>` goes through Blink's decoded-image cache instead: Chromium evicts
+ * decoded image data on memory pressure, when the tab is hidden, and after
+ * disuse — and the first draw after that synchronously re-decodes the SVG on
+ * the main thread. That was the main source of the "first interaction after
+ * an idle period stutters" behavior. Rasterizing once into a small offscreen
+ * canvas removes that path entirely (~37 KB of GPU memory per sprite).
+ *
+ * @param {string} svg
+ * @param {number} width
+ * @param {number} height
+ * @returns {Promise<SpriteBitmap>}
+ */
+function svgToCanvas(svg, width, height) {
     return new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = (e) => reject(e);
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    // No 2D context (exotic environments) — drawImage accepts
+                    // the raw <img> too, it just loses the cache benefits.
+                    resolve(img);
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas);
+            } catch (err) {
+                reject(err);
+            }
+        };
+        img.onerror = (err) => reject(err);
         img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     });
 }
@@ -39,9 +73,9 @@ function svgToImage(svg) {
  * Cache for creep and invader sprites, rasterized from SVG.
  */
 export class SpriteCache {
-    /** @type {Map<string, HTMLImageElement>} */
+    /** @type {Map<string, SpriteBitmap>} */
     creeps = new Map();
-    /** @type {HTMLImageElement|null} */
+    /** @type {SpriteBitmap|null} */
     invader = null;
     /** @type {string|undefined} */
     botUserId;
@@ -134,7 +168,7 @@ export class SpriteCache {
             innerSvg +
             '</svg>';
         try {
-            this.creeps.set(key, await svgToImage(svg));
+            this.creeps.set(key, await svgToCanvas(svg, SPRITE_PX, SPRITE_PX));
         } catch {
             /* skip */
         }
@@ -154,7 +188,7 @@ export class SpriteCache {
             INVADER_INNER +
             '</svg>';
         try {
-            this.invader = await svgToImage(svg);
+            this.invader = await svgToCanvas(svg, SPRITE_PX, SPRITE_PX);
         } catch {
             /* skip */
         }
@@ -162,14 +196,14 @@ export class SpriteCache {
 
     /**
      * @param {import('../api/types').FrameObject} o
-     * @returns {HTMLImageElement|null}
+     * @returns {SpriteBitmap|null}
      */
     creepSprite(o) {
         return this.creeps.get(this.key(o)) || null;
     }
 
     /**
-     * @returns {HTMLImageElement|null}
+     * @returns {SpriteBitmap|null}
      */
     invaderSprite() {
         return this.invader;

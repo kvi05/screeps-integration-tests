@@ -387,4 +387,158 @@ describe('canvas rendering', () => {
             window.cancelAnimationFrame = origCancelRaf;
         }
     });
+
+    // ─── Idle keep-warm + visibility warm-up ────────────────────────────────
+    // Regression guard for the "first interaction after an idle period
+    // stutters" bug: while visible-but-idle the browser evicts decoded
+    // sprite bitmaps and the canvas' GPU backing store; the stage must keep
+    // its caches warm and repaint immediately when the tab returns.
+
+    const makeRecording = (n) => ({
+        terrain: { W0N0: Array.from({ length: 50 }, () => '.'.repeat(50)) },
+        frames: Array.from({ length: n }, (_, i) => ({
+            gameTime: i,
+            objects: [{ _id: 'src' + i, type: 'source', x: 25, y: 25, room: 'W0N0' }],
+            console: [],
+        })),
+    });
+
+    /** Count full paints: renderCurrentFrame calls clearRect exactly once per draw. */
+    function instrumentPaints() {
+        const origGetContext = HTMLCanvasElement.prototype.getContext;
+        const clearCount = { n: 0 };
+        HTMLCanvasElement.prototype.getContext = function (type) {
+            const ctx = origGetContext.call(this, type);
+            const origClear = ctx.clearRect.bind(ctx);
+            ctx.clearRect = (...args) => {
+                clearCount.n++;
+                return origClear(...args);
+            };
+            return ctx;
+        };
+        return {
+            clearCount,
+            restore() {
+                HTMLCanvasElement.prototype.getContext = origGetContext;
+            },
+        };
+    }
+
+    /** Override document visibility (jsdom defaults to visible); returns a restore fn. */
+    function setVisibility(state) {
+        Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+        Object.defineProperty(document, 'hidden', { value: state === 'hidden', configurable: true });
+        return () => {
+            delete document.visibilityState;
+            delete document.hidden;
+        };
+    }
+
+    it('keep-warm: repaints an idle visible stage at most once per interval', () => {
+        // Date is faked so the staleness check (Date.now() vs last paint)
+        // advances together with the interval.
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+        const { clearCount, restore } = instrumentPaints();
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const { unmount } = render(
+                <CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={false} />,
+                { container },
+            );
+            act(() => {}); // flush mount effects (initial paint)
+
+            const baseline = clearCount.n;
+            expect(baseline).toBeGreaterThan(0);
+
+            // Idle for a full interval → exactly one warm repaint.
+            act(() => {
+                vi.advanceTimersByTime(4000);
+            });
+            expect(clearCount.n).toBe(baseline + 1);
+
+            // The repaint refreshed the timestamp — an interval fire just
+            // before the next interval must NOT paint again.
+            act(() => {
+                vi.advanceTimersByTime(3999);
+            });
+            expect(clearCount.n).toBe(baseline + 1);
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(clearCount.n).toBe(baseline + 2);
+
+            unmount();
+        } finally {
+            restore();
+            vi.useRealTimers();
+        }
+    });
+
+    it('repaints immediately when the tab becomes visible again', () => {
+        const { clearCount, restore } = instrumentPaints();
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            render(<CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={false} />, {
+                container,
+            });
+            act(() => {});
+
+            const baseline = clearCount.n;
+            expect(baseline).toBeGreaterThan(0);
+
+            // visibilitychange while hidden → no paint.
+            const hide = setVisibility('hidden');
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+            expect(clearCount.n).toBe(baseline);
+            hide();
+
+            // Back to visible → immediate warm-up repaint.
+            const show = setVisibility('visible');
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+            expect(clearCount.n).toBe(baseline + 1);
+            show();
+        } finally {
+            restore();
+        }
+    });
+
+    it('skips data-driven paints while hidden and covers the return with a warm-up', () => {
+        const { clearCount, restore } = instrumentPaints();
+        try {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const { rerender } = render(
+                <CanvasStage recording={makeRecording(1)} tick={0} sub={null} playing={false} />,
+                { container },
+            );
+            act(() => {});
+
+            const baseline = clearCount.n;
+
+            // Hide the tab, then deliver a new frame — the paint is skipped
+            // (nothing is composited while hidden).
+            const hide = setVisibility('hidden');
+            rerender(<CanvasStage recording={makeRecording(2)} tick={1} sub={null} playing={false} />);
+            act(() => {});
+            expect(clearCount.n).toBe(baseline);
+            hide();
+
+            // Return to visible → warm-up repaint with the latest state.
+            const show = setVisibility('visible');
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+            expect(clearCount.n).toBe(baseline + 1);
+            show();
+        } finally {
+            restore();
+        }
+    });
 });
