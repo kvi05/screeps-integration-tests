@@ -241,7 +241,7 @@ PR #68 [feat(viewer): resource monitoring (Resources panel) and renderer stabili
 
 ### Changed
 
-PR #71 [fix(viewer): honest scenario statuses in Scenario Manager (queue vs running)](https://github.com/kvi05/screeps-integration-tests/pull/71)
+PR #72 [fix(viewer): honest scenario statuses in Scenario Manager (queue vs running)](https://github.com/kvi05/screeps-integration-tests/pull/72)
 
 - **Scenario Manager statuses are now honest about the queue.** A queued
   scenario shows `Pending` until a worker actually dequeues it; only then does
