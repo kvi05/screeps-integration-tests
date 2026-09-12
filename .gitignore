@@ -37,6 +37,9 @@ opencode.json
 /plan
 /road
 
+# Task backlog (private, not published with the repo)
+/backlog
+
 # Environment
 .env
 .env.local
