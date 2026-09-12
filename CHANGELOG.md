@@ -333,6 +333,22 @@ PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 ### Fixed
 
+PR #73 [fix(viewer): repeated RUN clicks restart the scenario instead of duplicating runs](https://github.com/kvi05/screeps-integration-tests/pull/73)
+
+- **Repeated RUN clicks in the Scenario Manager no longer duplicate runs.**
+  The per-scenario RUN button only pushed another job into the runner queue,
+  so one scenario could occupy several worker slots (`config.jobs`) and
+  produce duplicate result churn. A single RUN click now means "restart":
+  pending duplicates of the scenario are dropped from the queue, a running
+  instance is stopped gracefully (`dispose` command + force-kill fallback,
+  its late results are not broadcast) and exactly one fresh run is enqueued.
+  Interactive launches, Run All and Stop All keep their previous semantics.
+  The queue/worker-pool mechanics are extracted from
+  `bin/screeps-integration-tests.js` into `src/tools/viewer/scenarioRunner.js`
+  (`createScenarioRunner` with dependency injection: worker launcher, UI
+  server, scenario discovery, kill fallback, IPC router) and covered by unit
+  tests (`tests/scenarioRunner.test.js`).
+
 PR #56 [Fix/engine snapshot node24](https://github.com/kvi05/screeps-integration-tests/pull/56)
 
 - **Engine snapshot auto-regeneration after Node.js upgrades.** `@screeps/driver`

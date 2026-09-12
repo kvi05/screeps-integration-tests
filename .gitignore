@@ -40,6 +40,9 @@ opencode.json
 # Task backlog (private, not published with the repo)
 /backlog
 
+# Agent memory (per AGENTS.md Memory Policy: memory lives outside git)
+/memories
+
 # Environment
 .env
 .env.local
