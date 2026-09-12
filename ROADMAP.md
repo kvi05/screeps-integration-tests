@@ -3,8 +3,11 @@
 This is the public statement of where the project is heading. It is the
 **course**, not the task list: tasks live in `backlog/` (the SSOT, see
 `backlog/README.md`), this file explains _why_ and _in what order_. Epics are
-referenced by id (`E01`…). Changing the course is a human decision; agents
-treat this file as read-only context.
+referenced by id (`E01`…). Agents keep this file in sync with reality:
+Conductor updates it when an epic closes (remove from "Now", add to
+"Completed milestones"). Changing the course — new themes, priorities,
+horizons — is a human decision; an agent that sees the need for a course
+change raises the question instead of editing.
 
 ## Current state
 
@@ -30,12 +33,11 @@ stabilization before wider exposure.
 | `E05`        | Split CLI and UI       | `createWorld` still carries viewer-specific options; the CLI/UI boundary must be clean before new UI features              |
 | `E07`        | UI polish              | Small readability fixes (minimap, hotkey hints)                                                                            |
 | `E03`        | UI global requirements | The big rocks: full history/rewind/snapshot, memory viewer, map editor, settings, Object Inspector                         |
-| `E01`        | Framework code cleanup | Debt accumulated during the UI push; keep architecture boundaries intact                                                   |
 | `E02`        | Statistics             | More accurate carrier-coefficient scenarios, more rooms/ticks                                                              |
 | `E08`        | Public release prep    | Docs update, demo examples, gifs — before announcing in the official Discord                                               |
 
 Order within "Now": bug waves (`E04`, `E06`) and the CLI/UI split (`E05`)
-first — they unblock everything else; then `E03` features; `E01`/`E02` run in
+first — they unblock everything else; then `E03` features; `E02` runs in
 parallel as hygiene; `E08` is the exit gate of this cycle.
 
 ## Next — mid-term
@@ -80,6 +82,8 @@ Directionally interesting, not scheduled:
   INTEGRATION-TESTS / MULTI-ROOM-GUIDE / RUN-MODES / VIEWER
 - `spec.*` builder rework, structure coverage, terrain customization
 - Metrics pipeline with regression baselines
+- Framework code cleanup (`E01`): explicit `screeps-server-mockup`
+  dependency, class-based runtime
 - Viewer UI: Scenario Manager, interactive world view, replay, snapshots
   (merged from `feat/UI`)
 - Agent workflow: `backlog/` SSOT, conductor/implementer/reviewer roles,
