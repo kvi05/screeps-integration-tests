@@ -333,7 +333,7 @@ PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 ### Fixed
 
-PR <pending>
+PR #73 [fix(viewer): repeated RUN clicks restart the scenario instead of duplicating runs](https://github.com/kvi05/screeps-integration-tests/pull/73)
 
 - **Repeated RUN clicks in the Scenario Manager no longer duplicate runs.**
   The per-scenario RUN button only pushed another job into the runner queue,
