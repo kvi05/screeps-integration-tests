@@ -160,6 +160,7 @@ function serveStatic(res, filePath) {
  * @property {(frame: Object) => void} broadcast — send a frame to all SSE clients
  * @property {(terrain: Object) => void} broadcastTerrain — send terrain data to all SSE clients
  * @property {(result: {scenario:string, status:string, time:number, totalTicks:number}) => void} broadcastScenarioResult — send scenario result to all SSE clients
+ * @property {(scenario:string, status:string) => void} broadcastScenarioStatus — send a scenario status transition (e.g. pending → running) to all SSE clients
  * @property {(status: {state?:string, tick?:number, speed?:number, scenario?:string}) => void} updateStatus — update cached status and broadcast to SSE
  * @property {(stats: {pid:number, [k:string]: *}) => void} setWorkerStats — store the latest self-reported worker resource stats (per pid)
  * @property {(pid: number) => void} deleteWorkerStats — drop a worker's stats entry (worker exited)
@@ -894,6 +895,20 @@ async function createUiServer(opts = {}) {
                 broadcastScenarioResult(result) {
                     for (const client of sseClients) {
                         client.send('scenario-result', result);
+                    }
+                },
+
+                /**
+                 * Broadcast a scenario status transition to all SSE clients.
+                 * Emitted when a queued scenario actually starts executing in
+                 * a worker (pending → running), so the Scenario Manager can
+                 * distinguish queued from running scenarios.
+                 * @param {string} scenario — scenario name (basename without extension)
+                 * @param {string} status — new status (e.g. 'running')
+                 */
+                broadcastScenarioStatus(scenario, status) {
+                    for (const client of sseClients) {
+                        client.send('scenario-status', { scenario, status });
                     }
                 },
 

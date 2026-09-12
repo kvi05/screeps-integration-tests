@@ -241,6 +241,21 @@ PR #68 [feat(viewer): resource monitoring (Resources panel) and renderer stabili
 
 ### Changed
 
+PR #71 [fix(viewer): honest scenario statuses in Scenario Manager (queue vs running)](https://github.com/kvi05/screeps-integration-tests/pull/71)
+
+- **Scenario Manager statuses are now honest about the queue.** A queued
+  scenario shows `Pending` until a worker actually dequeues it; only then does
+  the server broadcast a new SSE `scenario-status` event (`pending → running`)
+  and the UI flips it to `Running`. Previously both "Run All" and "Run One"
+  optimistically marked scenarios as `Running` at queue time, making queued
+  scenarios indistinguishable from executing ones. The server is now the
+  single authority for the `pending → running → pass/fail/skip` lifecycle:
+  `processQueue` emits `scenario-status` at the real worker start (batch
+  scenarios only — interactive launches keep the viewer panel's
+  `start`/`end` model), and the client no longer sets `running` optimistically.
+  Intermediate statuses are not persisted, so a page reload never shows a
+  stale `Running`.
+
 PR #45 [feat/ui-mvp](https://github.com/kvi05/screeps-integration-tests/pull/45)
 
 - **`createUiServer()`** now accepts `sendCommand`, `scenariosDir`,

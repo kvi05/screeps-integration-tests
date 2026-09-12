@@ -148,12 +148,29 @@ export default function ScenarioManager({ onNavigateToViewer }) {
         };
         window.addEventListener('scenario-result', handleResult);
 
+        // Listen for scenario-status SSE events (intermediate transitions,
+        // e.g. pending → running when a worker actually dequeues the job).
+        // Not persisted — after a page reload a stale 'running'/'pending'
+        // must not look active.
+        const handleStatus = (e) => {
+            const { scenario, status } = e.detail || {};
+            if (!scenario) return;
+            if (status !== 'running' && status !== 'pending') return;
+            const name = scenario.replace(/^.*[/\\]/, '').replace('.scenario.js', '');
+            setStatuses((prev) => ({ ...prev, [name]: status }));
+        };
+        window.addEventListener('scenario-status', handleStatus);
+
         return () => {
             cancelled = true;
             window.removeEventListener('scenario-result', handleResult);
+            window.removeEventListener('scenario-status', handleStatus);
         };
     }, []);
 
+    // Server is authoritative for scenario statuses: Run All only queues the
+    // suite (optimistic 'pending' here), and a scenario turns 'running' when
+    // the server reports via SSE that a worker actually dequeued it.
     const handleRunAll = useCallback(async () => {
         if (isRunningAll) return;
         setIsRunningAll(true);
@@ -201,11 +218,13 @@ export default function ScenarioManager({ onNavigateToViewer }) {
         });
     }, []);
 
+    // Server is authoritative: the scenario stays 'pending' (optimistic) until
+    // the SSE 'scenario-status' event reports that a worker actually started
+    // it. A queued scenario is never shown as 'running'.
     const handleRunOne = useCallback(async (name) => {
         setStatuses((prev) => ({ ...prev, [name]: 'pending' }));
         try {
             await postRun(name, false);
-            setStatuses((prev) => ({ ...prev, [name]: 'running' }));
         } catch {
             setStatuses((prev) => ({ ...prev, [name]: 'fail' }));
         }
