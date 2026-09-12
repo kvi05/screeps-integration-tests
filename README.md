@@ -4,11 +4,24 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/kvi05/screeps-integration-tests/blob/main/LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.12-brightgreen.svg)](https://nodejs.org/)
 
-A test framework for [Screeps](https://screeps.com/) bots that builds on
-[screeps-server-mockup](https://github.com/screepers/screeps-server-mockup).
-Instead of manually assembling rooms, looping ticks, and reading the database
-to check behaviour, you declare the world in one call, run it, and assert
-against the result — all locally, no game subscription needed.
+A local environment for testing and debugging [Screeps](https://screeps.com/)
+bots, built on [screeps-server-mockup](https://github.com/screepers/screeps-server-mockup)
+— no game subscription needed. It does three things:
+
+1. **Automated integration tests for CI.** Declare the world in one call, run
+   it, assert against the result — the CLI exits green/red and parallelises
+   scenarios across cores, so it drops into CI as-is.
+2. **Declarative world setup.** Instead of assembling rooms object-by-object
+   on raw mockup, you describe what the world should look like — rooms, bots,
+   objects, memory — and the framework builds it (see
+   [Why this over mockup?](#why-this-over-mockup)).
+3. **Live bot debugging.** The browser viewer (`--viewer`) renders rooms in
+   real time: pause/step/speed controls, Memory inspection at any buffered
+   tick, console, metrics charts, rewind, snapshots, and replay. Built for
+   watching a bot behave and constructing test situations by hand.
+
+The first two work headless (batch mode); the third is the live mode —
+[RUN-MODES.md](./docs/RUN-MODES.md) compares them in detail.
 
 ## Why this over mockup?
 
@@ -118,7 +131,9 @@ npx screeps-integration-tests [options]   # or: npx sit [options]
 | `--viewerPort <n>` | Fixed port for the viewer UI server            | auto (free port)    |
 
 Full flag list and config file schema — see [CONFIG.md](./docs/CONFIG.md).
-The viewer has its own guide: [VIEWER.md](./docs/VIEWER.md).
+The viewer has its own guide: [VIEWER.md](./docs/VIEWER.md). For how it
+differs from batch runs — and when to use which — see
+[RUN-MODES.md](./docs/RUN-MODES.md).
 
 ## Where to go next
 
@@ -129,8 +144,7 @@ The viewer has its own guide: [VIEWER.md](./docs/VIEWER.md).
 | [API-REFERENCE.md](./docs/API-REFERENCE.md)         | Full `createWorld`, `spec`, `world.*`, assertions, metrics reference |
 | [FIXTURES-GUIDE.md](./docs/FIXTURES-GUIDE.md)       | Room and memory fixtures, overrides, when to use which               |
 | [EXAMPLES.md](./docs/EXAMPLES.md)                   | Ready-made recipes: smoke, defense, metrics, multi-world             |
-| [MULTI-ROOM-GUIDE.md](./docs/MULTI-ROOM-GUIDE.md)   | Multiple rooms and bots in one scenario                              |
-| [VIEWER.md](./docs/VIEWER.md)                       | Browser viewer: live controls, replay, snapshots, Memory inspection  |
+| [MULTI-ROOM-GUIDE.md](./docs/MULTI-ROOM-GUIDE.md)   | Multiple rooms and bots in one scenario                              |     | [RUN-MODES.md](./docs/RUN-MODES.md) | Batch vs live (viewer) mode: what each is for, feature comparison |     | [VIEWER.md](./docs/VIEWER.md) | Browser viewer: live controls, replay, snapshots, Memory inspection |
 | [INTEGRATION-TESTS.md](./docs/INTEGRATION-TESTS.md) | Internal architecture (for contributors)                             |
 
 ## Acknowledgments

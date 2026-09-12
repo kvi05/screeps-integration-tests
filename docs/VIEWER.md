@@ -6,7 +6,8 @@ snapshots, and a Scenario Manager for launching runs.
 
 The viewer is served by the CLI process itself (`--viewer`) — no extra
 services. It lives under `src/tools/viewer/` and does not affect headless
-runs.
+runs. For how live mode differs from batch (headless) runs — and when to use
+which — see [RUN-MODES.md](./RUN-MODES.md).
 
 ## Launch
 

@@ -355,6 +355,17 @@ PR #56 [Fix/engine snapshot node24](https://github.com/kvi05/screeps-integration
   suite was executed multiple times while earlier runs kept going. Run All is
   now a single atomic restart request (see Added).
 
+### Documentation
+
+- **New guide: `docs/RUN-MODES.md`** — batch (headless) vs live (viewer)
+  mode: what each is for, a feature comparison (history, rewind, snapshot
+  save vs parallel workers, CI exit codes, profiling), and the snapshot
+  bridge workflow ("explore live, lock as a test" via
+  `createWorld({ snapshot })`).
+- **README now opens with the three use directions** — automated CI
+  integration tests, declarative world setup, and live bot debugging —
+  instead of positioning the package as tests-only.
+
 ## [3.0.0] — 2026-08-06
 
 ### Added
