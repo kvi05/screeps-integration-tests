@@ -474,6 +474,17 @@ describe('UiServer', () => {
         expect(resultEvent.data).toEqual({ scenario: 'test', status: 'pass', time: 100, totalTicks: 30 });
     });
 
+    it('broadcastScenarioStatus sends SSE scenario-status event', async () => {
+        server = await createUiServer({ port: 0 });
+        const ssePromise = collectSseEvents(server.port, 300);
+        await new Promise((r) => setTimeout(r, 100));
+        server.broadcastScenarioStatus('test', 'running');
+        const { events } = await ssePromise;
+        const statusEvent = events.find((e) => e.type === 'scenario-status');
+        expect(statusEvent).toBeDefined();
+        expect(statusEvent.data).toEqual({ scenario: 'test', status: 'running' });
+    });
+
     it('updateStatus broadcasts SSE status event', async () => {
         server = await createUiServer({ port: 0 });
         const ssePromise = collectSseEvents(server.port, 300);

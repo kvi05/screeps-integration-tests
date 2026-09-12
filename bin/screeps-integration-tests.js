@@ -700,6 +700,14 @@ async function runViewerMode(config) {
                 if (snapshotData) {
                     opts.restoreSnapshot = snapshotData;
                 }
+            } else if (uiServer) {
+                // Batch scenario: the worker has actually taken the job off the
+                // queue — tell the Scenario Manager it is running now. This is
+                // the only place a batch scenario's status becomes 'running'
+                // (queued scenarios stay 'pending'). Interactive launches are
+                // not part of the Scenario Manager status model — the viewer
+                // panel follows `start`/`end` instead.
+                uiServer.broadcastScenarioStatus(scenarioName, 'running');
             }
 
             // Track the job while its worker is alive so stopAll() can address

@@ -399,6 +399,22 @@ export default function App() {
                     }
                     break;
                 }
+                case 'scenario-status': {
+                    // Intermediate status transition (e.g. pending → running)
+                    // for the Scenario Manager. Not persisted — after a page
+                    // reload a stale 'running' must not look active.
+                    if (typeof window !== 'undefined') {
+                        window.dispatchEvent(
+                            new CustomEvent('scenario-status', {
+                                detail: {
+                                    scenario: data.scenario,
+                                    status: data.status,
+                                },
+                            }),
+                        );
+                    }
+                    break;
+                }
                 case 'error': {
                     // Server-side error forwarded via SSE (e.g. restore/save failure)
                     setSseError({

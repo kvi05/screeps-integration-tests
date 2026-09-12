@@ -87,6 +87,15 @@ export function connectSSE(onEvent) {
         }
     });
 
+    es.addEventListener('scenario-status', (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            onEvent('scenario-status', data);
+        } catch {
+            /* skip */
+        }
+    });
+
     es.addEventListener('error', (e) => {
         try {
             const data = JSON.parse(e.data);

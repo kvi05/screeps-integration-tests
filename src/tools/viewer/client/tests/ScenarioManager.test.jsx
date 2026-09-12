@@ -249,3 +249,86 @@ describe('ScenarioManager Run All / Stop All', () => {
         expect(stopAllBtn).toBeDisabled();
     });
 });
+
+describe('ScenarioManager honest statuses (server-authoritative running)', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+        sessionStorage.clear();
+        vi.clearAllMocks();
+        getScenarios.mockResolvedValue({ scenarios: SCENARIOS });
+        postRun.mockResolvedValue({ ok: true });
+        postRunAll.mockResolvedValue({ ok: true });
+        postStopAll.mockResolvedValue({ ok: true });
+    });
+
+    afterEach(() => {
+        document.body.innerHTML = '';
+        vi.restoreAllMocks();
+    });
+
+    /** Dispatches a window CustomEvent like App.jsx does for SSE events */
+    function dispatchWindowEvent(type, detail) {
+        window.dispatchEvent(new CustomEvent(type, { detail }));
+    }
+
+    it('Run One keeps the scenario pending after postRun (no optimistic running)', async () => {
+        renderManager();
+        await waitFor(() => expect(screen.getByText('smoke-empty')).toBeInTheDocument());
+
+        // The first scenario's batch-run action button
+        const playButtons = screen.getAllByTitle('Run in batch mode');
+        expect(playButtons.length).toBeGreaterThan(0);
+        fireEvent.click(playButtons[0]);
+
+        await waitFor(() => expect(postRun).toHaveBeenCalledWith('smoke-empty', false));
+        await waitFor(() => expect(screen.getAllByText('Pending')).toHaveLength(1));
+        expect(screen.queryByText('Running')).not.toBeInTheDocument();
+    });
+
+    it('marks a scenario running when the server reports scenario-status running', async () => {
+        renderManager();
+        await waitFor(() => expect(screen.getByText('smoke-empty')).toBeInTheDocument());
+
+        dispatchWindowEvent('scenario-status', { scenario: 'smoke-empty', status: 'running' });
+
+        await waitFor(() => expect(screen.getByText('Running')).toBeInTheDocument());
+        expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+    });
+
+    it('normalizes scenario paths in scenario-status events', async () => {
+        renderManager();
+        await waitFor(() => expect(screen.getByText('smoke-empty')).toBeInTheDocument());
+
+        dispatchWindowEvent('scenario-status', {
+            scenario: 'examples/scenarios/smoke-empty.scenario.js',
+            status: 'running',
+        });
+
+        await waitFor(() => expect(screen.getByText('Running')).toBeInTheDocument());
+    });
+
+    it('ignores scenario-status events with non-intermediate statuses', async () => {
+        renderManager();
+        await waitFor(() => expect(screen.getByText('smoke-empty')).toBeInTheDocument());
+
+        // Final statuses come via scenario-result, not scenario-status
+        dispatchWindowEvent('scenario-status', { scenario: 'smoke-empty', status: 'pass' });
+
+        await waitFor(() => {});
+        expect(screen.queryByText('Running')).not.toBeInTheDocument();
+        expect(screen.queryByText('Passed')).not.toBeInTheDocument();
+    });
+
+    it('Run All keeps optimistic pending and server flips to running via SSE', async () => {
+        renderManager();
+        const runAllBtn = await waitFor(() => screen.getByRole('button', { name: /Run All/i }));
+        fireEvent.click(runAllBtn);
+        await waitFor(() => expect(screen.getAllByText('Pending')).toHaveLength(2));
+
+        dispatchWindowEvent('scenario-status', { scenario: 'smoke-empty', status: 'running' });
+
+        await waitFor(() => expect(screen.getByText('Running')).toBeInTheDocument());
+        // The other scenario is still queued
+        expect(screen.getAllByText('Pending')).toHaveLength(1);
+    });
+});
