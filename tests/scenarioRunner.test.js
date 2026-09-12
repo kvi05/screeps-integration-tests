@@ -97,11 +97,16 @@ function makeUi() {
  * message through the runner's routing wrapper (as a real worker would),
  * `finish(result)` resolves the worker promise, `fail(err)` rejects it.
  * The stub child is handed over via `onChild` right away, mimicking
- * runScenarioInWorker's "config queued → onChild" ordering.
+ * runScenarioInWorker's "config queued → onChild" ordering — unless
+ * `deferOnChild` is set, in which case the test triggers the handover
+ * manually via `call.attach()` (used to cover the dispose race at spawn).
  *
+ * @param {Object} [options]
+ * @param {boolean} [options.deferOnChild=false] — do not fire `onChild`
+ *   synchronously; the test drives it via `call.attach()`
  * @returns {{fn: Function, calls: Array<Object>}}
  */
-function makeRunScenarioFake() {
+function makeRunScenarioFake({ deferOnChild = false } = {}) {
     const calls = [];
     /**
      * @param {string} filePath
@@ -124,9 +129,15 @@ function makeRunScenarioFake() {
             deliver: (msg) => onIpcMessage(msg, child),
             finish: (result) => deferred.resolve(result),
             fail: (err) => deferred.reject(err),
+            // Fires the runner's onChild callback on demand (deferred-attach
+            // mode): simulates a worker whose config is queued but whose
+            // process has not been handed to the runner yet.
+            attach: () => {
+                if (onChild) onChild(child);
+            },
         };
         calls.push(call);
-        if (onChild) {
+        if (onChild && !deferOnChild) {
             onChild(child);
         }
         return deferred.promise;
@@ -141,7 +152,9 @@ function makeRunScenarioFake() {
  * @returns {Object} `{ runner, runScenario, ui, lastStart, findScenarios, killProcessTree, onIpcMessage }`
  */
 function makeRunner(overrides = {}) {
-    const runScenario = makeRunScenarioFake();
+    // deferOnChild is a test-harness knob, not a runner dependency
+    const { deferOnChild = false, ...depsOverrides } = overrides;
+    const runScenario = makeRunScenarioFake({ deferOnChild });
     const ui = makeUi();
     const lastStart = { scenario: '', maxTicks: 0, replayBuffer: 0 };
     const findScenarios = jest.fn(() => ['a.scenario.js']);
@@ -165,7 +178,7 @@ function makeRunner(overrides = {}) {
         scenariosDir: SCENARIOS_DIR,
         replayBufferTicks: 500,
         stopGraceMs: 100,
-        ...overrides,
+        ...depsOverrides,
     };
     const runner = createScenarioRunner(deps);
     return { runner, runScenario, ui, lastStart, findScenarios, killProcessTree, onIpcMessage, deps };
@@ -278,8 +291,8 @@ describe('createScenarioRunner', () => {
             expect(runScenario.calls[1].path).toBe(scenarioPath('a'));
         });
 
-        it('does not stop or dedup interactive instances on a batch restart', () => {
-            const { runner, runScenario } = makeRunner({ maxJobs: 4 });
+        it('does not stop or dedup interactive instances on a batch restart', async () => {
+            const { runner, runScenario, ui } = makeRunner({ maxJobs: 4 });
 
             // Interactive instance of the same scenario is running
             runner.launchScenario(scenarioPath('live'), true);
@@ -288,6 +301,23 @@ describe('createScenarioRunner', () => {
             runner.launchScenario(scenarioPath('live'), false); // batch RUN on same name
 
             // The interactive worker was NOT touched
+            expect(interactiveJob.child.send).not.toHaveBeenCalled();
+
+            // ...and the batch restart DID happen: a fresh batch run started
+            expect(runScenario.calls).toHaveLength(2);
+            const batchJob = runScenario.calls[1];
+            expect(batchJob.path).toBe(scenarioPath('live'));
+            // Batch opts: no viewer streaming, no viewerOptions
+            expect(batchJob.opts.viewer).toBeUndefined();
+            expect(batchJob.opts.viewerOptions).toBeUndefined();
+            // The Scenario Manager saw the batch run take off
+            expect(ui.broadcastScenarioStatus).toHaveBeenCalledWith('live', 'running');
+
+            // The interactive instance keeps running alongside: finishing the
+            // batch run neither stops it nor triggers another restart
+            batchJob.finish({ status: 'pass', time: 1, totalTicks: 1 });
+            await flushPromises();
+            expect(runScenario.calls).toHaveLength(2);
             expect(interactiveJob.child.send).not.toHaveBeenCalled();
         });
     });
@@ -361,6 +391,44 @@ describe('createScenarioRunner', () => {
             runner.stopAll();
 
             expect(runScenario.calls[0].child.send).toHaveBeenCalledWith(DISPOSE_CMD);
+        });
+    });
+
+    describe('dispose race at spawn', () => {
+        it('sends dispose when a stopping job’s child attaches late, exactly once', async () => {
+            const { runner, runScenario } = makeRunner({ deferOnChild: true, maxJobs: 4 });
+
+            // First batch RUN: job created, but the worker child has not been
+            // handed to the runner yet (deferred onChild)
+            runner.launchScenario(scenarioPath('a'), false);
+            const first = runScenario.calls[0];
+
+            // Second batch RUN of the same scenario: the restart marks the
+            // first job stopping. No dispose is sent yet — job.child is null.
+            runner.launchScenario(scenarioPath('a'), false);
+            expect(runScenario.calls).toHaveLength(2);
+            expect(first.child.send).not.toHaveBeenCalled();
+
+            // NOW the first worker's child attaches — the stop raced the
+            // spawn, so dispose is delivered at attach time
+            first.attach();
+            expect(first.child.send).toHaveBeenCalledTimes(1);
+            expect(first.child.send).toHaveBeenCalledWith(DISPOSE_CMD);
+
+            // A disconnected child must not receive anything on attach
+            first.child.connected = false;
+            first.attach();
+            expect(first.child.send).toHaveBeenCalledTimes(1);
+
+            // The fresh (non-stopping) run attaches normally — no dispose
+            const fresh = runScenario.calls[1];
+            fresh.attach();
+            expect(fresh.child.send).not.toHaveBeenCalled();
+
+            // Clean up: resolve both workers so their kill timers are cleared
+            first.finish({ status: 'skip', time: 1, totalTicks: 1 });
+            fresh.finish({ status: 'pass', time: 1, totalTicks: 1 });
+            await flushPromises();
         });
     });
 
@@ -442,6 +510,22 @@ describe('createScenarioRunner', () => {
 
             // A stopping job gets no synthesized result either
             expect(ui.broadcastScenarioResult).not.toHaveBeenCalled();
+        });
+
+        it('routes non-owned IPC messages to the injected router with original args', () => {
+            const { runner, runScenario, onIpcMessage, ui } = makeRunner();
+
+            runner.launchScenario(scenarioPath('a'), false);
+            const job = runScenario.calls[0];
+
+            const msg = { type: 'viewer:status', tick: 7, cpu: 1.5 };
+            job.deliver(msg);
+
+            // Delegated verbatim: the exact message object and the same child
+            expect(onIpcMessage).toHaveBeenCalledTimes(1);
+            expect(onIpcMessage).toHaveBeenCalledWith(msg, job.child);
+            // The runner did not turn it into a UI broadcast itself
+            expect(ui.broadcast).not.toHaveBeenCalled();
         });
 
         it('synthesizes a fail broadcast when runScenario rejects', async () => {
