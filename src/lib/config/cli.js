@@ -67,7 +67,42 @@ function formatDefault(value) {
 }
 
 /**
+ * Splits option entries into titled sections by their `group` field.
+ * Options without a group are collected under an "Other" section, which is
+ * always rendered last, regardless of where they appear in the schema.
+ * Group order follows the first appearance in the schema.
+ *
+ * @param {Array<[string, Object]>} optEntries
+ * @returns {Array<{title: string, entries: Array<[string, Object]>}>}
+ */
+function buildSections(optEntries) {
+    const order = [];
+    const byTitle = new Map();
+    for (const [key, opt] of optEntries) {
+        const title = opt.group || 'Other';
+        if (!byTitle.has(title)) {
+            byTitle.set(title, []);
+            order.push(title);
+        }
+        byTitle.get(title).push([key, opt]);
+    }
+    const sections = order.map((title) => ({ title, entries: byTitle.get(title) }));
+    // Ungrouped options are the exception — keep their section last.
+    const otherIdx = sections.findIndex((s) => s.title === 'Other');
+    if (otherIdx !== -1) {
+        const [other] = sections.splice(otherIdx, 1);
+        sections.push(other);
+    }
+    return sections;
+}
+
+/**
  * Generates help text from a schema.
+ *
+ * When at least one option declares a `group`, options are rendered as
+ * titled sections (General / Paths / Run / Viewer …). Schemas without
+ * groups render a single flat "Options" section, exactly as before.
+ *
  * @param {Object} schema
  * @returns {string}
  */
@@ -96,23 +131,27 @@ function generateHelp(schema) {
     // Options
     const optEntries = Object.entries(schema.options || {});
     if (optEntries.length > 0) {
-        lines.push('Options:');
-        for (const [key, opt] of optEntries) {
-            const cliName = opt.cli || `--${key}`;
-            const typeTag = opt.type === 'enum' ? `enum(${opt.values.join('|')})` : opt.type;
-            const range =
-                opt.type === 'int' || opt.type === 'float'
-                    ? opt.min !== undefined || opt.max !== undefined
-                        ? ` [${opt.min ?? '—'}..${opt.max ?? '—'}]`
-                        : ''
-                    : '';
-            const def = opt.default !== undefined ? ` [default: ${formatDefault(opt.default)}]` : '';
-            lines.push(`  ${cliName.padEnd(22)} ${typeTag}${range}${def}`);
-            if (opt.description) {
-                lines.push(`${''.padEnd(26)} ${opt.description}`);
+        const hasGroups = optEntries.some(([, opt]) => opt.group);
+        const sections = hasGroups ? buildSections(optEntries) : [{ title: 'Options', entries: optEntries }];
+        for (const section of sections) {
+            lines.push(`${section.title}:`);
+            for (const [key, opt] of section.entries) {
+                const cliName = opt.cli || `--${key}`;
+                const typeTag = opt.type === 'enum' ? `enum(${opt.values.join('|')})` : opt.type;
+                const range =
+                    opt.type === 'int' || opt.type === 'float'
+                        ? opt.min !== undefined || opt.max !== undefined
+                            ? ` [${opt.min ?? '—'}..${opt.max ?? '—'}]`
+                            : ''
+                        : '';
+                const def = opt.default !== undefined ? ` [default: ${formatDefault(opt.default)}]` : '';
+                lines.push(`  ${cliName.padEnd(22)} ${typeTag}${range}${def}`);
+                if (opt.description) {
+                    lines.push(`${''.padEnd(26)} ${opt.description}`);
+                }
             }
+            lines.push('');
         }
-        lines.push('');
     }
 
     return lines.join('\n');

@@ -21,7 +21,7 @@ async function run(opts = {}) {
         rooms: [spec.baseRoom('W0N1')],
         bots: [{ username: 'bot', rooms: 'W0N1' }],
         ticks,
-        profiling: opts.profiling,
+        ...opts,
     });
 
     try {

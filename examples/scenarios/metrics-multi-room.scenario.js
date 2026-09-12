@@ -38,9 +38,9 @@ async function run(opts = {}) {
         ],
         bots: [{ username: BOT_USERNAME, rooms: ROOM_1 }],
         ticks,
-        profiling: opts.profiling,
         logLevel: 'error',
         metrics: { every: 1, rooms: true, bots: true },
+        ...opts,
     });
 
     try {

@@ -8,7 +8,7 @@
 
 ### Local verification
 
-- [ ] `npm run check` passes (lint → format:check → unit tests → integration tests)
+- [ ] `npm run check` passes (lint → format:check → viewer build → unit tests → integration tests → viewer tests)
 
 ### API & compatibility
 

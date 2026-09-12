@@ -36,7 +36,7 @@ async function run(opts = {}) {
         ],
         bots: [{ username: BOT, rooms: ROOM }],
         ticks: 30,
-        profiling: opts.profiling,
+        ...opts,
     });
 
     try {

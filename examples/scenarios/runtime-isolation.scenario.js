@@ -32,7 +32,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: BOT, rooms: ROOM }],
             ticks: 5,
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
@@ -54,7 +54,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: BOT, rooms: ROOM }],
             ticks: 5,
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
@@ -78,7 +78,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: BOT, rooms: ROOM }],
             ticks: 3,
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
@@ -102,7 +102,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: BOT, rooms: ROOM }],
             ticks: 3,
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {

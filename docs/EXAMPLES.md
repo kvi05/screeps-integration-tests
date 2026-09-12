@@ -374,6 +374,7 @@ async function run(opts = {}) {
       rooms: [BASE_ROOM],
       bots: BOT_SPEC,
       ticks: 10,
+      ...opts,
     });
     try {
       await world.run();
@@ -390,6 +391,7 @@ async function run(opts = {}) {
       bots: BOT_SPEC,
       ticks: 20,
       until: { maxTicks: 15 },
+      ...opts,
     });
     try {
       await world.tick(5);

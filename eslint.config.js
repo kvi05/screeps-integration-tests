@@ -37,7 +37,17 @@ module.exports = [
         },
     },
     {
-        ignores: ['node_modules/', '.cache/', '.coverage/', 'server/', 'logs/', 'profiles/', 'examples/mock-bot/dist/'],
+        ignores: [
+            'node_modules/',
+            '.cache/',
+            '.coverage/',
+            'server/',
+            'logs/',
+            'profiles/',
+            'examples/mock-bot/dist/',
+            'src/tools/viewer/client/',
+            'src/tools/viewer/dist/',
+        ],
     },
     prettierConfig,
 ];

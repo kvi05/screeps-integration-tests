@@ -45,8 +45,8 @@ async function run(opts = {}) {
             rooms: [BASE_ROOM],
             bots: BOT_SPEC,
             ticks: 0,
-            profiling: opts.profiling,
             logLevel: 'error',
+            ...opts,
         });
 
         try {
@@ -116,7 +116,7 @@ async function run(opts = {}) {
             rooms: [BASE_ROOM],
             bots: BOT_SPEC,
             ticks: 0,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 

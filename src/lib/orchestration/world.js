@@ -5,6 +5,7 @@
  * runs ticks, and produces the final report.
  */
 
+const fs = require('fs');
 const path = require('path');
 const { prepareServer, addBots } = require('../runtime/runtime');
 const { materializeRoom } = require('../builders');
@@ -22,22 +23,25 @@ const { collectMetrics, sampleMetrics, collectBotMetrics, sampleBotMetrics } = r
 const { MetricsReport } = require('../assertions/metricsReport');
 const { checkStopCondition } = require('../observers/predicate');
 const { snapshotOwners, mergeOwners } = require('../observers/ownership');
-const { createConsoleCapture } = require('../runtime/console');
+const {
+    createConsoleCapture,
+    classifyConsoleLine,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_MAX_CONSOLE_LINES,
+} = require('../runtime/console');
 const { createEventRegistry, registerDefaultEvents } = require('./events');
 const { createWorldHelpers, getRoomRcl } = require('./worldHelpers');
 const { finalizeReport } = require('./finalize');
 const { exportProfiles } = require('../runtime/profile');
 const { resolveDefaultUserId } = require('./resolveDefaults');
 const { applyTerrainSpec, getTerrainMatrixClass } = require('../runtime/terrain');
-const { INVADER_USER_ID } = require('../../constants/screepsConstants');
+const { INVADER_USER_ID, SOURCE_KEEPER_USER_ID } = require('../../constants/screepsConstants');
 const { FixtureError, BotError, FrameworkError } = require('../errors');
+const { getTickInterceptor } = require('./tickHooks');
+const { trackWorldReport, freezeWorldReport } = require('./worldReports');
 
 // ─── Framework defaults ──────────────────────────────────────────────────────────
 
-/** @type {string} */
-const DEFAULT_WORLD_LOG_LEVEL = 'all';
-/** @type {number} */
-const DEFAULT_MAX_CONSOLE_LINES = 10000;
 /** @type {number} */
 const DEFAULT_MAX_TICKS = 100;
 
@@ -47,6 +51,10 @@ function resolveDistDir(opts) {
 
 function resolveCacheBase(opts) {
     return opts.cacheDir || process.env.SIT_CACHE_DIR || path.resolve(process.cwd(), '.cache');
+}
+
+function resolveSnapshotsDir(opts) {
+    return opts.snapshotsDir || process.env.SIT_SNAPSHOTS_DIR || path.resolve(process.cwd(), 'snapshots');
 }
 
 /**
@@ -282,7 +290,23 @@ async function initializeBots(bots, resolvedBots, adapter, opts, report, globalL
         }
 
         const { handler } = createConsoleCapture({ report, logLevel: effectiveLogLevel, maxConsoleLines });
-        bot.on('console', handler);
+        // Wrap handler to also store structured console entries for the viewer.
+        // Classification is shared with createConsoleCapture (classifyConsoleLine)
+        // so viewer severity tags match report.errors/report.warnings — including
+        // unprefixed engine errors ("TypeError: ...") that the UI Error/Warn
+        // tabs rely on.
+        bot.on('console', (logs /*, results, userid, username */) => {
+            // Store structured entries for viewer snapshot (with tick placeholder — filled in doTick)
+            const tickNum = report.ticksRun; // Current tick (pre-increment in doTick)
+            for (const line of logs) {
+                const { level, message } = classifyConsoleLine(line);
+                // Store structured entry on report for snapshot
+                if (!report._consoleEntries) report._consoleEntries = [];
+                report._consoleEntries.push({ level, message, bot: username, tick: tickNum });
+            }
+            // Also call original handler for errors/warnings/logs arrays
+            handler(logs);
+        });
     }
 }
 
@@ -298,10 +322,56 @@ async function initializeBots(bots, resolvedBots, adapter, opts, report, globalL
  * 4. server.start() — start the game engine
  * 5. initializeBots: setBotMemory per bot (resolved `memory` + `memoryOverrides`) + console capture
  *
+ * Snapshot mode (`opts.snapshot` — file path or object): room/bot specs are
+ * built from `snapshot.meta` (unless `opts.rooms`/`opts.bots` are given
+ * explicitly), and after step 5 the world state is overwritten from the
+ * snapshot via `restoreState`: objects, terrain, flags, gameTime, Memory,
+ * and room activation. Bot ownership is remapped from the snapshot's old
+ * user ids to the freshly created bots' ids. `report.ticksRun` starts at
+ * `snapshot.env.gameTime`, so `run()` continues ticking from that point.
+ *
  * @param {WorldOpts} opts
  * @returns {Promise<WorldInstance>}
  */
 async function createWorld(opts) {
+    // ── Snapshot mode: build room/bot specs from snapshot.meta ─────────
+    // Must happen BEFORE the EMPTY_ROOMS check so we don't reject
+    // snapshot entries that start with no explicit rooms.
+    if (opts.snapshot) {
+        // Read snapshot (file path or object).
+        // Relative paths resolve against snapshotsDir (via resolveSnapshotsDir).
+        const snapshotsDir = resolveSnapshotsDir(opts);
+        const snapshot =
+            typeof opts.snapshot === 'string'
+                ? JSON.parse(fs.readFileSync(path.resolve(snapshotsDir, opts.snapshot), 'utf-8'))
+                : opts.snapshot;
+
+        // Validate
+        if (!snapshot.db || !snapshot.db['rooms.objects']) {
+            throw new Error("Invalid snapshot: missing db['rooms.objects']");
+        }
+        if (!snapshot.env || snapshot.env.gameTime === undefined) {
+            throw new Error('Invalid snapshot: missing env.gameTime');
+        }
+
+        // Build room specs from meta — just room names; terrain will be
+        // overwritten by restoreState anyway
+        if (!opts.rooms) {
+            opts.rooms = (snapshot.meta.rooms || []).map((name) => ({ name }));
+        }
+
+        // Build bot specs from meta — usernames + botConfig opts
+        if (!opts.bots) {
+            opts.bots = (snapshot.meta.bots || []).map((username) => {
+                const cfg = snapshot.meta.botConfig?.[username] || {};
+                return { username, ...cfg.opts };
+            });
+        }
+
+        // Store snapshot for later use (after materialization + bot init)
+        opts._snapshotData = snapshot;
+    }
+
     if (!opts.rooms || opts.rooms.length === 0) {
         throw new FrameworkError('EMPTY_ROOMS');
     }
@@ -349,6 +419,7 @@ async function createWorld(opts) {
     });
 
     const { server, adapter } = prepared;
+    const { engineWatch } = prepared;
     const added = await addBots({
         adapter,
         bots: opts.bots || [],
@@ -373,14 +444,65 @@ async function createWorld(opts) {
     const roomStatus = await materializeRooms(opts.rooms, adapter, defaultBotUserId, roomToBotUserId);
 
     await server.start();
+
     const runtime = { ...prepared, ...added };
+    // Engine processes exist only after start() — activate the fail-fast
+    // engine watch (attaches exit listeners; routes dispose so the expected
+    // shutdown is not recorded as an engine death).
+    runtime.dispose = engineWatch.activate(runtime.dispose);
 
     const report = createEmptyReport();
+    // Register the live report so the worker can aggregate ticksRun across
+    // ALL worlds of a scenario (a scenario may createWorld() several times —
+    // the report it returns is just the last world's one). dispose() freezes
+    // the world's contribution and releases the report (see worldReports.js).
+    trackWorldReport(report);
 
-    const globalLogLevel = opts.logLevel || DEFAULT_WORLD_LOG_LEVEL;
+    const globalLogLevel = opts.logLevel || DEFAULT_LOG_LEVEL;
     const maxConsoleLines = opts.maxConsoleLines || DEFAULT_MAX_CONSOLE_LINES;
 
     await initializeBots(bots, resolvedBots, adapter, opts, report, globalLogLevel, maxConsoleLines);
+
+    // ── Restore world state from snapshot (overwrite materialized DB) ─
+    // Called after room materialization + bot initialization so that
+    // the DB and env are fully set up before we overwrite them.
+    if (opts._snapshotData) {
+        const { restoreState } = require('./restoreState');
+        const snapshot = opts._snapshotData;
+
+        // Map old bot user ids (from the snapshot) to the ids of the
+        // freshly created bots. `addBots` assigns new random ids, so
+        // restored objects would otherwise belong to unknown users and
+        // the bots could not control their restored spawns/controllers.
+        /** @type {Object<string, string>} */
+        const userIdMap = {};
+        const botConfig = snapshot.meta.botConfig || {};
+        for (const [username, cfg] of Object.entries(botConfig)) {
+            if (cfg && cfg.id && bots[username]) {
+                userIdMap[cfg.id] = bots[username].id;
+            }
+        }
+
+        // Backward compatibility: snapshots captured before botConfig
+        // stored bot ids. For a single-bot snapshot, infer the old id
+        // from restored object ownership (any owner except system users).
+        const hasStoredIds = Object.values(botConfig).some((cfg) => cfg && cfg.id);
+        if (!hasStoredIds && snapshot.meta.bots?.length === 1 && Object.keys(bots).length === 1) {
+            const username = snapshot.meta.bots[0];
+            const newId = bots[username]?.id;
+            if (newId) {
+                for (const doc of snapshot.db['rooms.objects'] || []) {
+                    if (doc.user && doc.user !== INVADER_USER_ID && doc.user !== SOURCE_KEEPER_USER_ID) {
+                        userIdMap[doc.user] = newId;
+                        break;
+                    }
+                }
+            }
+        }
+
+        await restoreState(adapter, bots, snapshot, { report, userIdMap });
+        // report.ticksRun is already set to snapshot.env.gameTime by restoreState
+    }
 
     const startTime = Date.now();
 
@@ -389,6 +511,19 @@ async function createWorld(opts) {
     registerDefaultEvents({ register: registerEvent });
 
     // ─── Main loop ────────────────────────────────────────────────
+
+    /**
+     * Resolves the active tick interceptor from the two possible sources:
+     * explicit `opts.tickInterceptor` (preferred) or the module-level
+     * singleton set by `runScenario.js` via `setTickInterceptor()`.
+     *
+     * Single source of truth — called from both `doTick` and `run()`.
+     *
+     * @returns {import('../types').TickInterceptor|null}
+     */
+    function _resolveInterceptor() {
+        return opts.tickInterceptor || getTickInterceptor();
+    }
 
     /**
      * One tick: collect event log / owners / metrics for each room,
@@ -405,6 +540,22 @@ async function createWorld(opts) {
      * @returns {Promise<boolean>} true if the test should stop
      */
     async function doTick(tickNum, worldInstance) {
+        // ── Tick interceptor: before tick ────────────────────────────────
+        // Extension point for tools (viewer, profiler, debugger).
+        // Core never knows what the interceptor does.
+        const interceptor = _resolveInterceptor();
+        if (interceptor && interceptor.beforeTick) {
+            const shouldStop = await interceptor.beforeTick({
+                tickNum,
+                adapter,
+                report,
+                roomStatus,
+                bots,
+                server,
+            });
+            if (shouldStop) return true;
+        }
+
         // Ownership snapshot BEFORE tick — captures objects that may be destroyed
         for (const name of Object.keys(roomStatus)) {
             try {
@@ -415,7 +566,9 @@ async function createWorld(opts) {
             }
         }
 
-        await doServerTick(server, report);
+        // An engine crash rejects with ENGINE_CRASH instead of hanging
+        // server.tick() forever (signal-deaths are silent in the mockup).
+        await engineWatch.race(doServerTick(server, report));
         await observeAllRooms(adapter, roomStatus, report, metricsConfig, tickNum);
         await observeAllBots(adapter, bots, report, metricsConfig, tickNum);
 
@@ -425,6 +578,18 @@ async function createWorld(opts) {
         // onTick callback
         if (opts.onTick) {
             await opts.onTick(worldInstance, tickNum);
+        }
+
+        // ── Tick interceptor: after tick ─────────────────────────────────
+        if (interceptor && interceptor.afterTick) {
+            await interceptor.afterTick({
+                tickNum,
+                adapter,
+                report,
+                roomStatus,
+                bots,
+                server,
+            });
         }
 
         // Predicate check
@@ -477,13 +642,24 @@ async function createWorld(opts) {
                     if (await doTick(report.ticksRun, world)) {
                         break;
                     }
+
+                    // ── Tick interceptor: speed throttling ────────────────────
+                    const interceptor = _resolveInterceptor();
+                    if (interceptor && interceptor.getTickDelay) {
+                        const delayMs = interceptor.getTickDelay();
+                        if (delayMs > 0) {
+                            await new Promise((resolve) => setTimeout(resolve, delayMs));
+                        }
+                    }
                 }
             }
         } catch (e) {
             runError = e;
         }
 
-        await exportProfiles(resolvedBots, world.writeMemory, server, report);
+        // Same guard as in doTick: an engine death must not hang the
+        // profile-export tick.
+        await engineWatch.race(exportProfiles(resolvedBots, world.writeMemory, server, report));
         const result = await finalizeReport(
             report,
             startTime,
@@ -533,7 +709,16 @@ async function createWorld(opts) {
         // stopping the server. `helpers` is initialized below, before any
         // caller can invoke dispose().
         helpers.disposeEvalInBot();
-        await runtime.dispose();
+        try {
+            // runtime.dispose is wrapped by engineWatch.activate(): the watch is
+            // stopped first so the expected shutdown is not an engine death.
+            await runtime.dispose();
+        } finally {
+            // Freeze this world's contribution to the cross-world registry:
+            // snapshot the final ticksRun and release the report, so disposed
+            // worlds do not accumulate in long-lived processes.
+            freezeWorldReport(report);
+        }
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
@@ -658,4 +843,5 @@ module.exports = {
     observeAllBots,
     resolveDistDir,
     resolveCacheBase,
+    resolveSnapshotsDir,
 };

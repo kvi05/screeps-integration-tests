@@ -196,4 +196,47 @@ describe('generateHelp', () => {
         const help = generateHelp({});
         expect(help).toBe('');
     });
+
+    it('renders a flat Options section when no option has a group', () => {
+        const help = generateHelp({
+            options: {
+                alpha: { type: 'bool', description: 'first' },
+                beta: { type: 'bool', description: 'second' },
+            },
+        });
+        expect(help).toContain('Options:');
+        expect(help).not.toContain('Other:');
+        // Both options stay under the single section, in schema order
+        expect(help.indexOf('--alpha')).toBeLessThan(help.indexOf('--beta'));
+    });
+
+    it('groups options by their group field', () => {
+        const help = generateHelp({
+            options: {
+                distDir: { type: 'string', group: 'Paths', description: 'bot dir' },
+                only: { type: 'string', group: 'Run', description: 'single scenario' },
+                viewer: { type: 'bool', group: 'Viewer', description: 'UI mode' },
+                plain: { type: 'bool', description: 'no group' },
+            },
+        });
+        expect(help).toContain('Paths:');
+        expect(help).toContain('Run:');
+        expect(help).toContain('Viewer:');
+        // Ungrouped options fall into a trailing "Other" section
+        expect(help).toContain('Other:');
+        expect(help.indexOf('--distDir')).toBeLessThan(help.indexOf('--only'));
+        expect(help.indexOf('--only')).toBeLessThan(help.indexOf('--viewer'));
+        expect(help.indexOf('--viewer')).toBeLessThan(help.indexOf('--plain'));
+    });
+
+    it('renders the Other section last even when ungrouped options come first', () => {
+        const help = generateHelp({
+            options: {
+                plain: { type: 'bool', description: 'no group' },
+                alpha: { type: 'bool', group: 'A', description: 'grouped' },
+            },
+        });
+        expect(help.indexOf('A:')).toBeLessThan(help.indexOf('Other:'));
+        expect(help.indexOf('--alpha')).toBeLessThan(help.indexOf('--plain'));
+    });
 });

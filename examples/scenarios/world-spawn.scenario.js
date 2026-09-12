@@ -42,8 +42,8 @@ async function run(opts = {}) {
             rooms: [BASE_ROOM_WITH_SPAWN],
             bots: BOT_SPEC,
             ticks: 10,
-            profiling: opts.profiling,
             logLevel: 'error',
+            ...opts,
         });
 
         try {
@@ -175,7 +175,7 @@ async function run(opts = {}) {
             rooms: [BASE_ROOM_WITH_SPAWN],
             bots: BOT_SPEC,
             ticks: 5,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -202,7 +202,7 @@ async function run(opts = {}) {
             rooms: [BASE_ROOM_WITH_SPAWN],
             bots: BOT_SPEC,
             ticks: 5,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -232,7 +232,7 @@ async function run(opts = {}) {
             rooms: [BASE_ROOM_WITH_SPAWN],
             bots: BOT_SPEC,
             ticks: 5,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -285,7 +285,7 @@ async function run(opts = {}) {
             ],
             bots: BOT_SPEC,
             ticks: 10,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -400,7 +400,7 @@ async function run(opts = {}) {
                     );
                 }
             },
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -433,7 +433,7 @@ async function run(opts = {}) {
                 { username: 'bot2', rooms: ROOM },
             ],
             ticks: 5,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -466,7 +466,7 @@ async function run(opts = {}) {
             ],
             bots: [],
             ticks: 3,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 

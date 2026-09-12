@@ -310,6 +310,12 @@
  * @property {number} [ticks=100]                                  — tick limit (unless `until.maxTicks` is set)
  * @property {boolean} [profiling=false]                           — enable profiling (screeps-profiler + callgrind)
  *
+ * @property {string|Object} [snapshot]                            — path to a snapshot JSON file, or a
+ *   snapshot object. When set, room and bot specs are built from `snapshot.meta`
+ *   (unless explicitly overridden by `rooms`/`bots`), and the world state is restored
+ *   from the snapshot after materialization — `report.ticksRun` starts at
+ *   `snapshot.env.gameTime`. See `screeps-integration-tests/snapshot`.
+ *
  * @property {'all'|'error'|'warn'} [logLevel='all']             — log threshold for world.report.logs
  * @property {number} [maxConsoleLines=10000]
  * @property {MetricsOpts} [metrics]                               — metrics collection settings
@@ -317,6 +323,104 @@
  * @property {UntilOpts} [until]                                   — early termination condition
  * @property {OnTickCallback} [onTick]                             — callback on each tick
  * @property {EventSpec[]} [events]                                 — declarative spawns by tick
+ * @property {boolean} [viewer=false]                   — enable browser viewer. When `true`,
+ *   the worker attaches a tick interceptor for live streaming.
+ * @property {ViewerOptions} [viewerOptions]            — fine-tuning for viewer behaviour
+ *   (paused, speed, keyframeInterval, replayBuffer). The CLI passes
+ *   `config.viewerOptions` through to the worker; missing keys fall back to
+ *   their defaults at the interceptor creation site.
+ * @property {TickInterceptor} [tickInterceptor]                   — optional tick lifecycle hook.
+ *   Injected by tooling (viewer, profiler, debugger). Core never knows what the hook does.
+ */
+
+/**
+ * Tick lifecycle interceptor — extension point for tools (viewer, profiler, debugger).
+ *
+ * Injected via `WorldOpts.tickInterceptor`. `createWorld` calls the hooks at the
+ * appropriate points in the tick loop, without knowing what the interceptor does.
+ * The interceptor is self-contained and owns its own state.
+ *
+ * @typedef {Object} TickInterceptor
+ * @property {(ctx: TickHookContext) => Promise<boolean|void>} beforeTick
+ *           — called at the start of each tick, before any observations.
+ *             Return `true` to request early stop of the tick loop.
+ * @property {(ctx: TickHookContext) => Promise<void>} afterTick
+ *           — called after observations + events + onTick, before predicate check.
+ * @property {() => number} getTickDelay
+ *           — returns delay in ms to wait AFTER the tick (0 = no delay, >0 = throttle).
+ */
+
+/**
+ * Context passed to {@link TickInterceptor} hooks.
+ *
+ * @typedef {Object} TickHookContext
+ * @property {number} tickNum
+ * @property {StorageAdapter} adapter
+ * @property {WorldReport} report
+ * @property {Object<string, RoomStatus>} roomStatus
+ * @property {Object<string, Bot>} bots
+ * @property {ScreepsServer} server
+ */
+
+/**
+ * Viewer fine-tuning options.
+ *
+ * Mirrors `config.viewerOptions` — users set these in
+ * `screeps-integration.config.js` once and the CLI passes them through.
+ *
+ * @typedef {Object} ViewerOptions
+ * @property {boolean} [paused=false]         — start the tick loop paused
+ * @property {number} [speed=1000]            — ticks per second (1000 = realtime, higher = faster)
+ * @property {number} [keyframeInterval=100]  — send full Memory snapshot every N ticks
+ * @property {number} [replayBuffer=3000]     — max frames/ticks retained in client + server ring buffers
+ */
+
+// ─── Viewer data types ──────────────────────────────────────────────────────
+
+/**
+ * A single object in a viewer frame snapshot.
+ * Mirrors the dojo-compatible format used by the SSE transport and canvas renderer.
+ *
+ * @typedef {Object} FrameObject
+ * @property {string} _id
+ * @property {string} type       — 'creep', 'spawn', 'source', etc.
+ * @property {number} x
+ * @property {number} y
+ * @property {string} room
+ * @property {string} [user]
+ * @property {number} [hits]
+ * @property {number} [hitsMax]
+ * @property {Object<string,number>} [store]
+ * @property {number} [storeCapacity]
+ * @property {Object<string,number>} [storeCapacityResource]
+ * @property {Array<{type:string,hits:number}>} [body]
+ * @property {string} [name]
+ * @property {number} [level]
+ * @property {number} [progress]
+ * @property {number} [progressTotal]
+ * @property {number} [energy]
+ * @property {number} [energyCapacity]
+ * @property {Object} [actionLog]
+ * @property {Object} [spawning]
+ * @property {boolean} [spawning] // simple boolean variant
+ * @property {number} [ticksToSpawn]
+ * @property {number} [amount]
+ * @property {string} [resourceType]
+ * @property {number} [downgradeTime]
+ * @property {number} [safeMode]
+ * @property {number} [ageTime]
+ * @property {number} [decayTime]
+ * @property {boolean} [isPowerEnabled]
+ */
+
+/**
+ * A single tick snapshot for the viewer.
+ *
+ * @typedef {Object} Frame
+ * @property {number} gameTime
+ * @property {FrameObject[]} objects
+ * @property {Object<string,string[]>} [terrain]  — roomName → terrain rows
+ * @property {Array<{level:string, message:string, bot:string}>} [console] — structured console entries for this tick
  */
 
 /**
@@ -395,6 +499,10 @@
  * @property {Object<string,string>} objectOwners       — _id → user (owner)
  *
  * @property {string[]} frameworkWarnings               — technical framework warnings (not bot errors)
+ *
+ * @property {Array<{level: 'error'|'warn'|'info', message:string, bot:string, tick:number}>} [_consoleEntries]
+ *           — @internal structured console entries for viewer snapshots
+ *             (level comes from classifyConsoleLine — same classification as report.errors/warnings)
  *
  * @property {string|null} stopReason                   — stop reason (predicate / signal / maxTicks)
  */
@@ -713,12 +821,40 @@
  */
 
 /**
+ * Races a long-running engine promise (tick, profile export) against an
+ * engine death; the losing promise is pre-handled.
+ *
+ * @typedef {<T>(promise: Promise<T>) => Promise<T>} EngineRaceFn
+ */
+
+/**
+ * Wraps a dispose function so the engine watch is stopped first.
+ *
+ * @typedef {(dispose: DisposeFn) => DisposeFn} EngineActivateFn
+ */
+
+/**
+ * Fail-fast watch over the mock server's engine child processes
+ * (`attachEngineWatch` in `lib/runtime/runtime.js`).
+ *
+ * @typedef {Object} EngineWatch
+ * @property {string[]} errors        — fatal engine failures (first wins)
+ * @property {string[]} warnings      — non-fatal crashes of other processes
+ * @property {Promise<never>} death   — rejects with ENGINE_CRASH on engine death
+ * @property {EngineRaceFn} race      — race a tick/profile promise against `death`
+ * @property {() => void} attachChildren — attach exit listeners (after server.start())
+ * @property {EngineActivateFn} activate — attachChildren + dispose wrapping
+ * @property {() => void} dispose     — stop recording (expected shutdown)
+ */
+
+/**
  * Result of `prepareServer`.
  *
  * @typedef {Object} PreparedServer
  * @property {ScreepsServer} server
  * @property {StorageAdapter} adapter
  * @property {DisposeFn} dispose
+ * @property {EngineWatch} engineWatch
  */
 
 /**
@@ -780,10 +916,19 @@
 /**
  * Message sent by the worker via `process.send`.
  *
+ * `result` is scenario-owned (usually the last world's report) and is never
+ * rewritten. The aggregate counters `totalTicks` / `totalWorlds` are attached
+ * separately by the worker: they cover ALL worlds the scenario created, so
+ * multi-world scenarios are not misrepresented by the last world's report.
+ * Only additive counters are aggregated — per-world data (errors, metrics,
+ * finalMemory, ...) is intentionally never merged.
+ *
  * @typedef {Object} WorkerMessage
  * @property {'pass'|'skip'|'fail'|'timeout'} status
  * @property {ScenarioOutput} [result]
  * @property {string} [error]
+ * @property {number} [totalTicks]  — ticksRun summed across all worlds
+ * @property {number} [totalWorlds] — number of worlds the scenario created
  */
 
 // ─── CLI ──────────────────────────────────────────────────────────────────
@@ -806,6 +951,8 @@
  * @property {'pass'|'skip'|'fail'|'timeout'} status
  * @property {string} [error]
  * @property {number} [time]
+ * @property {number} [totalTicks]  — ticksRun summed across all worlds
+ * @property {number} [totalWorlds] — number of worlds the scenario created
  */
 
 module.exports = {};

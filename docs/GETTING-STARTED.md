@@ -182,6 +182,7 @@ async function run(opts = {}) {
     ],
     bots: [{ username: 'bot', rooms: [ROOM_NAME] }],
     ticks: 1000,
+    ...opts,
   });
 
   try {
@@ -203,7 +204,7 @@ async function run(opts = {}) {
 module.exports = { run };
 ```
 
-> `opts` is passed from the CLI, usually contains `profiling`.
+> `opts` is spread into `createWorld` — it passes CLI flags like `profiling` and `viewer` through.
 
 ### Step 3. Run it
 

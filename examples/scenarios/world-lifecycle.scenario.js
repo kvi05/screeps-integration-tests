@@ -28,7 +28,7 @@ async function run(opts = {}) {
             rooms: [spec.baseRoom('W0N1')],
             bots: [{ username: 'bot', rooms: 'W0N1' }],
             ticks: 10,
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {
@@ -82,7 +82,7 @@ async function run(opts = {}) {
             bots: [{ username: 'bot', rooms: 'W0N1' }],
             ticks: 20,
             until: { maxTicks: 10 },
-            profiling: opts.profiling,
+            ...opts,
         });
 
         try {

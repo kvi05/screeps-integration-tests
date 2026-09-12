@@ -31,8 +31,8 @@ async function run(opts = {}) {
                 },
             ],
             ticks,
-            profiling: opts.profiling,
             logLevel: 'all',
+            ...opts,
         });
     }
 

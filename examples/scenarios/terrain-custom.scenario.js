@@ -44,8 +44,8 @@ async function run(opts = {}) {
             ],
             bots: [{ username: 'bot', rooms: ['W0N1'] }],
             ticks,
-            profiling: opts.profiling,
             logLevel: 'error',
+            ...opts,
         });
 
         try {
@@ -96,7 +96,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: 'bot', rooms: ['W0N1'] }],
             ticks,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -145,7 +145,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: 'bot', rooms: ['W0N1'] }],
             ticks,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -193,7 +193,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: 'bot', rooms: ['W0N1'] }],
             ticks,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -239,7 +239,7 @@ async function run(opts = {}) {
             ],
             bots: [{ username: 'bot', rooms: ['W0N1'] }],
             ticks,
-            profiling: opts.profiling,
+            ...opts,
             logLevel: 'error',
         });
 
@@ -267,7 +267,9 @@ async function run(opts = {}) {
     }
 
     console.log('PASS: terrain-custom — all sub-tests passed');
-    return { ticksRun: ticks, ok: true };
+    // Cross-world tick totals are computed by the worker (totalTicks in the
+    // final message) — no need to fabricate them in the return value.
+    return {};
 }
 
 module.exports = { run };

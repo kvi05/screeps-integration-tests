@@ -30,7 +30,7 @@ const BOT_SPEC = [{ username: 'bot', rooms: ROOM }];
  *
  * Run: npm run test:integration -- --only <filename-without-.scenario.js>
  *
- * @param {Object} [opts] — options from runScenario.js (profiling, ...)
+ * @param {Object} [opts] — options from runScenario.js (profiling, viewer, ...), spread into createWorld
  * @returns {Promise<Object>} report
  */
 async function run(opts = {}) {
@@ -41,8 +41,8 @@ async function run(opts = {}) {
         rooms: [BASE_ROOM],
         bots: BOT_SPEC,
         ticks: ticks,
-        profiling: opts.profiling,
         logLevel: 'error',
+        ...opts,
     });
 
     try {

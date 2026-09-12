@@ -13,6 +13,12 @@ cd screeps-integration-tests
 npm ci          # use ci, not install — we track package-lock.json
 ```
 
+**Engine snapshot after Node.js upgrades.** `@screeps/driver` ships a
+prebuilt V8 snapshot that only works with the exact V8 version it was built
+with. After a Node.js patch upgrade, engine processes would crash or hang;
+`ensureEngineSnapshotCompat` now regenerates the snapshot automatically
+(stamp-guarded, lock-serialised), once per run before workers are forked.
+
 ## Project structure at a glance
 
 ```
@@ -48,34 +54,44 @@ For a deep dive into the architecture, see
 The `npm run check` command runs the full pipeline:
 
 ```
-lint → format:check → unit tests → integration tests
+lint → format:check → viewer build → unit tests → integration tests → viewer tests
 ```
 
-| Command                              | What it does                           |
-| ------------------------------------ | -------------------------------------- |
-| `npm run lint`                       | ESLint across all JS files             |
-| `npm run lint:fix`                   | ESLint with auto-fixes                 |
-| `npm run format`                     | Prettier — write                       |
-| `npm run format:check`               | Prettier — check only                  |
-| `npm test`                           | Jest unit tests (`tests/**/*.test.js`) |
-| `npm run test:integration`           | All integration scenarios              |
-| `npm run test:integration:smoke`     | Smoke test only (`--only smoke-empty`) |
-| `npm run test:integration:profiling` | Scenarios with callgrind profiling     |
-| `npm run test:integration:capture`   | Capture fixture                        |
-| `npm run check`                      | Full CI pipeline                       |
+Scripts are grouped by prefix — run `npm run help` for the annotated catalog.
 
-### Known issues
+### Unified — daily drivers
 
-**Storage-singleton race.** `@screeps/common/lib/storage.js` holds one TCP
-socket per process. When multiple `createWorld` calls happen in a row in
-one scenario (e.g. `world-spawn` with 15 worlds), there is a narrow window
-between `dispose()` and the next `server.start()` where the old socket is
-not yet closed and the new storage process is not yet listening.
+| Command                          | What it does                           |
+| -------------------------------- | -------------------------------------- |
+| `npm run check`                  | Full CI pipeline                       |
+| `npm test`                       | Jest unit tests (`tests/**/*.test.js`) |
+| `npm run test:integration`       | All integration scenarios              |
+| `npm run test:integration:smoke` | Smoke test only (`--only smoke-empty`) |
+| `npm run viewer`                 | Browser viewer UI (Scenario Manager)   |
 
-In practice it doesn't manifest: the 1-second reconnect in `storage.js`
-(Screeps) + the duration of the `createWorld` pipeline cover the race.
-Symptom — `Storage connection lost` in stderr (filtered in
-`pipeChildStreams`). It does not affect results.
+### Quality
+
+| Command                | What it does               |
+| ---------------------- | -------------------------- |
+| `npm run lint`         | ESLint across all JS files |
+| `npm run lint:fix`     | ESLint with auto-fixes     |
+| `npm run format`       | Prettier — write           |
+| `npm run format:check` | Prettier — check only      |
+
+### Viewer client
+
+| Command                | What it does                                    |
+| ---------------------- | ----------------------------------------------- |
+| `npm run viewer:build` | Install + build the client (Vite → viewer/dist) |
+| `npm run viewer:test`  | Vitest tests for the viewer client              |
+| `npm run viewer:dev`   | Vite dev server with HMR (see docs/VIEWER.md)   |
+
+### Precise — tools & variants
+
+| Command                              | What it does                       |
+| ------------------------------------ | ---------------------------------- |
+| `npm run test:integration:profiling` | Scenarios with callgrind profiling |
+| `npm run fixture:capture`            | Capture a memory fixture           |
 
 ## Code conventions
 
